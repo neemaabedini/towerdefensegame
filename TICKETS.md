@@ -580,6 +580,39 @@ reviewer); Sonnet does (coder, QA).
   ≥ roughly the old 400/600 floor, without needing a maxed/rushed build. Do not conflate with CD-41 (that
   ticket's cliff is W4, for weaker/leaner archetypes, and is a separate income-floor problem — see CD-41's
   own note that CD-45 did not resolve it).
+- [ ] CD-50 (balance, P2) — **Every production upgrade is a dead option — payback is longer than the
+  level** — found 2026-07-15 while testing (and rejecting) a user proposal to cheapen production upgrades
+  as a CD-48 fix. **Architect first** — it's a knob with a no-dead-options rule attached, not a twiddle.
+  **The numbers** (`upgradeCost = cost × upgradeCostMult × level`, `incomeMul = 1 + 0.35(level−1)`, both
+  levels are 5-6 days so an upgrade bought on day 2 has ~4 paying dawns):
+  | upgrade | cost | gain | payback | net over a whole run |
+  |---|---|---|---|---|
+  | `m1` mining L1→L2 | 117₡ | +19.6/dawn | **6.0 dawns** | **−39₡** |
+  | `m1` mining L2→L3 | 234₡ | +19.6/dawn | **11.9 dawns** | **−175₡** |
+  | `m2` mining L1→L2 | 117₡ | +24.5/dawn | 4.8 dawns | −19₡ |
+  | `a2` plasma L1→L2 | 153₡ | +29.8/dawn | 5.1 dawns | −34₡ |
+  | `a2` plasma L2→L3 | 306₡ | +29.7/dawn | **10.3 dawns** | **−217₡** |
+  **Buying every production upgrade costs 1161₡ and returns 517₡ — a net −644₡.** Not one of them ever
+  pays back. A rational player never upgrades production, which means `maxLevel: 3` on `mining_facility`
+  and `plasma_tap` is decorative and the level-scaling curve (`×1.35`, `×1.7`) is dead code in practice.
+  **This is a no-dead-options violation** — the same rule CD-37/CD-38 enforce brutally on defense
+  buildings and that ROADMAP's Phase 2 clarity rule ("no option may be a trap pick", the They Are
+  Billions lesson) states outright. It has simply never been checked on the economy side.
+  **Verified live, not just derived:** setting both production `upgradeCostMult` 0.9 → **0.25** (a 72%
+  discount) makes the sim actually buy them — the reference build's production goes from L1 to **m3/p2**
+  and total invested by W6 rises 1738₡ → **1865₡**. Change was reverted; not shipped.
+  **Do NOT file this as CD-48's fix — that was the hypothesis under test and it failed.** +127₡ against
+  CD-48's **762₡** gap closes **17%**, and the ceiling is structural: even *free* production upgrades
+  yield only ~+738₡ gross, and only for a build holding all three income sites — which is the greedy build
+  that dies at W3 (unchanged at every multiplier tested). See CD-48.
+  **For the architect:** the real question isn't the multiplier, it's that **income upgrades bought late
+  have too few dawns left to pay back on a 5-6 day level**. Options: cut `upgradeCostMult` for production
+  only (cheapest, ~0.4 makes L1→L2 break even, ~0.25 makes it clearly good); or raise `incomeMul`'s slope
+  for production; or cut `maxLevel` to 1-2 and admit income doesn't scale; or **more waves** (ROADMAP's
+  own note that Thronefall runs ~15 waves/level to our 6 — see CD-48 and design §13(4)). Whichever, the
+  pass criterion is the standing one: **name the metric before shipping** (CD-37's lesson, fourth time),
+  and check it doesn't re-open CD-35's idle-money snowball (≤70₡/dawn) or make economy-first dominant —
+  it currently doesn't, since economy-first still dies at W3 at every multiplier down to free.
 - [ ] CD-49 (feature, P2) — **Widen branch coverage — the cheapest build-variety win available** — filed
   2026-07-15 against the user's stated goal ("different build options so things don't get stale over
   multiple playthroughs"). **Architect first** (new options are new balance surface), but zero engine work:
