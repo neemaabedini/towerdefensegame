@@ -175,8 +175,15 @@ reviewer); Sonnet does (coder, QA).
   reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
   reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
   shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
-- [ ] CD-45 (bug, P2) — **FIXED 2026-07-15 via enemy separation steering (user-directed) — awaiting
-  code-review + qa-engineer balance re-baseline; left open until QA signs off.** `Game.separateEnemies(dt)`
+- [x] CD-45 (bug, P2) — **CLOSED 2026-07-15 — user visually confirmed on screen that the "enemy healing"
+  symptom no longer reproduces; code-review complete with findings applied (commits f381247 + 4468e66,
+  both verified present in git log this session; `Game.separateEnemies` confirmed live at `Game.ts:1382`,
+  called from `updateNight` at `Game.ts:670`). The bug is fixed.** The only item this ticket left open was
+  a qa-engineer *balance* re-baseline sweep — that is balance work, not a bug, so it is spun off as
+  **CD-46** rather than held on a fixed bug ticket (house precedent: CD-35→CD-36/37, CD-38→CD-39,
+  CD-7→CD-41/42). **CD-46 must NOT be used to close CD-41 — see both tickets.** The full diagnosis and the
+  measured before/after numbers are retained below for the record. Originally **FIXED via enemy separation
+  steering (user-directed).** `Game.separateEnemies(dt)`
   mirrors the existing `separateUnits()` boids-lite, called from `updateNight` after the move loop (it
   must cover `engaged` enemies too — they're the ones stacked on a contact ring). Enemy↔enemy and
   same-layer only, so units still never push enemies (D5's porousness guarantee untouched) and flyers
@@ -383,6 +390,86 @@ reviewer); Sonnet does (coder, QA).
   *purpose* but NOT its income (a tech lab earns nothing), so the 56₡/dawn safe floor is real either way
   and this ticket is not merely an artifact of the park — but the current build is strictly worse than
   the design's intended end state, and any re-measurement should say which of the two it is measuring.
+  **Update 2026-07-15 (CD-45 closure):** CD-45's enemy-separation fix has shipped and **invalidated this
+  ticket's per-wave damage figures** (spreading bodies changed splash coverage and damage concentration).
+  This ticket's 15-build sweep must be **RE-RUN against the post-separation sim before any knob is applied**
+  — see **CD-46**, and do the two in one qa-engineer pass (don't measure the economy twice). Separately,
+  **CD-47 proposes a cheap safe-placeable "house"-archetype income building — precisely the safe-income-floor
+  mechanism this ticket's reviewer note asks for.** If the architect takes CD-47, coordinate it with this
+  ticket rather than applying an income knob in isolation; the two may be one design pass.
+- [ ] CD-46 (balance, P1) — **Re-baseline per-wave damage after CD-45's enemy separation steering** — spun
+  off from CD-45 on its closure (2026-07-15). CD-45's `Game.separateEnemies` spreads enemy bodies, which
+  changes both splash coverage and how concentrated incoming building damage is, and it moved the needle
+  hard: in an *unlimited-money, garrison-everywhere* probe script **Outpost went from a W4 hard defeat to
+  clearing W4+W5 and losing only at W6; Ridge went from a W4 clear to a W5 defeat.** The direction is
+  counter-intuitive (spread bodies = less splash value = should be *harder*); the likely cause is that
+  clumped enemies previously focus-fired one building at a time. **This invalidates the per-wave damage
+  baselines recorded in three tickets** and they must be re-measured against the post-CD-45 sim:
+  CD-36 (mixed build W1 0 / W2 55 / W3 303.3 / W4 540 / W5 633.4 / W6 758.5, HQ never below 400/600);
+  CD-38 (all-gun-tower W4 defeat, 740 total; the counter-matrix swap figures); CD-41 (the 15-build Outpost
+  W4-cliff sweep). Record the new figures here on **realistic (non-maxed) builds** — the unlimited-money
+  script above is a probe, not a real build, so it is NOT evidence about CD-41. **Hard coupling: CD-41
+  (Outpost W4 cliff, P1) must be re-measured against this same post-separation sim before it can be closed
+  or have a knob applied — do CD-46 and CD-41 in ONE qa-engineer pass.** Pass criterion: CD-36's monotonic
+  W4<W5<W6 climax still holds on a mixed build, and the CD-45 spread opened no new dominant strategy and no
+  new cliff beyond the one CD-41 already tracks. Companion architect item (flagged, not fixed — belongs to
+  the architect): `docs/design-roster-redesign.md` still asserts "enemies never pushed" in two places (D5
+  and the impl-plan bullet ~:159); suggested wording "units never push enemies; enemy↔enemy declumping
+  permitted (CD-45)."
+- [ ] CD-47 (feature, P2) — **Cheap low-yield "house"-archetype economy building (a safe income floor)** —
+  filed 2026-07-15 at user request. **Architect design pass required before implementation — do NOT
+  implement from this ticket** (same precedent as CD-7: designed first, then user decisions). Concept, in
+  the user's words: "a production building that pays you, but it is less expensive and produces less
+  resources — a cheaper option, and they can be around the base." Analogue to ThroneFall's House and
+  StarCraft's supply depot (cheap, placement-flexible, low-yield capacity/economy).
+  **Research — ThroneFall economy buildings (sources in this session's report):**
+  - **House:** cost 2g, income 1g/night (2g at L2), upgrade 2g, 20HP (30 at L2). The cheapest, safest,
+    most-numerous income; built in the *safe zone near the keep*. Survives-the-night income — a house
+    destroyed at night earns nothing that night, identical in spirit to our dawn-restoration model. No
+    upkeep, fully set-and-forget.
+  - **Mine:** 8g/night declining 1/night — a burst/backup, not sustainable.
+  - **Harbor:** ramps 0→5 (7 upgraded) boats over nights — a snowball you plant early.
+  - **Farm:** community consensus is *bad* — high cost, fragile, isolated/exposed.
+  - Player strategy consensus: "economy first, but only what you can defend perfectly." Houses win because
+    they are cheap, reliable, and sit *safe*; mine/harbor/farm are the risky/rich trade-off layer. **Worth
+    adopting: the cheap-safe-flat vs. risky-rich-scaling *split* is the core of ThroneFall's economy depth.**
+  **Grounding against CD-7 (`docs/design-economy-rework.md`):** CD-7 shipped only the *risky-rich* half —
+  `mining_facility` (placement-gated, must sit near a crystal field, income = crystal count) and `plasma_tap`
+  (one rich contested prize). CD-7 **deliberately DELETED** the old cheap placement-free income (`barracks`
+  40₡/dawn, `refinery` 70₡/dawn); its D2/§5 thesis is verbatim: *"deleting barracks outright is the point of
+  the ticket — it is the last placement-free income source, and while it exists the map is not the economy."*
+  A "house" (cheap, low-yield, placeable near base) **is placement-free income by definition** and therefore
+  re-opens the exact thing CD-7 closed. **This is the central design tension, and it is NOT the PM's to
+  resolve — it is a question about what the game's economy *is*.** Two coherent readings:
+    (a) it contradicts CD-7's thesis and should be rejected or heavily constrained; or
+    (b) it is the *safe-income floor* CD-7 over-corrected away — which is exactly what **CD-41** documents
+        (CD-7 halved safe-play income, safe floor 110→56₡/dawn, turning Outpost W4 into a hard cliff; CD-41's
+        reviewer note explicitly asks for "a safe-income floor criterion" or "restore an income option at
+        Outpost `s1`"). Under reading (b), a house archetype is a candidate structural fix for CD-41, and
+        **CD-47 + CD-41 should be one coordinated design pass, not two.**
+  **Open questions for the architect (do NOT pre-answer):**
+  1. Does cheap safe placement-free income belong in CD-7's economy at all (tension above)? If yes, is it
+     framed as CD-41's safe floor, and does the §12-item-1 190–230₡/day income invariant get re-opened
+     (CD-41's reviewer already argues that invariant measures the wrong quantity)?
+  2. **Placement model.** The game has NO free placement — fixed sites, ≤4 options/site, keys 1–4 (CD-7 C7).
+     A house cannot literally go "anywhere." Is it (i) a cheap option added to existing safe rear sites
+     (which? Outpost `s1`/Ridge `s1` are sensor/research; a 5th option breaks the key cap), (ii) a new
+     dedicated "housing" site cluster authored into both levels, or (iii) deferred onto CD-9's free-placement
+     layer? This is the biggest structural fork.
+  3. **Balance (CD-7 C11 + §12 item 1).** Marginal income/₡ must trail buying a tower and must not re-inflate
+     past the income ceiling. What cost / yield / max-count makes it "the safe floor," not the dominant buy?
+  4. **Anti-upkeep (ROADMAP Kingdom Two Crowns lesson; CD-7 C10).** If houses are numerous and each is
+     placed/managed/re-defended per day, the building becomes exactly the micromanagement chore the genre
+     hates. Dawn-restoration already gives free rebuild — but a per-day cap and set-and-forget income must
+     be preserved. How many, and how is placement kept non-clicky?
+  5. **Naming (CD-16, user sign-off required).** "Supply depot" is a banned Blizzard term (ROADMAP IP rule 1);
+     "house" is ThroneFall's word. The id is the contract; the display name is CD-16's, with the user's
+     sign-off — **do not auto-name.**
+  **Must NOT:** duplicate `mining_facility` (placement-gated, crystal-scaled) or fight its "map is the budget"
+  design; re-introduce the 1600₡ idle-money snowball CD-35 killed; add any upkeep chore (C10).
+  **Next step: architect design pass (coordinate with CD-41), then back to PM** for the two user decisions it
+  will surface (the economy-thesis tension in Q1, the name in Q5) — mirroring CD-7's "designed → two user
+  decisions" flow.
 - [ ] CD-42 (balance, P3) — **Ridge Pass `a1` (the far/contested mineral mine) has a 60% per-wave wreck
   rate** even in a build that goes on to win — found 2026-07-15 alongside CD-7's item-3 re-verification.
   Scripted 5/5-wave victory (build order: `d5` gun_tower, `a1` mining_facility, `d1` gun_tower, `d2`
@@ -430,6 +517,11 @@ reviewer); Sonnet does (coder, QA).
   geometry layer; combat power stays in slotted towers (ROADMAP Phase 4;
   architect first). StarCraft flavor: supply-depot wall-off; possible
   raise/lower gate mechanic later.
+  **CD-45 obligation (2026-07-15):** `Game.separateEnemies` (shipped in CD-45) has no terrain collision —
+  `ObstacleDef.blocks` is unused until this ticket — so once walls land, an enemy↔enemy push could squeeze
+  a body through a sealed passage with no unit involved. **Clamp enemy separation to walkable terrain when
+  the nav grid ships.** Also inherit CD-44: two Ridge Far Field crystals sit on the `south_west` lane and
+  become a blocked lane the moment `blocks` goes live.
 - [ ] CD-10 (tech-debt, P3) — Split Renderer into terrain/buildings/units/fx
   layers once units land.
 - [ ] CD-15 (tech-debt, P3) — `Game.getSnapshot()` (`src/game/Game.ts`)
