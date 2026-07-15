@@ -591,6 +591,18 @@ reviewer); Sonnet does (coder, QA).
   geometry layer; combat power stays in slotted towers (ROADMAP Phase 4;
   architect first). StarCraft flavor: supply-depot wall-off; possible
   raise/lower gate mechanic later.
+  **User decision 2026-07-15: CONFIRMED post-port — this ships in GDScript,
+  not TypeScript.** Resolves a question that had been open since the port-gate
+  discussion. Rationale: Godot has native navigation, so the nav grid and flow
+  field are substantially cheaper there than reimplementing them here and
+  porting them. Accepted costs, recorded so they aren't rediscovered: (a)
+  CD-7's seams built *for* this ticket (`ObstacleDef.blocks`, obstacles as the
+  single spatial source of truth) port unused — they cost nothing and stay as
+  the data contract; (b) the CD-45 terrain-clamp obligation below and CD-44's
+  on-lane crystals both become Godot-side work; (c) the wall system stays
+  unbuilt until after the port, so ThroneFall's "rigid building nodes"
+  complaint (ROADMAP community-feedback item 1) has no free-form geometry
+  answer in the web build — the demo ships without it, deliberately.
   **CD-45 obligation (2026-07-15):** `Game.separateEnemies` (shipped in CD-45) has no terrain collision —
   `ObstacleDef.blocks` is unused until this ticket — so once walls land, an enemy↔enemy push could squeeze
   a body through a sealed passage with no unit involved. **Clamp enemy separation to walkable terrain when
@@ -643,6 +655,14 @@ reviewer); Sonnet does (coder, QA).
   leaning kit, time-cost death penalty. Architect first. Its prerequisite
   (the Phase 3a anchor/squad system, formerly CD-8) shipped with CD-38, so
   the hero's escort should reuse that engine rather than add a second one.
+  **User decision 2026-07-15: BLOCKED on CD-41 + CD-48, then architect pass.**
+  ROADMAP's original deferral was conditional — "revisit after units ship" —
+  and that condition expired when CD-38 shipped the anchor/squad engine, so
+  this is no longer parked on a missing prerequisite. It is now parked on a
+  moving target: designing a hero's kit and death penalty against per-wave
+  balance numbers that CD-41 and CD-48 are actively changing would mean
+  re-doing it. **Unblock the moment those two close** — nothing else gates it,
+  and it does not touch the Godot port gate in either direction.
 - [ ] CD-30 (feature, P1, v1.0) — Meta progression: per-level stars
   (win / no-HQ-damage / mutator win), unlockable perks chosen pre-level,
   mutators as stat-modifier layers over the JSON defs (ROADMAP Phase 5;

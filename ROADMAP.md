@@ -9,8 +9,13 @@ Update it as decisions get made.
 - **Pathfinding: yes, eventually.** Enemies (and later friendly units) should
   route around terrain organically instead of following fixed waypoints.
   Obstacles become real collision, not set dressing.
-- **Hero character: deferred.** ThroneFall-style controllable hero adds a lot
-  of complexity (input, camera, aggro, balance). Revisit after units ship.
+- **Hero character: deferred — condition met, re-parked (updated 2026-07-15).**
+  Originally deferred "until units ship" for complexity reasons (input, camera,
+  aggro, balance). That condition **expired** when CD-38 shipped the anchor/
+  squad engine — the hero's escort is now just a garrison whose anchor moves,
+  so the prerequisite is done. Re-parked on a different, explicit gate: **CD-41
+  and CD-48 must close first**, because a hero's kit and death penalty can't be
+  designed against per-wave numbers that are still moving. See CD-29.
 - **Units are the next big gameplay feature — as anchored attachments, not
   free squads (revised 2026-07-14).** Units always belong to an anchor: a
   tower garrison (bought as an upgrade) or, later, the hero's escort. There
@@ -137,6 +142,15 @@ Update it as decisions get made.
 - Anti-spam knobs: long cooldowns, or StarCraft-style caster energy.
 
 ## Phase 4 — Pathfinding & real terrain
+
+**Ships post-port, in GDScript (decided 2026-07-15).** The port gate is
+Phases 2–3, and this phase sits after it — confirmed deliberately rather than
+by default. Godot has native navigation, so the nav grid and flow field are
+substantially cheaper there than building them here and porting them. Cost
+accepted: the wall system stays unbuilt until after the port, so the
+"rigid building nodes" complaint below has no free-form-geometry answer in the
+web demo; CD-7's `blocks`/obstacle seams port unused (they cost nothing); and
+CD-45's enemy-separation terrain clamp becomes Godot-side work. See CD-9.
 
 - Build a coarse nav grid (e.g. 24px cells) from `obstacles`; rocks become
   impassable, crystals too.
