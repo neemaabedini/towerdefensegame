@@ -182,22 +182,46 @@ reviewer); Sonnet does (coder, QA).
   same-layer only, so units still never push enemies (D5's porousness guarantee untouched) and flyers
   don't shove the ground units they overfly (D6). No RNG → CD-20-safe; determinism re-verified
   byte-identical across repeat runs.
-  **The one non-obvious part, worth not "simplifying" later:** the push is capped at half a mover's step
-  (`SEPARATION_STEP_FRACTION = 0.5`) instead of resolving the overlap outright the way `separateUnits`
-  does. That cap is load-bearing. `moveEnemy` only advances a waypoint within **2px** of it
-  (`Game.ts:712`), and an uncapped push is up to **16px/tick** for a siege walker against its
-  **1.4px/tick** step — so enemies get shoved past the arrival window permanently. First implementation
-  did exactly that and **deadlocked**: two siege walkers converging on one waypoint, one pushed past it,
-  each then walking back at the other, forever. Caught live — Ridge W4 and W5 and Outpost W5 and W6 all
-  ran 8,000 ticks without terminating (HQ 600/600, 2 enemies alive, both stuck at `pathIndex 1`). Units
-  are immune to this class because a leash re-clamps them; enemies follow a path. Keeping the push below
-  the step guarantees net progress toward the waypoint, so declumping can never stall a lane.
-  **Measured, same probe before/after (Ridge W5, garrisons on every capable site):** same-type body
-  overlap **36% of the night → 5-6%**; tightest same-type gap **0.00px → 1.5px**; the actual illusion
-  condition (a wounded body sharing a pixel with a full-health, bar-less one) now occurs on **1-2% of
-  ticks, worst pair 5.5px apart** (vs. the reported 71%/100% brutes at 0.00px) — far enough that two
-  bodies read as two bodies. Zero HP increases throughout (there never were any). Perf is a non-issue:
-  worst tick **0.3ms = 1.8% of a 16.7ms frame** at 18 concurrent enemies.
+  **The one non-obvious part, worth not "simplifying" later:** pair pushes are accumulated into a buffer
+  and each enemy's **total** displacement is then clamped to half its own step
+  (`SEPARATION_STEP_FRACTION = 0.5`), instead of resolving each overlap outright the way `separateUnits`
+  does. That clamp is load-bearing. `moveEnemy` only advances a waypoint within **2px** of it, and an
+  uncapped push is up to **16px/tick** for a siege walker against its **1.4px/tick** step — so enemies
+  get shoved past the arrival window permanently. The first implementation did exactly that and
+  **deadlocked**: two siege walkers converging on one waypoint, one pushed past it, each then walking
+  back at the other, forever. Caught live — Ridge W4/W5 and Outpost W5/W6 all ran 8,000 ticks without
+  terminating (HQ 600/600, 2 enemies alive, both stuck at `pathIndex 1`). Units are immune to this class
+  because a leash re-clamps them; enemies follow a path.
+  **The clamp is per-enemy, not per-pair — also load-bearing, and caught by code review, not by me.** A
+  per-pair bound lets an enemy overlapping K neighbours take K× the budget, reinstating the stall at
+  K≥2; the reviewer reproduced it with 5 walkers converging radially on a shared waypoint (0/5 arrived
+  in 8,000 ticks). It was latent rather than live — shipped path geometry doesn't produce radial merges —
+  i.e. a trap armed for future level authoring or for CD-9's flow field. Now verified directly: radial
+  convergence clears at **K=2/5/8 in 38/46/55 ticks**. Second review catch: the cap read base `def.speed`
+  while `moveEnemy` moves at **0.55×** when slowed, collapsing the safety margin from 2× to 1.1× and
+  dropping the stall threshold to K=3. `slowTimer` is dormant today (nothing writes it), **but CD-40's
+  first ability is Sensor Pulse, an area slow — this would have armed exactly when that shipped.** Both
+  now derive from one shared `enemyStep(e, dt)` helper so they cannot drift apart again; slowed radial
+  convergence clears at **K=3/5/8 in 71/83/99 ticks**.
+  **Measured, same probe before/after (garrisons on every capable site, both levels):** same-type body
+  overlap **36% of the night → 2-3%**; tightest same-type gap **0.00px → 1.5-3.6px**; zero HP increases
+  throughout (there never were any); determinism byte-identical across repeat runs; no wave stalls; worst
+  tick **1.8ms ≈ 11% of a 16.7ms frame** at 18 concurrent enemies.
+  **⚠ Residual readability is NOT signed off — QA must confirm visually, not by the px number.** An
+  earlier draft of this ticket claimed the residual worst pair "reads as two bodies"; code review showed
+  that reasoning is unsound and it has been withdrawn. `drawEnemyHpBar` uses `bw = r * 2.2` centred on
+  `e.x`, so for **brutes** (r=14 — the exact enemy reported) bodies a few px apart still overlap ~80% and
+  their bars overlap ~82% at the same `y`. The illusion mechanism may well survive at that separation.
+  What is solidly established is the **frequency** drop (36% → 2-3%), not its elimination. **QA's pass
+  criterion is that the reported symptom no longer reproduces on screen**, not a pixel threshold.
+  **Architect follow-up (doc drift, flagged not fixed):** `docs/design-roster-redesign.md` still asserts
+  "enemies never pushed" in **two** places (D5 itself, and the impl-plan bullet ~:159). The code comment
+  was updated; the doc was not, and the next reader of D5 inherits a false invariant. Suggested wording:
+  "units never push enemies; enemy↔enemy declumping permitted (CD-45)". Also worth recording there: D5's
+  *other* stated purpose ("Phase 4 flow fields untouched → walls keep passage-sealing") survives only
+  because Phase 4 doesn't exist yet — `separateEnemies` has no terrain collision (obstacle `blocks` is
+  unused until CD-9), so when walls land, an enemy↔enemy push could squeeze a body through a sealed
+  passage with no unit involved. **That is a real CD-9 obligation: clamp separation to walkable terrain.**
   **⚠ Balance blast radius is real and is NOT yet assessed — this is why the ticket stays open.** Spreading
   bodies changes both splash coverage and how concentrated incoming building damage is, and it moved the
   needle hard in an *unlimited-money, garrison-everywhere* script: **Outpost went from a W4 hard defeat

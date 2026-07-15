@@ -63,6 +63,9 @@ export class Game {
    *  double-fire (key repeat / click+key bounce) within sellLockoutMs. */
   private lastSellAt = 0;
   private static readonly SELL_LOCKOUT_MS = 350;
+  /** Fraction of an enemy's own movement step that separation may consume in
+   *  one tick (CD-45). Must stay below 1: see separateEnemies. */
+  private static readonly SEPARATION_STEP_FRACTION = 0.5;
 
   constructor() {
     this.loadLevel(0);
@@ -698,15 +701,22 @@ export class Game {
     }
   }
 
-  private moveEnemy(e: EnemyUnit, dt: number): void {
+  /** Distance an enemy covers in one tick, slow included. Shared by moveEnemy
+   *  and separateEnemies so the separation cap can never drift away from the
+   *  real step it is defined against (CD-45). */
+  private enemyStep(e: EnemyUnit, dt: number): number {
     const def = getEnemy(e.defId);
+    return def.speed * (e.slowTimer > 0 ? 0.55 : 1) * dt;
+  }
+
+  private moveEnemy(e: EnemyUnit, dt: number): void {
     if (e.pathIndex >= e.path.length) return;
 
     const target = e.path[e.pathIndex]!;
     const dx = target.x - e.x;
     const dy = target.y - e.y;
     const d = Math.hypot(dx, dy);
-    const speed = def.speed * (e.slowTimer > 0 ? 0.55 : 1);
+    const step = this.enemyStep(e, dt);
     if (e.slowTimer > 0) e.slowTimer -= dt;
 
     if (d < 2) {
@@ -714,7 +724,6 @@ export class Game {
       return;
     }
 
-    const step = speed * dt;
     if (step >= d) {
       e.x = target.x;
       e.y = target.y;
@@ -1351,20 +1360,31 @@ export class Game {
    *  ground units they fly over (D6). Deterministic — no RNG, so the sim
    *  stays lockstep/replay-safe (CD-20). O(n^2) over the live enemy count.
    *
-   *  The push is capped at half a mover's step (SEPARATION_STEP_FRACTION)
-   *  rather than resolving the overlap outright the way separateUnits does.
-   *  That cap is load-bearing, not tuning: moveEnemy only advances a waypoint
-   *  within 2px of it (Game.ts ~712), so an uncapped push — up to 16px/tick
-   *  for a siege walker against a 1.4px/tick step — shoves enemies past that
-   *  window forever. Two of them converging on one waypoint then deadlock,
-   *  each walking back at the other, and the wave never ends. Units are immune
-   *  to this because a leash re-clamps them; enemies follow a path instead.
-   *  Keeping the push below the step guarantees net progress toward the
-   *  waypoint, so declumping can never stall a lane. */
-  private static readonly SEPARATION_STEP_FRACTION = 0.5;
-
+   *  Pair pushes are accumulated into a buffer and each enemy's TOTAL
+   *  displacement is then clamped to a fraction of its own step
+   *  (SEPARATION_STEP_FRACTION), rather than resolving each overlap outright
+   *  the way separateUnits does. That clamp is load-bearing, not tuning.
+   *  moveEnemy only advances a waypoint within 2px of it, so a push that can
+   *  outrun the step shoves enemies past that window forever: two of them
+   *  converging on one waypoint deadlock, each walking back at the other, and
+   *  the wave never ends. An uncapped push (16px/tick for a siege walker
+   *  against its 1.4px/tick step) did exactly that. Units are immune to this
+   *  class because a leash re-clamps them; enemies follow a path instead.
+   *
+   *  The clamp is per-enemy and not per-pair on purpose: a per-pair bound lets
+   *  an enemy overlapping K neighbours take K x the budget, which reinstates
+   *  the stall for K >= 2 (reproduced with 5 walkers converging radially on a
+   *  shared waypoint). Bounding each enemy's summed displacement below its own
+   *  step is what actually guarantees net progress toward the waypoint, for
+   *  any neighbour count and any future level geometry. Accumulating first
+   *  also drops the mid-loop position mutation, so the result no longer
+   *  depends on array order. */
   private separateEnemies(dt: number): void {
     const n = this.enemies.length;
+    if (n < 2) return;
+    const pushX = new Float64Array(n);
+    const pushY = new Float64Array(n);
+
     for (let i = 0; i < n; i++) {
       const a = this.enemies[i]!;
       if (a.hp <= 0) continue;
@@ -1380,23 +1400,27 @@ export class Game {
         const d = Math.hypot(dx, dy);
         const minD = defA.radius + defB.radius;
         if (d >= minD) continue;
-        const cap =
-          Math.min(defA.speed, defB.speed) * dt * Game.SEPARATION_STEP_FRACTION;
-        if (d < 0.01) {
-          // Identical position (same spawn, same speed) — nudge along the axis
-          // deterministically so the next tick has a normal to work with.
-          a.x -= cap;
-          b.x += cap;
-          continue;
-        }
-        const push = Math.min((minD - d) / 2, cap);
-        const nx = dx / d;
-        const ny = dy / d;
-        a.x -= nx * push;
-        a.y -= ny * push;
-        b.x += nx * push;
-        b.y += ny * push;
+        // Identical position (same spawn, same speed) — separate along a fixed
+        // axis so the next tick has a real normal to work with. Deterministic.
+        const nx = d < 0.01 ? 1 : dx / d;
+        const ny = d < 0.01 ? 0 : dy / d;
+        const push = (minD - d) / 2;
+        pushX[i] -= nx * push;
+        pushY[i] -= ny * push;
+        pushX[j] += nx * push;
+        pushY[j] += ny * push;
       }
+    }
+
+    for (let i = 0; i < n; i++) {
+      const e = this.enemies[i]!;
+      if (e.hp <= 0) continue;
+      const mag = Math.hypot(pushX[i]!, pushY[i]!);
+      if (mag < 1e-9) continue;
+      const cap = this.enemyStep(e, dt) * Game.SEPARATION_STEP_FRACTION;
+      const scale = Math.min(mag, cap) / mag;
+      e.x += pushX[i]! * scale;
+      e.y += pushY[i]! * scale;
     }
   }
 
