@@ -175,6 +175,46 @@ reviewer); Sonnet does (coder, QA).
   reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
   reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
   shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
+- [ ] CD-45 (bug, P2) — **Enemies stack on the same pixel, so a dead enemy's HP bar "transfers" to a
+  healthy one behind it — reads to the player as an enemy healing to full** — user-reported 2026-07-15
+  ("on wave 5 one of the enemies is recovering all of its health after destroying a garrison"),
+  root-caused and reproduced the same day. **The HP does not actually change — verified twice over:**
+  statically, the only writes to `e.hp` are `def.maxHp` at spawn (`Game.ts:589`), `-= dmg` in
+  `hurtEnemy`, and `= 0` on death, and `hurtEnemy` is heal-proof by construction
+  (`Math.max(1, rawDamage - def.armor)` can only subtract, even given a negative input — every damage
+  source, including splash, funnels through it); empirically, a tick-by-tick HP diff across both levels
+  forced onto wave 5 (~3,300 ticks, 10 garrisons destroyed, warlord included) recorded **zero HP
+  increases and zero over-max**. Since HP never rises, `e.hp >= e.maxHp` can never flip false→true, so a
+  bar is mathematically incapable of refilling.
+  **Actual mechanism — two mundane things combining:** (1) `Renderer.ts:1304` hides the bar entirely at
+  full health (`if (e.hp >= e.maxHp) return;`), so a healthy enemy is visually indistinguishable from
+  no enemy at all; (2) **enemies have no separation steering** — `Game` has `separateUnits()` for
+  garrison squads only, so enemies walking identical waypoint paths at identical speeds stack perfectly,
+  and stack *hardest* where `resolveEnemyContact` halts them all on the same contact ring
+  (`def.radius + 28`) around a building. So several bodies occupy one pixel, one bar is drawn per enemy
+  at the same coordinates, and the visible bar belongs to whichever draws last. Kill the wounded one and
+  its bar disappears, revealing an untouched enemy that was there the whole time.
+  **Measured (Ridge Pass, wave 5, garrisons on every garrison-capable site):** same-type enemy overlap
+  (centres closer than one body radius) occurs on **618 of 1,729 ticks = 36% of the night**; tightest
+  cluster is **two brutes at 0.00px separation, one at 71% and one at 100%** — i.e. one visible bar,
+  two bodies, and the 100% one contributing no bar at all. At the instant a garrison at `a1` died,
+  **4 brutes sat at an identical 41px** from it (71%/93%/89%/60%); at `d1`, 3 brutes at 42px
+  (71%/93%/39%). Both wave 5s field 4 brutes, so this is reproducible on either level.
+  **Why it matters beyond this report:** the player cannot count the swarm or read which enemy is nearly
+  dead — it silently defeats target prioritisation and makes ROADMAP's "swarm spectacle" lever
+  (They Are Billions lesson) unreadable rather than impressive. It also means every QA balance
+  observation about "N enemies engaged" has been made against a display that under-shows the stack.
+  **Fix needs the architect — the obvious repair is a sim change with real balance blast radius.** True
+  fix is enemy separation steering, mirroring the existing `separateUnits()` boids-lite already written
+  for garrison squads (ROADMAP Phase 3a describes exactly this: "radius collision + separation
+  steering"). It needs no RNG, so it stays CD-20-safe — but spreading bodies out directly changes how
+  many enemies a `siege_tank`/`missile_battery` splash catches, so it invalidates the CD-36/CD-38/CD-41
+  damage baselines and must be measured, not eyeballed. Cheaper mitigations, each partial: always draw
+  the enemy bar (removes the *vanish*, but the bar still jumps 71%→100% on the same pixel, so it trades
+  one misread for another); offset stacked bars vertically; or draw a stack-count badge. **Note the
+  scheduling trap:** CD-9's flow field would spread enemies naturally and dissolve this, but CD-9 sits
+  in Phase 4, *after* the ROADMAP's Godot port gate — so "wait for CD-9" means shipping this misread
+  through the entire port and the demo. Recommend deciding explicitly rather than by default.
 - [ ] CD-43 (tech-debt, P2) — **CD-7 Steps 1-3 code-review findings** — filed 2026-07-15 by the new
   `code-reviewer` agent (first run; the seat didn't exist when Steps 1-3 went coder→QA, so this is a
   catch-up review of committed code `112efb8`). Verdict: **0 must-fix, 4 should-fix, nothing blocking** —
