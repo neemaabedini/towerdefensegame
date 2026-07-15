@@ -354,7 +354,21 @@ Make/break items mapped to our game:
 
 ## Open questions
 
-1. Research: one global track tree, or pick-1-of-3 each day (roguelite-ish)?
+1. ~~Research: one global track tree, or pick-1-of-3 each day (roguelite-ish)?~~
+   **ANSWERED 2026-07-15 — neither. Global upgrades live on the Command
+   Center as a small set of picks** (`docs/design-wave-legibility.md` §7c,
+   option C1): one fork at CC level 2, 1-of-2 (Weapons / Plating), global
+   effects, numbers on the chip face, reusing CD-38's shipped `branch`
+   mechanism. Rationale: Thronefall has **no in-run research tree at all** —
+   its whole global layer is two castle upgrades, and it carries build
+   variety in a pre-run perk loadout (CD-30) plus per-building branches
+   (CD-49) instead. A 6-node tree was a third variety system stacked on two
+   we haven't built. Deletes `research.json`, `ResearchRing`, `ResearchState`,
+   `research_facility` and the sell-back exploit class (the HQ can't be sold).
+   **Conditional, stated honestly:** this only holds if CD-49 and CD-30 land —
+   they carry the variety load. The rejected tree's one real merit was as a
+   late-game money sink (CD-7 §6). Roguelite draft stays available later as a
+   presentation layer once CD-20 ships a seeded RNG.
 2. Map scale: stay one-screen (960×540, ThroneFall-like readability) or grow
    maps + camera pan once WASD exists? (Camera pan pairs naturally with a
    future hero.)

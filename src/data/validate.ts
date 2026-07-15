@@ -9,6 +9,30 @@ function dist(ax: number, ay: number, bx: number, by: number): number {
 }
 
 /**
+ * Distance from a point to a line SEGMENT, not to its endpoints (CD-43/CD-44).
+ * Measuring to waypoints alone is what let Ridge's Far Field ship: its crystals
+ * clear every waypoint by 19-40px while sitting 1.8px and 10.8px from the lane
+ * enemies actually walk. An obstacle can clear every vertex and still be parked
+ * mid-leg.
+ */
+function distToSegment(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+): number {
+  const vx = bx - ax;
+  const vy = by - ay;
+  const len2 = vx * vx + vy * vy;
+  if (len2 === 0) return dist(px, py, ax, ay);
+  let t = ((px - ax) * vx + (py - ay) * vy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return dist(px, py, ax + t * vx, ay + t * vy);
+}
+
+/**
  * DEV-only data contract check (docs/design-economy-rework.md R4). The
  * `as unknown as` casts in levels.ts:63/buildings.ts:78 erase tsc's ability
  * to catch a stale category string or a dangling building id in the JSON —
@@ -17,13 +41,20 @@ function dist(ax: number, ay: number, bx: number, by: number): number {
  * future Godot port gets (Godot has no TS types at all). Fails loud on boot
  * rather than degrading gracefully, by design.
  *
- * Obstacle-clearance is checked against `kind: "rock"` only. Crystal/plasma
- * obstacles are deliberately close to (sometimes well under 20px of) the
- * resource sites that mine them and, per Ridge Pass's Far Field, can sit
- * near a path waypoint too — that's the map-is-the-economy premise working
- * as designed, not a placement mistake. Rocks are the real terrain hazard
- * (impassable, unrelated to any site's function), so they're what this
- * check actually guards against.
+ * Clearance is scoped by WHAT IS MEASURED, not by obstacle kind (CD-43 #1):
+ *
+ * - SITE clearance → rocks only. Crystal/plasma obstacles are deliberately
+ *   close to (sometimes well under 20px of) the resource sites that mine them.
+ *   That's the map-is-the-economy premise working as designed.
+ * - PATH clearance → every kind. Nothing should sit on a lane enemies walk,
+ *   whatever it's made of. Exempting crystals here bought nothing and hid a
+ *   real bug (CD-44): Ridge's Far Field crystals clear every waypoint by
+ *   19-40px but sit 1.8px and 10.8px from the segment between them. Measured
+ *   against segments, not vertices — see distToSegment.
+ *
+ * Today this is cosmetic (obstacles have no collision), but `ObstacleDef.blocks`
+ * defaults true and goes live with CD-9's nav grid, at which point anything on
+ * a lane becomes a wall.
  */
 export function validateLevels(levels: LevelDef[] = LEVELS): void {
   const errors: string[] = [];
@@ -54,19 +85,27 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
 
     for (const o of level.obstacles) {
-      if (o.kind !== "rock") continue;
-      for (const site of level.sites) {
-        if (dist(o.x, o.y, site.x, site.y) < MIN_OBSTACLE_CLEARANCE) {
-          errors.push(
-            `${level.id}: rock at (${o.x},${o.y}) sits within ${MIN_OBSTACLE_CLEARANCE}px of site ${site.id}`,
-          );
+      // Site clearance: rocks only — resource obstacles belong near their sites.
+      if (o.kind === "rock") {
+        for (const site of level.sites) {
+          if (dist(o.x, o.y, site.x, site.y) < MIN_OBSTACLE_CLEARANCE) {
+            errors.push(
+              `${level.id}: rock at (${o.x},${o.y}) sits within ${MIN_OBSTACLE_CLEARANCE}px of site ${site.id}`,
+            );
+          }
         }
       }
+
+      // Path clearance: every kind, measured to the segment, not the vertices.
       for (const [spawnId, path] of Object.entries(level.paths)) {
-        for (const wp of path) {
-          if (dist(o.x, o.y, wp.x, wp.y) < MIN_OBSTACLE_CLEARANCE) {
+        for (let i = 0; i < path.length - 1; i++) {
+          const a = path[i]!;
+          const b = path[i + 1]!;
+          const d = distToSegment(o.x, o.y, a.x, a.y, b.x, b.y);
+          if (d < MIN_OBSTACLE_CLEARANCE) {
             errors.push(
-              `${level.id}: rock at (${o.x},${o.y}) sits within ${MIN_OBSTACLE_CLEARANCE}px of ${spawnId}'s path`,
+              `${level.id}: ${o.kind} at (${o.x},${o.y}) sits ${d.toFixed(1)}px from ` +
+                `${spawnId}'s lane (needs ${MIN_OBSTACLE_CLEARANCE}px) — on the path enemies walk`,
             );
           }
         }

@@ -83,13 +83,14 @@
           { "enemyId": "raider", "count": 6, "delay": 0, "interval": 0.6, "spawnId": "west" },
           { "enemyId": "brute", "count": 3, "delay": 4, "interval": 1.5, "spawnId": "north" },
           { "enemyId": "swarmling", "count": 8, "delay": 1, "interval": 0.5, "spawnId": "west" },
-          { "enemyId": "spitter", "count": 4, "delay": 3, "interval": 1.0, "spawnId": "west" }
+          { "enemyId": "spitter", "count": 4, "delay": 3, "interval": 1.0, "spawnId": "west" },
+          { "enemyId": "skimmer", "count": 3, "delay": 5, "interval": 1.2, "spawnId": "north" }
         ]
       },
       {
         "clearBonus": 90,
         "entries": [
-          { "enemyId": "skimmer", "count": 6, "delay": 0, "interval": 0.8, "spawnId": "north" },
+          { "enemyId": "skimmer", "count": 3, "delay": 0, "interval": 0.8, "spawnId": "north" },
           { "enemyId": "brute", "count": 4, "delay": 2, "interval": 1.2, "spawnId": "west" },
           { "enemyId": "raider", "count": 8, "delay": 0.5, "interval": 0.5, "spawnId": "west" },
           { "enemyId": "siege_walker", "count": 2, "delay": 6, "interval": 1, "spawnId": "north" }
@@ -155,8 +156,8 @@
       { "x": 926, "y": 182, "r": 14, "kind": "crystal" },
       { "x": 878, "y": 248, "r": 15, "kind": "crystal" },
       { "x": 160, "y": 396, "r": 16, "kind": "crystal" },
-      { "x": 196, "y": 420, "r": 14, "kind": "crystal" },
-      { "x": 140, "y": 432, "r": 15, "kind": "crystal" },
+      { "x": 190, "y": 398, "r": 14, "kind": "crystal" },
+      { "x": 134, "y": 420, "r": 15, "kind": "crystal" },
       { "x": 186, "y": 370, "r": 13, "kind": "crystal" },
       { "x": 146, "y": 364, "r": 14, "kind": "crystal" },
       { "x": 560, "y": 455, "r": 18, "kind": "plasma" }

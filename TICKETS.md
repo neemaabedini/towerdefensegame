@@ -280,7 +280,18 @@ reviewer); Sonnet does (coder, QA).
   scheduling trap:** CD-9's flow field would spread enemies naturally and dissolve this, but CD-9 sits
   in Phase 4, *after* the ROADMAP's Godot port gate — so "wait for CD-9" means shipping this misread
   through the entire port and the demo. Recommend deciding explicitly rather than by default.
-- [ ] CD-43 (tech-debt, P2) — **CD-7 Steps 1-3 code-review findings** — filed 2026-07-15 by the new
+- [ ] CD-43 (tech-debt, P2) — **Finding #1 DONE 2026-07-15; #2/#3/#4 still open.** #1 (validator
+  clearance) is fixed: `src/data/validate.ts` now scopes by *what is measured* rather than obstacle kind
+  — site clearance stays rocks-only (resource obstacles belong near the sites that mine them), while
+  **path clearance applies to every kind and measures to the path SEGMENT via a new `distToSegment`**,
+  not to waypoints. It immediately caught CD-44's two crystals (1.8px / 10.8px from the lane despite
+  clearing every waypoint by 19-40px), which is exactly what it was written to catch; both levels pass
+  clean now that CD-44 is fixed. This was landed first as the prerequisite for the CD-41 wave work —
+  otherwise every level edit was being measured with a known-broken ruler
+  (`docs/design-wave-legibility.md` R12). **Still to do: #2** (`MiningSpec.minNodes` is inert and its
+  comment claims it gates option filtering — `Game.ts` gates on `requires.min`), **#3** (Outpost `a1`
+  ships `"any"`, design §5 says `defense`), **#4** (HUD income parenthetical double-rounds at Lv 3).
+  — originally filed 2026-07-15 by the new
   `code-reviewer` agent (first run; the seat didn't exist when Steps 1-3 went coder→QA, so this is a
   catch-up review of committed code `112efb8`). Verdict: **0 must-fix, 4 should-fix, nothing blocking** —
   the economy math is correct and matches the design doc exactly (every obstacle coordinate, both def
@@ -315,8 +326,17 @@ reviewer); Sonnet does (coder, QA).
   `game.statsFor()` for Step 4, and folding in a `Game.incomeFor(buildingId)` at that point would give
   the rule one home. None of these need re-QA (one is DEV-only tooling, one is cosmetic, one is a text
   line, one is a no-op on current behavior).
-- [ ] CD-44 (bug, P2) — **Two Ridge Pass Far Field crystals sit ON the `south_west` enemy lane, and the
-  validator cannot see it** — found 2026-07-15 by the code-reviewer during CD-43, independently
+- [x] CD-44 (bug, P2) — **FIXED 2026-07-15.** Moved the two offending Far Field crystals off the
+  `south_west` lane: `(196,420)` → `(190,398)` (was **1.8px** from the lane centreline, now 24.1px) and
+  `(140,432)` → `(134,420)` (was 10.8px, now 24.0px). Positions were solved, not eyeballed — constrained
+  to ≥24px off every lane segment, ≤90px from `a1` so the field still derives **5 nodes (verified —
+  Ridge income unchanged at 197₡/day)**, ≥26px from neighbouring crystals so they don't visually merge,
+  and outside any second mining site's radius (no double-dip). The field stays deep-west and close to the
+  lane — that's its design intent as "the gamble" — it just no longer sits *on* it. The fixed validator
+  (CD-43 #1) now catches this class and passes clean on both levels; it caught these two exactly (1.8px,
+  10.8px) before the move, which is how we know it has teeth.
+- [x] CD-44-ORIGINAL (reference) — **Two Ridge Pass Far Field crystals sit ON the `south_west` enemy lane,
+  and the validator cannot see it** — found 2026-07-15 by the code-reviewer during CD-43, independently
   confirmed by a point-to-segment probe over `levels.json`. The coordinates come from the design doc's
   own §5 table, so this is an **architect authoring error faithfully transcribed by the coder**, not a
   coder defect. Everyone who checked this measured distance to path *waypoints*; the crystals clear every
@@ -333,7 +353,43 @@ reviewer); Sonnet does (coder, QA).
   `(160,396)` too — 38.6px, clear but the closest of the rest), re-derive `a1`'s node count to confirm it
   still reaches 5, and re-run CD-43's validator fix to prove the check now catches this class. Architect
   should sign off on the new coordinates since the field's risk/reward placement is a design intent.
-- [ ] CD-41 (balance, P1) — **Outpost Alpha Wave 4 is a hard, near-unavoidable difficulty cliff for any
+- [ ] CD-41 (balance, P1) — **FIX SHIPPED 2026-07-15, pending qa-engineer sign-off and a user call on the
+  re-scope. The original income diagnosis below is RETIRED — it was falsified.**
+  **Falsifier run before any fix shipped** (`docs/design-wave-legibility.md` §11 Step 1 probe 1): re-ran
+  the 5-archetype sweep with `startingMoney` **320 → 460**, handing every build **+140₡ free on day 1 —
+  more than any income knob could deliver by W4** (the doc's §3a bound: W4 is only three dawns deep, so
+  the most generous knob is worth +36₡ and a *full* restoration of the old safe floor is +162₡). Result:
+  **1/5 → 2/5 archetypes clear W4. Still no majority. Income is definitively not the cause.** The
+  no-AA build is the clincher: it takes **720₡ and dies at W4 identically at 320 and at 460** — money
+  changes nothing for it. Every income knob (`incomePerDay` 14→17, `cost` 130→110, CD-47's house, freeing
+  `s1`) is therefore **rejected with reason, not deferred**.
+  **Real cause, verified independently against `levels.json`:** Outpost introduced **skimmer (air) AND
+  siege_walker (armor) on the same wave — W4 — with zero air anywhere in W1-W3.** Ridge staggers them
+  (air W3, armor W4) and has no equivalent cliff: same sim, same economy, same roster. Ridge was the
+  in-repo control all along.
+  **Fix (one data entry):** moved 3 skimmers from Outpost W4 into W3 (`levels.json`: W4 skimmer 6→3, W3
+  += skimmer×3 @ delay 5, interval 1.2, north). Both levels now introduce air at W3.
+  **Measured, controlled A/B (same builds, same money; only the W3 skimmer count varies):** the no-AA
+  build's W3 damage goes **81 → 199 → 327 → 502** at 0/2/3/4 skimmers — monotonic — while **the build
+  with AA is unaffected at 646 for every count**, i.e. anti-air does exactly its job and the signal lands
+  only on the build that skipped it. Shipped at **3**. Criteria: **CD-38's permanent all-gun-tower
+  control still hard-defeats at W4 (PASS)**; reference build still clears W4 (478₡, PASS); **no archetype
+  newly dies at W3 — outcomes are byte-identical at 0/2/3 skimmers (PASS)**. That last point is the
+  headline: **this changes no outcomes, only legibility.** It converts an ambush into a warning.
+  **⚠ Two things still open.** (1) **qa-engineer sign-off** — bundle with CD-48. (2) **User call on the
+  re-scope:** the ticket's original pass criterion ("a majority of the 5 archetypes clear W4") asserts
+  builds missing 3 of 5 roles should nonetheless win, which **contradicts CD-38's shipped verdict** ("the
+  game now demands combined arms; pure single-type strategies both fail hard"). Design doc §7b proposes
+  replacing it with a legibility criterion. **Note the criterion's sub-clause (2) as literally written
+  ("a build missing a role takes MORE W3 damage than the full-coverage reference") is itself confounded
+  and cannot be satisfied** — the reference build takes 646₡ at W3 because it is *sparse and expensive*
+  early (siege_tank), not because of air, so it out-damages the 7-gun-tower build on ground alone. The
+  meaningful test is the controlled one above (same build, AA vs no AA). **That is CD-37's lesson landing
+  for a fourth time: the criterion measured the wrong thing.** Architect should restate §7b(2) as the
+  controlled comparison.
+  ---
+  Original diagnosis, retained for the record (now falsified — see above): **Outpost Alpha Wave 4 is a
+  hard, near-unavoidable difficulty cliff for any
   realistically-paced (non-maxed) build under the new CD-7 economy** — found 2026-07-15 while re-baselining
   CD-36 against the rewritten layouts. 15 independently-designed scripted builds across five strategic
   archetypes (economy-first, defense-first, cheap-full-coverage, lean-choke-at-convergence, tanky-swap,
