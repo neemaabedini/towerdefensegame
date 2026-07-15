@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>City Defense</title>
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <div id="app">
+      <header id="top-bar">
+        <div class="brand">
+          <span class="logo">◆</span>
+          <h1 id="game-title">City Defense</h1>
+        </div>
+        <div id="status-bar" class="hidden">
+          <div class="stat" title="Credits">
+            <span class="stat-icon money">₡</span>
+            <span id="money">0</span>
+          </div>
+          <div class="stat" title="Command Center HP">
+            <span class="stat-icon hp">♥</span>
+            <span id="hq-hp">100</span>
+          </div>
+          <div class="stat" title="Wave">
+            <span class="stat-icon wave">⚔</span>
+            <span id="wave-label">Wave 0</span>
+          </div>
+          <div class="stat phase-stat">
+            <span id="phase-label" class="phase day">DAY</span>
+          </div>
+        </div>
+      </header>
+
+      <section id="screen-title" class="screen">
+        <div class="title-card">
+          <div class="title-logo">◆</div>
+          <h1 id="title-heading">City Defense</h1>
+          <p id="title-subtitle" class="subtitle hidden"></p>
+          <div class="title-actions">
+            <button id="btn-play" class="primary" type="button">Play</button>
+            <button id="btn-continue" class="ghost hidden" type="button">
+              Continue
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="screen-level-select" class="screen hidden">
+        <div class="level-select-card">
+          <h2>Select Level</h2>
+          <div id="level-cards"></div>
+          <button id="btn-back-to-title" class="ghost" type="button">
+            Back
+          </button>
+        </div>
+      </section>
+
+      <main id="game-area" class="hidden">
+        <div id="canvas-wrap">
+          <canvas id="game-canvas" width="960" height="540"></canvas>
+          <div id="world-ui"></div>
+        </div>
+
+        <aside id="side-panel">
+          <section id="level-info">
+            <h2 id="level-name">Outpost Alpha</h2>
+            <p id="level-desc">Hold the line until dawn.</p>
+          </section>
+
+          <section id="wave-forecast" class="hidden">
+            <h3>Next Wave</h3>
+            <div id="wave-forecast-list"></div>
+          </section>
+
+          <section id="build-panel">
+            <h3>Build Sites</h3>
+            <p class="hint" id="build-hint">
+              Select a highlighted site on the map, then choose a structure.
+            </p>
+            <div id="site-list"></div>
+          </section>
+
+          <section id="selected-panel" class="hidden">
+            <h3>Selected</h3>
+            <div id="selected-info"></div>
+          </section>
+
+          <section id="phase-actions">
+            <div class="phase-actions-row">
+              <button id="btn-ready" class="primary" type="button">
+                Ready for Night
+              </button>
+              <button id="btn-speed" class="speed-btn hidden" type="button">
+                <span id="speed-label">1x</span><kbd>F</kbd>
+              </button>
+            </div>
+            <button id="btn-restart" class="ghost" type="button">Restart</button>
+            <p class="keys-hint">
+              <kbd>WASD</kbd> select · <kbd>1–4</kbd> build ·
+              <kbd>U</kbd> upgrade · <kbd>Space</kbd> night ·
+              <kbd>F</kbd> speed · <kbd>P</kbd>/<kbd>Esc</kbd> pause
+            </p>
+          </section>
+        </aside>
+      </main>
+
+      <div id="overlay" class="hidden">
+        <div class="overlay-card">
+          <h2 id="overlay-title">Victory</h2>
+          <p id="overlay-body"></p>
+          <div class="overlay-actions">
+            <button id="btn-overlay-primary" class="primary" type="button">
+              Continue
+            </button>
+            <button id="btn-overlay-secondary" class="ghost" type="button">
+              Restart
+            </button>
+            <button id="btn-overlay-levels" class="ghost" type="button">
+              Level Select
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="pause-modal" class="hidden">
+        <div class="overlay-card">
+          <h2>Paused</h2>
+          <div class="overlay-actions">
+            <button id="btn-pause-resume" class="primary" type="button">
+              Resume
+            </button>
+            <button id="btn-pause-restart" class="ghost" type="button">
+              Restart
+            </button>
+            <button id="btn-pause-quit" class="ghost" type="button">
+              Quit to Menu
+            </button>
+          </div>
+          <div class="pause-settings">
+            <label class="pause-setting-row" for="pause-volume">
+              <span>Volume</span>
+              <input
+                id="pause-volume"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+              />
+            </label>
+            <label class="pause-setting-row pause-mute-row" for="pause-mute">
+              <input id="pause-mute" type="checkbox" />
+              <span>Mute</span>
+            </label>
+          </div>
+          <p class="keys-hint">
+            <kbd>WASD</kbd> select · <kbd>1–4</kbd> build ·
+            <kbd>U</kbd> upgrade · <kbd>X</kbd> undo/sell ·
+            <kbd>Space</kbd> night · <kbd>F</kbd> speed ·
+            <kbd>P</kbd>/<kbd>Esc</kbd> pause · <kbd>R</kbd> restart
+          </p>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,213 @@
+[
+  {
+    "id": "outpost_alpha",
+    "name": "Outpost Alpha",
+    "description": "Your command post sits in the southeast canyon. Raiders funnel in from the northwest — watch the warning markers.",
+    "width": 960,
+    "height": 540,
+    "startingMoney": 320,
+    "hq": { "x": 780, "y": 430 },
+    "sites": [
+      { "id": "d1", "x": 350, "y": 150, "category": "defense", "options": ["gun_tower", "garrison"] },
+      { "id": "d2", "x": 330, "y": 300, "category": "defense", "options": ["gun_tower", "garrison"] },
+      { "id": "d3", "x": 500, "y": 360, "category": "defense", "options": ["gun_tower", "siege_tank", "missile_battery", "sniper_tower"] },
+      { "id": "d4", "x": 640, "y": 300, "category": "defense", "options": ["siege_tank", "missile_battery", "gun_tower", "sniper_tower"] },
+      { "id": "d5", "x": 700, "y": 480, "category": "defense", "options": ["garrison", "missile_battery", "gun_tower", "sniper_tower"] },
+      { "id": "p1", "x": 870, "y": 380, "category": "production", "options": ["barracks", "refinery"] },
+      { "id": "p2", "x": 880, "y": 500, "category": "production", "options": ["barracks", "sensor_array"] },
+      { "id": "a1", "x": 130, "y": 200, "category": "any", "options": ["gun_tower", "garrison", "barracks"] },
+      { "id": "a2", "x": 540, "y": 255, "category": "any", "options": ["gun_tower", "sensor_array", "refinery"] }
+    ],
+    "spawns": [
+      { "id": "west", "x": 40, "y": 100 },
+      { "id": "north", "x": 220, "y": 40 }
+    ],
+    "obstacles": [
+      { "x": 620, "y": 150, "r": 30, "kind": "rock" },
+      { "x": 700, "y": 190, "r": 34, "kind": "rock" },
+      { "x": 790, "y": 240, "r": 30, "kind": "rock" },
+      { "x": 870, "y": 290, "r": 26, "kind": "rock" },
+      { "x": 150, "y": 320, "r": 30, "kind": "rock" },
+      { "x": 240, "y": 400, "r": 34, "kind": "rock" },
+      { "x": 340, "y": 470, "r": 30, "kind": "rock" },
+      { "x": 130, "y": 470, "r": 26, "kind": "rock" },
+      { "x": 230, "y": 100, "r": 22, "kind": "rock" },
+      { "x": 900, "y": 460, "r": 20, "kind": "crystal" },
+      { "x": 730, "y": 530, "r": 16, "kind": "crystal" }
+    ],
+    "paths": {
+      "west": [
+        { "x": 40, "y": 100 },
+        { "x": 150, "y": 150 },
+        { "x": 280, "y": 220 },
+        { "x": 420, "y": 290 },
+        { "x": 480, "y": 430 },
+        { "x": 620, "y": 465 }
+      ],
+      "north": [
+        { "x": 220, "y": 40 },
+        { "x": 330, "y": 80 },
+        { "x": 430, "y": 150 },
+        { "x": 640, "y": 210 },
+        { "x": 740, "y": 330 }
+      ]
+    },
+    "waves": [
+      {
+        "clearBonus": 60,
+        "entries": [
+          { "enemyId": "raider", "count": 5, "delay": 0, "interval": 1.0, "spawnId": "west" },
+          { "enemyId": "raider", "count": 4, "delay": 5, "interval": 1.0, "spawnId": "west" }
+        ]
+      },
+      {
+        "clearBonus": 70,
+        "entries": [
+          { "enemyId": "swarmling", "count": 10, "delay": 0, "interval": 0.45, "spawnId": "north" },
+          { "enemyId": "raider", "count": 4, "delay": 3, "interval": 0.8, "spawnId": "north" },
+          { "enemyId": "spitter", "count": 3, "delay": 6, "interval": 1.2, "spawnId": "north" }
+        ]
+      },
+      {
+        "clearBonus": 85,
+        "entries": [
+          { "enemyId": "raider", "count": 6, "delay": 0, "interval": 0.6, "spawnId": "west" },
+          { "enemyId": "brute", "count": 3, "delay": 4, "interval": 1.5, "spawnId": "north" },
+          { "enemyId": "swarmling", "count": 8, "delay": 1, "interval": 0.5, "spawnId": "west" },
+          { "enemyId": "spitter", "count": 4, "delay": 3, "interval": 1.0, "spawnId": "west" }
+        ]
+      },
+      {
+        "clearBonus": 90,
+        "entries": [
+          { "enemyId": "skimmer", "count": 6, "delay": 0, "interval": 0.8, "spawnId": "north" },
+          { "enemyId": "brute", "count": 4, "delay": 2, "interval": 1.2, "spawnId": "west" },
+          { "enemyId": "raider", "count": 8, "delay": 0.5, "interval": 0.5, "spawnId": "west" },
+          { "enemyId": "siege_walker", "count": 2, "delay": 6, "interval": 1, "spawnId": "north" }
+        ]
+      },
+      {
+        "clearBonus": 120,
+        "entries": [
+          { "enemyId": "swarmling", "count": 14, "delay": 0, "interval": 0.4, "spawnId": "west" },
+          { "enemyId": "swarmling", "count": 14, "delay": 0, "interval": 0.4, "spawnId": "north" },
+          { "enemyId": "brute", "count": 4, "delay": 4, "interval": 1, "spawnId": "north" },
+          { "enemyId": "siege_walker", "count": 3, "delay": 8, "interval": 2, "spawnId": "west" },
+          { "enemyId": "skimmer", "count": 5, "delay": 6, "interval": 0.9, "spawnId": "north" }
+        ]
+      },
+      {
+        "clearBonus": 200,
+        "entries": [
+          { "enemyId": "raider", "count": 10, "delay": 0, "interval": 0.45, "spawnId": "west" },
+          { "enemyId": "raider", "count": 10, "delay": 0, "interval": 0.45, "spawnId": "north" },
+          { "enemyId": "brute", "count": 4, "delay": 2, "interval": 1.2, "spawnId": "north" },
+          { "enemyId": "siege_walker", "count": 3, "delay": 5, "interval": 1.5, "spawnId": "west" },
+          { "enemyId": "skimmer", "count": 5, "delay": 8, "interval": 0.7, "spawnId": "north" },
+          { "enemyId": "warlord", "count": 1, "delay": 12, "interval": 1, "spawnId": "west" }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "ridge_pass",
+    "name": "Ridge Pass",
+    "description": "Your base holds the high ground in the northeast. Everything must climb the pass — hold the choke point.",
+    "width": 960,
+    "height": 540,
+    "startingMoney": 360,
+    "hq": { "x": 830, "y": 110 },
+    "sites": [
+      { "id": "d1", "x": 360, "y": 350, "category": "defense", "options": ["gun_tower", "garrison", "siege_tank"] },
+      { "id": "d2", "x": 500, "y": 250, "category": "defense", "options": ["gun_tower", "siege_tank", "missile_battery", "sniper_tower"] },
+      { "id": "d3", "x": 560, "y": 400, "category": "defense", "options": ["garrison", "missile_battery", "sniper_tower"] },
+      { "id": "d4", "x": 700, "y": 260, "category": "defense", "options": ["gun_tower", "garrison", "missile_battery", "sniper_tower"] },
+      { "id": "p1", "x": 900, "y": 170, "category": "production", "options": ["barracks", "refinery"] },
+      { "id": "p2", "x": 770, "y": 50, "category": "any", "options": ["barracks", "sensor_array", "refinery"] },
+      { "id": "a1", "x": 180, "y": 330, "category": "any", "options": ["gun_tower", "garrison", "barracks"] },
+      { "id": "a2", "x": 420, "y": 180, "category": "any", "options": ["siege_tank", "gun_tower", "sensor_array"] }
+    ],
+    "spawns": [
+      { "id": "west", "x": 40, "y": 240 },
+      { "id": "south_west", "x": 60, "y": 470 },
+      { "id": "south", "x": 420, "y": 510 }
+    ],
+    "obstacles": [
+      { "x": 250, "y": 140, "r": 30, "kind": "rock" },
+      { "x": 380, "y": 160, "r": 36, "kind": "rock" },
+      { "x": 520, "y": 110, "r": 32, "kind": "rock" },
+      { "x": 640, "y": 70, "r": 26, "kind": "rock" },
+      { "x": 680, "y": 390, "r": 34, "kind": "rock" },
+      { "x": 760, "y": 310, "r": 30, "kind": "rock" },
+      { "x": 850, "y": 420, "r": 30, "kind": "rock" },
+      { "x": 900, "y": 300, "r": 24, "kind": "rock" },
+      { "x": 905, "y": 220, "r": 18, "kind": "crystal" },
+      { "x": 880, "y": 60, "r": 16, "kind": "crystal" }
+    ],
+    "paths": {
+      "west": [
+        { "x": 40, "y": 240 },
+        { "x": 170, "y": 250 },
+        { "x": 300, "y": 270 },
+        { "x": 430, "y": 290 },
+        { "x": 560, "y": 250 },
+        { "x": 690, "y": 180 }
+      ],
+      "south_west": [
+        { "x": 60, "y": 470 },
+        { "x": 180, "y": 430 },
+        { "x": 300, "y": 370 },
+        { "x": 430, "y": 290 },
+        { "x": 560, "y": 250 },
+        { "x": 690, "y": 180 }
+      ],
+      "south": [
+        { "x": 420, "y": 510 },
+        { "x": 480, "y": 410 },
+        { "x": 540, "y": 320 },
+        { "x": 560, "y": 250 },
+        { "x": 690, "y": 180 }
+      ]
+    },
+    "waves": [
+      {
+        "clearBonus": 65,
+        "entries": [
+          { "enemyId": "raider", "count": 7, "delay": 0, "interval": 0.8, "spawnId": "west" }
+        ]
+      },
+      {
+        "clearBonus": 80,
+        "entries": [
+          { "enemyId": "swarmling", "count": 12, "delay": 0, "interval": 0.4, "spawnId": "south_west" },
+          { "enemyId": "raider", "count": 5, "delay": 2, "interval": 0.7, "spawnId": "south" },
+          { "enemyId": "spitter", "count": 3, "delay": 4, "interval": 1.2, "spawnId": "south_west" }
+        ]
+      },
+      {
+        "clearBonus": 80,
+        "entries": [
+          { "enemyId": "brute", "count": 3, "delay": 0, "interval": 1.4, "spawnId": "west" },
+          { "enemyId": "skimmer", "count": 5, "delay": 2, "interval": 0.8, "spawnId": "south" }
+        ]
+      },
+      {
+        "clearBonus": 100,
+        "entries": [
+          { "enemyId": "raider", "count": 10, "delay": 0, "interval": 0.45, "spawnId": "south_west" },
+          { "enemyId": "raider", "count": 10, "delay": 0, "interval": 0.45, "spawnId": "south" },
+          { "enemyId": "siege_walker", "count": 3, "delay": 5, "interval": 2, "spawnId": "west" }
+        ]
+      },
+      {
+        "clearBonus": 150,
+        "entries": [
+          { "enemyId": "swarmling", "count": 20, "delay": 0, "interval": 0.28, "spawnId": "west" },
+          { "enemyId": "brute", "count": 4, "delay": 3, "interval": 1, "spawnId": "south_west" },
+          { "enemyId": "siege_walker", "count": 2, "delay": 6, "interval": 1.5, "spawnId": "south" },
+          { "enemyId": "warlord", "count": 1, "delay": 10, "interval": 1, "spawnId": "west" }
+        ]
+      }
+    ]
+  }
+]
