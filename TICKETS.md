@@ -175,6 +175,59 @@ reviewer); Sonnet does (coder, QA).
   reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
   reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
   shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
+- [ ] CD-43 (tech-debt, P2) — **CD-7 Steps 1-3 code-review findings** — filed 2026-07-15 by the new
+  `code-reviewer` agent (first run; the seat didn't exist when Steps 1-3 went coder→QA, so this is a
+  catch-up review of committed code `112efb8`). Verdict: **0 must-fix, 4 should-fix, nothing blocking** —
+  the economy math is correct and matches the design doc exactly (every obstacle coordinate, both def
+  blocks, all six node counts, and L3×5 = 119/day all reproduce §5/§6). Fix in one cleanup pass:
+  **(1) `src/data/validate.ts:57` scopes the 20px clearance rule by the wrong axis.**
+  `if (o.kind !== "rock") continue;` drops *both* the site-clearance and path-clearance checks for
+  crystal/plasma, but only the site half needed dropping (resource sites are deliberately placed near
+  the fields they mine — that exemption is correct and QA rightly approved it). The path half was
+  discarded for free and hides a real bug — see CD-44. Fix: scope by what's measured, not by obstacle
+  kind — site clearance stays `kind === "rock"`, path clearance applies to **all** kinds. Also worth
+  proposing: the rule measures distance to *waypoints*, but the thing that matters is distance to path
+  *segments* (an obstacle can clear every vertex and still sit on a long leg — exactly what CD-44 is).
+  **(2) `src/data/buildings.ts:40` — `MiningSpec.minNodes` is inert and its comment lies about it.**
+  It's authored (3/1) and typed, but nothing reads it; `Game.ts:120` gates on `def.requires.min`. The
+  comment claims "below this the option is filtered out at loadLevel (D5)" — false of shipped code. Two
+  authored numbers for one job with no assert they agree: raising `mining.minNodes` 3→4 silently does
+  nothing. Fix: drop `minNodes` and let `requires` be the single gate, or add a `validate.ts` assert that
+  the pair matches and correct the comment. (The design doc carries the same redundancy in §4 vs D5 — the
+  coder transcribed it faithfully but shipped it inert without flagging.)
+  **(3) `src/data/levels.json:19` — Outpost `a1` ships `"any"`; design §5 explicitly says `defense`.**
+  Cosmetic only (violet ANY ring vs grey DEFENSE — `Renderer.ts:376`, `HUD.ts:234`), but it's a silent
+  divergence from an explicit spec value, and `defense` is now semantically right since all of `a1`'s
+  options are defense buildings.
+  **(4) `src/ui/HUD.ts:283` — the income parenthetical doesn't multiply out at Lv 3.** The total is
+  correct; the shown derivation isn't, because `Math.round` is applied to the per-node figure and the
+  total independently: a Lv 3 facility on 5 nodes renders `Income 119 credits at dawn (5 × 24₡ node)`
+  (5×24=120≠119). Every Lv 3 node count mismatches; Lv 1/2 are clean, so it only shows up late.
+  **Verified clean by the same review:** the `incomePerDay`-means-per-node overload (design D3) is
+  currently contained — all four consumers (`collectDawnIncome`, `previewIncome`, `HUD.renderSelected`,
+  `BuildRing` via `previewIncome`) multiply by nodes correctly and the panel total always equals the
+  money actually paid. But the `× nodes` rule now lives in three copies; §7 already slates `HUD` →
+  `game.statsFor()` for Step 4, and folding in a `Game.incomeFor(buildingId)` at that point would give
+  the rule one home. None of these need re-QA (one is DEV-only tooling, one is cosmetic, one is a text
+  line, one is a no-op on current behavior).
+- [ ] CD-44 (bug, P2) — **Two Ridge Pass Far Field crystals sit ON the `south_west` enemy lane, and the
+  validator cannot see it** — found 2026-07-15 by the code-reviewer during CD-43, independently
+  confirmed by a point-to-segment probe over `levels.json`. The coordinates come from the design doc's
+  own §5 table, so this is an **architect authoring error faithfully transcribed by the coder**, not a
+  coder defect. Everyone who checked this measured distance to path *waypoints*; the crystals clear every
+  waypoint but sit on the *segment between* them:
+  `(196,420) r14` — nearest waypoint **18.9px**, nearest segment **1.8px** (dead centre on the lane);
+  `(140,432) r15` — nearest waypoint **40.0px**, nearest segment **10.8px**. For contrast the same probe
+  shows every other resource obstacle is genuinely clear (Outpost's whole Rift Field ≥48.8px, both plasma
+  wells 108.5px/91.5px), so this is specific to Ridge's Far Field, not a systemic authoring habit.
+  **Today it's cosmetic** (crystals are set dressing that enemies walk through). **After CD-9 it is a
+  blocked lane** — `ObstacleDef.blocks` defaults true, and design R6 explicitly warns fields must not
+  become walls while R8's first knob is "move the field 20px further off the lane". Likely also a
+  contributing cause of CD-42 (Ridge `a1`'s 60% wreck rate — the mine is parked on top of the lane it's
+  supposed to sit beside). Fix: move the Far Field ~20-25px north-west off the `south_west` leg (check
+  `(160,396)` too — 38.6px, clear but the closest of the rest), re-derive `a1`'s node count to confirm it
+  still reaches 5, and re-run CD-43's validator fix to prove the check now catches this class. Architect
+  should sign off on the new coordinates since the field's risk/reward placement is a design intent.
 - [ ] CD-41 (balance, P1) — **Outpost Alpha Wave 4 is a hard, near-unavoidable difficulty cliff for any
   realistically-paced (non-maxed) build under the new CD-7 economy** — found 2026-07-15 while re-baselining
   CD-36 against the rewritten layouts. 15 independently-designed scripted builds across five strategic
