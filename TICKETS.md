@@ -129,6 +129,115 @@ appends new bug/balance tickets here.
   strict no-op at our small integer HP/armor values — a gun tower needs 2
   shots for a swarmling at both 10 and 10.7 damage) and merges them into one
   track granting both.
+  **QA verdict on Steps 1-3, 2026-07-15 (qa-engineer session): feature verified PASS; balance review
+  surfaces a real regression — see CD-41.** Design §12 items in scope: **item 1 (income invariant)
+  independently reproduced PASS** (Outpost 211/day, Ridge 197/day, both in [190,230]); **item 2 (idle
+  money ≤70₡/dawn) PASS** on every scripted build tried, both levels — idle never exceeded 70₡ at any
+  dawn across ~18 scripted playthroughs; **item 3 (contested mine not a trap) PASS on Outpost, SOFT-FAIL
+  on Ridge** — Outpost `m2` (built day 2, one supporting gun_tower at `d2`) survived undamaged through
+  W1-3 and paid income every dawn it stood, only falling in the general board-wide W4 collapse (not
+  singled out) — the "~75px off the west lane" placement (design §5) is doing its job. Ridge `a1` is
+  markedly more exposed: in a clearing 5/5-wave scripted run (`d5` gun_tower built first, then `a1`
+  mining_facility, `d1` gun_tower, `d2` missile_battery, `d4` gun_tower, `m1` mining_facility, `d3`
+  sniper_tower, `a2` gun_tower — idle 70/2/50/28/1₡, all ≤70), `a1` was wrecked in 3 of 5 waves (60%) —
+  filed as **CD-42**, design §13's own knob ("move `d5` 20px closer" then "trim the field 5→4 and move it
+  30px off-lane") is the recommended fix, applied pre-emptively rather than waiting for a live complaint.
+  **Item 11 (requirement filtering) PASS, verified two ways:** live DOM/state shows every site's effective
+  `options` already requires-filtered (matches authored data 1:1 in current levels — neither level actually
+  exercises the filter today, since every authored mining/plasma site already clears its `min`); a
+  synthetic level with a 2-mineral-node site offering `mining_facility` (dynamic-imported `buildings.ts`
+  + `validate.ts` at runtime) confirms the filter itself excludes the option (`poorPasses: false`) and
+  `validateLevels` throws a specific, correctly-worded error for it, while the real shipped `LEVELS` still
+  pass clean — the mechanism has real teeth, not just dormant code. **Sign-off on the coder's two flagged
+  items: (a) the validator's rock-only 20px clearance scoping is APPROVED** — read every crystal/plasma
+  placement against its owning site in `levels.json`; each is deliberately close by design (mining sites
+  sit inside the fields they mine), a literal all-kinds reading would reject the design doc's own authored
+  coordinates, and rocks remain the only obstacle kind that's an unrelated terrain hazard. **(b) Ridge
+  `a1`/`d5` deep-pass done** — see CD-42; it clears under a modest build but with a rough ride for the mine.
+  **CD-38 all-gun-tower regression re-baselined against the new layouts** (design §12 item 10): Outpost —
+  zero-AA build clears W1-3 clean (0/45/90₡ dmg) then hard-defeats W4, HQ 600→0, one building wrecked
+  (`d1`); qualitatively unchanged from pre-CD-7 (still a clean AIR-badge hard defeat, still W4). Ridge —
+  zero-AA (gun_tower everywhere `d3` allows it, `sniper_tower` substituted at `d3` since it lost its
+  `gun_tower` option to `plasma_tap` under the 4-key cap) hard-defeats **W3** (skimmers arrive a wave
+  earlier on Ridge than Outpost), HQ 600→0. Both are the expected control failure, not a regression by
+  themselves — noted because **CD-41's healthy-build finding is the surprising part: an AA-equipped,
+  full-coverage, non-maxed Outpost build now dies the *same way* the deliberately-broken zero-AA control
+  is supposed to.** Zero console errors and zero new `Math.random()` (grep-reconfirmed, only `burst()`)
+  across the full session; a winning Ridge scripted run reproduced byte-identical on rerun (determinism
+  reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
+  reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
+  shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
+- [ ] CD-41 (balance, P1) — **Outpost Alpha Wave 4 is a hard, near-unavoidable difficulty cliff for any
+  realistically-paced (non-maxed) build under the new CD-7 economy** — found 2026-07-15 while re-baselining
+  CD-36 against the rewritten layouts. 15 independently-designed scripted builds across five strategic
+  archetypes (economy-first, defense-first, cheap-full-coverage, lean-choke-at-convergence, tanky-swap,
+  redundant-AA) were tried on Outpost Alpha; **every single one hard-defeats at Wave 4** (HQ 600→0 in one
+  night), typically after clean, even *better-than-baseline* wave 1-3 damage (best run: 0/45/90₡ vs
+  CD-36's recorded baseline of 0/55/303.3₡ for the same waves). The best full-7-site-coverage L1 build
+  (a1/d2/d4/d1/a2/d3/d5 all built, `m1` mining_facility for economy, idle money disciplined at
+  16-60₡/dawn) takes **990₡ of total structure damage in Wave 4 alone** (an ~11x spike over Wave 3's 90₡)
+  and loses `d1`, `a2`, and `d4` in the same night — HQ dies. Adding a second dedicated `missile_battery`
+  (double AA) or swapping to tankier `garrison` at `d1`/`d5` (mirroring CD-36's proven old-economy
+  composition) does **not** change the outcome — same wrecked set, same magnitude of damage — which rules
+  out "not enough AA" as the specific cause and points at a general L1-defense-density shortfall: the
+  all-gun-tower zero-AA control build (CD-38 regression, see CD-7's note above) takes *less* total damage
+  (742₡) in the same wave than several AA-equipped "healthy" builds, because it never spends money on
+  buildings that then die (missile batteries are expensive HP sinks that fold to the same saturation).
+  **Root cause hypothesis, numbers-backed:** pre-CD-7, the two safe rear production sites (old `p1`+`p2`)
+  paid up to 110₡/dawn (`barracks` 40 + `refinery` 70) from day 1 for a defense-first player. Post-CD-7,
+  old `p1`'s slot is now `s1` (sensor-only, **cannot produce income at all**), so the only fully-safe
+  income site is `m1` at 56₡/dawn — **almost exactly half** the old safe-play income. The design's own
+  §12 item 1 income-ceiling check (Outpost 211₡/day) is real, but it requires committing to *both* risky
+  slots (`m2` contested mine + `a2`/plasma, which costs a defense building) — exactly the risk a
+  defense-first player is trying to avoid by day 3-4, and exactly the risk this ticket's scripted builds
+  found not worth the trade under wave-4 time pressure. Net effect: a build that plays it safe now arrives
+  at Wave 4 with roughly half the old economy's war chest, and Wave 4's composition (skimmer×6 +
+  siege_walker×2 + brute×4 + raider×8, **unchanged** by CD-7 — waves.json wasn't touched) was tuned
+  against the old, richer safe-income curve. Compare to CD-36's closure evidence (mixed build, old
+  economy, HQ never below 400/600 through all 6 waves) — that build is no longer reproducible group-for-
+  group under the new economy. **Suggested fix, cheapest knob first per design §13's spirit:** raise `m1`
+  and equivalent safe-mineral-field income before touching enemy waves (retuning waves would hide the real
+  cause, same principle as design §13's own warning) — concretely, `mining_facility.incomePerDay` 14→17
+  or lower `m1`'s `requires.min`/raise its node count so the safe site alone approaches the old ~80-90₡/
+  dawn safe floor; alternatively lower `mining_facility` cost 130→110 so `m1` lands one day earlier.
+  Re-run this ticket's 15-build sweep (or a subset) after any knob change — the pass criterion is: at
+  least a majority of the five build archetypes above should clear Wave 4 without a maxed/rushed
+  build. Full per-wave numbers for the reference build (full 7-site L1 coverage + `m1`) are in this
+  session's transcript; happy to hand the exact scripted build order to the next session on request.
+  **Reviewer note (2026-07-15, added when filing): the primary suggested knob above conflicts with this
+  same design's §12 item 1, so this ticket needs an architect pass, not a direct knob application.**
+  Verified by probe over `levels.json`+`buildings.json`: `mining_facility.incomePerDay` 14→17 puts
+  Outpost at **238₡/day (56→68 at m1, 70→85 at m2, +85 plasma), outside the design's own 190-230 band**
+  and hence a §12 item 1 FAIL — the two criteria cannot both be satisfied by that knob. (Ridge survives
+  it at 221/day.) The `cost` 130→110 alternative keeps the band intact but is a one-off 20₡ saving, not
+  a per-dawn fix, so it barely touches the diagnosis. **The deeper problem this exposes is that §12 item
+  1 measures the wrong quantity:** it gates *total best-case* income, which is blind to how that income
+  is distributed across risk. Both 211/day-all-safe and 211/day-only-if-you-hold-two-contested-slots pass
+  it identically, and QA's finding is precisely that CD-7 shifted Outpost from the former toward the
+  latter (safe income 110→56₡/dawn) while leaving W4 tuned for the former. Suggest the architect either
+  add a *safe-income floor* criterion alongside the ceiling band (e.g. "income reachable without holding
+  a contested site must be ≥X₡/dawn"), or restore an income option at Outpost `s1`, or widen the band
+  deliberately — a judgment call about what the invariant is for, which is above a knob twiddle.
+  **Also entangled with the parked Step 4:** the design hands `s1` to `research_facility`, so with Step 4
+  parked `s1` is currently a near-dead site (sensor-only) — the player has already paid `p1`'s income
+  cost without yet receiving the research facility it was traded for. Landing Step 4 restores `s1`'s
+  *purpose* but NOT its income (a tech lab earns nothing), so the 56₡/dawn safe floor is real either way
+  and this ticket is not merely an artifact of the park — but the current build is strictly worse than
+  the design's intended end state, and any re-measurement should say which of the two it is measuring.
+- [ ] CD-42 (balance, P3) — **Ridge Pass `a1` (the far/contested mineral mine) has a 60% per-wave wreck
+  rate** even in a build that goes on to win — found 2026-07-15 alongside CD-7's item-3 re-verification.
+  Scripted 5/5-wave victory (build order: `d5` gun_tower, `a1` mining_facility, `d1` gun_tower, `d2`
+  missile_battery, `d4` gun_tower, `m1` mining_facility, `d3` sniper_tower, `a2` gun_tower; idle money
+  70/2/50/28/1₡, all within the ≤70 guard) still lost `a1` in waves 2, 4, and 5 of 5 — it earned income
+  only on the two dawns it survived. Net credits stayed technically positive over the run (the build won),
+  but a 60% wreck rate is a rough ride for a "contested but viable" site design intent, and contrasts with
+  Outpost's equivalent `m2` (0% wreck rate outside the board-wide Wave 4 collapse — see CD-7's note). `a1`
+  sits ~38px from the `south_west` path waypoint `(180,430)`, versus `m2`'s deliberate "~75px off the west
+  lane" (design §5) — `a1` never got the same lane-offset treatment. **Design §13 already names the exact
+  fix, in order:** move `d5` 20px closer to the field; then trim the field 5→4 nodes and move it 30px
+  off-lane. Recommend applying the first knob pre-emptively rather than waiting for a sharper complaint,
+  since CD-41 (Outpost's Wave 4 cliff) means the economy can't currently afford to lose `a1`'s income
+  repeatedly without compounding that problem.
 - [ ] CD-40 (feature, P2) — Commander abilities (ROADMAP Phase 3b; architect
   first) — filed 2026-07-15 to close a tracker gap: Phase 3b was only ever
   referenced inside CD-8's body ("commander abilities follow as Phase 3b"),
