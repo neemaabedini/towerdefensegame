@@ -397,7 +397,33 @@ reviewer); Sonnet does (coder, QA).
   **CD-47 proposes a cheap safe-placeable "house"-archetype income building — precisely the safe-income-floor
   mechanism this ticket's reviewer note asks for.** If the architect takes CD-47, coordinate it with this
   ticket rather than applying an income knob in isolation; the two may be one design pass.
-- [ ] CD-46 (balance, P1) — **Re-baseline per-wave damage after CD-45's enemy separation steering** — spun
+  **Update 2026-07-15 (post-CD-45 re-run, combined with CD-46, QA):** re-ran a representative 5-archetype
+  subset of the sweep live against `window.__game` (Outpost Alpha, realistic disciplined-money builds,
+  no upgrade-rushing). **Only 1 of 5 archetypes clears Wave 4 — still a FAIL against this ticket's own
+  "majority of five" pass criterion, unchanged in verdict from the pre-CD-45 finding:**
+  - *Defense-first / full-coverage-then-economy* (d1 garrison, d2 gun_tower, d3 siege_tank, d4
+    missile_battery, d5 sniper_tower, s1 sensor_array, m1 mining_facility, built in that site-priority
+    order): **CLEARS W4** — W1 0 / W2 57.4 / W3 206.6 / W4 570₡, HQ min 440/600 that wave. Notably better
+    than the old pre-CD-45 baseline for the equivalent build (990₡, HQ death) — CD-45 measurably helped
+    this specific archetype. But see CD-48: this same build now hard-defeats at W6 instead.
+  - *Economy-first* (m1 + a2 plasma_tap before any defense): **FAILS at W3** (hard defeat, HQ 0/600; W1
+    already 490.2₡ with HQ down to 110/600 from zero day-1 defense).
+  - *Cheap-full-coverage* (gun_tower at every defense-capable site incl. a1/a2, garrison at m2, sensor at
+    s1, zero AA, zero economy): **FAILS at W4** (800₡, HQ 0/600).
+  - *Lean-choke-at-convergence* (2 defenders only, d4 siege_tank + d5 garrison at the two lane-convergence
+    sites nearest HQ, rest economy): **FAILS at W4** (1130₡, HQ 0/600) — despite W1-W3 being nearly free
+    (0/57.2/82.7₡), the 2-building density can't survive W4's skimmer+siege_walker+brute+raider mix.
+  - *Tanky-swap + redundant-AA combined* (garrison d1/d5, missile_battery d3/d4 — double AA): **FAILS at
+    W4**, and worst of the five (1436.7₡, HQ 0/600) — confirms the original finding that more AA / tankier
+    HP does not fix the density shortfall, it just dies slightly differently.
+  **Verdict: root cause (CD-7's safe income floor, 56₡/dawn at `m1` only) is NOT resolved by CD-45.**
+  CD-45 only changed the *shape* of the failure for the one archetype that was already closest to viable
+  (full-coverage defense-first) — it now clears W4 but dies later at W6 instead (new cliff, filed as
+  **CD-48**, not covered by this ticket's scope). The other 4 archetypes fail at the same waves (W3-W4)
+  and by similar or worse magnitude as before. **Not closing.** Still needs the architect pass coordinated
+  with CD-47 (safe-income-floor building) per the reviewer note above; do NOT apply the `mining_facility`
+  income knob per the standing instruction (it breaks the §12 190-230₡/day band).
+- [x] CD-46 (balance, P1) — **Re-baseline per-wave damage after CD-45's enemy separation steering** — spun
   off from CD-45 on its closure (2026-07-15). CD-45's `Game.separateEnemies` spreads enemy bodies, which
   changes both splash coverage and how concentrated incoming building damage is, and it moved the needle
   hard: in an *unlimited-money, garrison-everywhere* probe script **Outpost went from a W4 hard defeat to
@@ -416,6 +442,54 @@ reviewer); Sonnet does (coder, QA).
   the architect): `docs/design-roster-redesign.md` still asserts "enemies never pushed" in two places (D5
   and the impl-plan bullet ~:159); suggested wording "units never push enemies; enemy↔enemy declumping
   permitted (CD-45)."
+  **CLOSED 2026-07-15 — re-baseline complete (QA, combined pass with CD-41, live against `window.__game`,
+  Outpost Alpha, realistic disciplined-money builds via instrumented `resolveEnemyContact`/
+  `resolveEnemyProjectileImpact` hooks summing actual building+HQ hp loss per wave):**
+  **1. CD-36 mixed-build climax, re-measured:** defense-then-economy 7-site build (d1 garrison, d2
+  gun_tower, d3 siege_tank, d4 missile_battery, d5 sniper_tower, s1 sensor_array, m1 mining_facility) —
+  **W1 0 / W2 57.4 / W3 206.6 / W4 570 / W5 838.8 / W6 1110₡**, HQ min per wave 600/597/474/440/381/**0**.
+  The monotonic W4<W5<W6 ordering **does still hold**, but the build **hard-defeats at W6** (HQ 0/600) —
+  CD-36's original closure evidence ("HQ never below 400/600 ... full clear/victory") **no longer
+  reproduces**. Tried two fuller variants to rule out a build-order artifact — adding a1/a2/m2 coverage,
+  and prioritizing upgrades over new sites instead — **both still hard-defeat at W6** (1557₡ and 1274₡
+  respectively; the upgrade-priority variant also breaks strict monotonicity, W4 597₡ > W5 557₡, though
+  still << W6). **This is a new, real difficulty cliff — filed as CD-48**, since it is explicitly out of
+  this ticket's own pass criterion ("no new cliff beyond the one CD-41 tracks") and CD-41 only ever
+  scoped W4.
+  **2. CD-38 all-gun-tower control, re-measured:** d1-d5+a1+a2 gun_tower only, zero AA, zero economy —
+  **W1 0 / W2 45 / W3 81 / W4 740₡, hard defeat, HQ 0/600.** Unchanged in both outcome and magnitude from
+  the pre-CD-45 baseline (740₡) — this build's failure mode (no AA at all vs W4's 6 skimmers) is
+  apparently insensitive to the separation spread.
+  **3. CD-41's 15-build sweep, re-run as a 5-archetype representative subset:** see CD-41 for the full
+  breakdown — **1 of 5 clears W4**, below the "majority" pass bar. CD-41 stays open.
+  **4. New dominant strategy or new cliff from the separation spread?** No new dominant strategy — the
+  one archetype that improved (full-coverage defense-first, W4 990₡→570₡ and now clears) simply dies
+  later instead (W6), it isn't a free win. **Yes, a new difficulty cliff — W6, not tracked by CD-41 — see
+  CD-48.** Closing this re-baseline ticket now that the numbers are recorded, per house precedent of
+  spinning findings into fresh tickets rather than leaving the re-baseline ticket open indefinitely
+  (CD-35→36/37, CD-38→39, CD-7→41/42, CD-45→46→48).
+- [ ] CD-48 (balance, P1) — **New Wave 6 hard-defeat cliff on Outpost Alpha's strongest defense build,
+  post-CD-45** — found 2026-07-15 during the combined CD-46/CD-41 re-baseline pass. The single build
+  archetype that survives Outpost's Wave 4 cliff (full 7-site defense-then-economy coverage: d1 garrison,
+  d2 gun_tower, d3 siege_tank, d4 missile_battery, d5 sniper_tower, s1 sensor_array, m1 mining_facility)
+  now goes on to **hard-defeat at Wave 6** (HQ 0/600) instead of clearing the level, reversing CD-36's
+  original closure evidence (same-shaped build formerly finished with HQ at 544-600/600, full victory).
+  Per-wave damage for the reference build: W1 0 / W2 57.4 / W3 206.6 / W4 570 / W5 838.8 / **W6 1110₡**
+  (HQ dies). Two fuller variants (full 10-site coverage incl. a1/a2/m2; and an upgrade-priority variant
+  spending leftover income on levels instead of new sites) were tried to rule out this being a build-order
+  fluke — both still hard-defeat at W6, at **1557₡** and **1274₡** respectively, i.e. spending the surplus
+  income differently does not avoid the wall. Root-cause hypothesis, directionally consistent with CD-46's
+  own reasoning: CD-45's enemy-body separation lets more attackers reach effective range/contact
+  simultaneously instead of queuing behind a clump that previously let defenses focus-fire one attacker at
+  a time — W6 has the highest total enemy count of any wave (33: raider×20, brute×4, siege_walker×3,
+  skimmer×5, warlord×1) and previously relied on that queuing to survive. **Suggested fix, cheapest knob
+  first:** re-tune W6's `waves.json` entry (fewer simultaneous raiders, or stagger `interval`/`delay`
+  further) rather than touching the economy — this is a wave-composition problem, not an income problem,
+  since even a fully-built, upgrade-invested defense still folds. **Pass criterion for closing:** the same
+  defense-first build (or an equivalently strong realistic build) should clear W6 with HQ hp remaining
+  ≥ roughly the old 400/600 floor, without needing a maxed/rushed build. Do not conflate with CD-41 (that
+  ticket's cliff is W4, for weaker/leaner archetypes, and is a separate income-floor problem — see CD-41's
+  own note that CD-45 did not resolve it).
 - [ ] CD-47 (feature, P2) — **Cheap low-yield "house"-archetype economy building (a safe income floor)** —
   filed 2026-07-15 at user request. **Architect design pass required before implementation — do NOT
   implement from this ticket** (same precedent as CD-7: designed first, then user decisions). Concept, in
