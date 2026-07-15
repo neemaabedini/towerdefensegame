@@ -6,9 +6,17 @@ ticket; details inline or linked to ROADMAP.md / UI_PLAN.md sections.
 Format:
 `- [ ] CD-<n> (<type>, <priority>) — <title> — <notes>`
 Types: feature | bug | balance | tech-debt. Priority: P1 (next) → P3 (later).
-Mark done with `[x]` and append the date. Agents: architect designs P1
-features that span modules; coder implements; qa-engineer verifies and
-appends new bug/balance tickets here.
+Mark done with `[x]` and append the date. Record actual numbers, not
+adjectives — a future session compares against figures.
+
+Agent pipeline (definitions in `.claude/agents/`): **product-manager** owns
+this file and ROADMAP.md — audits done-vs-claimed, files roadmap work that
+has no ticket, reconciles conflicts, and hands off to the **architect**, who
+designs multi-module features as a doc in `docs/`; the **coder** implements;
+the **code-reviewer** reads the coder's diff and sends findings back to the
+coder; the **qa-engineer** verifies end-to-end, reviews balance, and appends
+new bug/balance tickets here. Opus plans and checks (PM, architect,
+reviewer); Sonnet does (coder, QA).
 
 ## Open
 
