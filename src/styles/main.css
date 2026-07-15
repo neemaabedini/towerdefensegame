@@ -412,6 +412,12 @@ body {
   color: var(--danger);
 }
 
+.ring-option .income {
+  color: var(--success);
+  font-weight: 600;
+  font-size: 0.66rem;
+}
+
 .upgrade-chip {
   position: absolute;
   transform: translate(-50%, -50%);
@@ -833,8 +839,8 @@ body {
 .site-btn .tag.defense {
   color: #90a4ae;
 }
-.site-btn .tag.production {
-  color: var(--success);
+.site-btn .tag.resource {
+  color: #4dd0e1;
 }
 .site-btn .tag.any {
   color: var(--violet);

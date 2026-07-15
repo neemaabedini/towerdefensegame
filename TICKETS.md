@@ -62,9 +62,51 @@ appends new bug/balance tickets here.
 - [ ] CD-6 (feature, P2) — Projectile & muzzle-flash sprites — extend the
   atlas; barrels rotate toward targets (ROADMAP art pipeline step 5).
 - [ ] CD-7 (feature, P2) — Economy rework: mining near crystals + Plasma
-  Wells + one research slot (ROADMAP Phase 2). **Designed 2026-07-15 —
-  `docs/design-economy-rework.md`; awaiting user sign-off on two calls
-  before implementation starts.** Design in one line: income is derived from
+  Wells + one research slot (ROADMAP Phase 2). Designed 2026-07-15 —
+  `docs/design-economy-rework.md`. **Steps 1-3 implemented 2026-07-15
+  (coder session) — awaiting qa-engineer verification.** `barracks`/
+  `refinery` are deleted (zero source refs remain, grep-verified); both
+  levels run on the new `mining_facility`/`plasma_tap` economy; the DEV
+  `validate.ts` contract check passes clean on boot for both levels.
+  **Step 4 (research facility + tree) remains PARKED** on ROADMAP Open
+  Question 1 (global tree vs roguelite draft) — user decision still
+  pending. `s1` (Outpost) and `s1` (Ridge) are authored with only
+  `["sensor_array"]`; `research_facility` joins that list the day Step 4
+  lands (no placeholder def was invented). `BuildingDef.unique`/`.research`
+  ship typed but unused, same rationale.
+  Verified this session: derived node counts match a hand-count of the
+  authored `levels.json` crystal/plasma coordinates (Outpost m1=4, m2=5,
+  a2(plasma)=1; Ridge m1=3, a1=5, d3(plasma)=1); best-case L1 income is
+  exactly Outpost 211₡/day (56+70+85) and Ridge 197₡/day (42+70+85), both
+  inside the 190-230 band; `BuildRing` shows `56₡/dawn` etc. on the button
+  face (live DOM, no hover); a live-DOM check of the selected-building panel
+  confirms it shows the real total (`Income 56 credits at dawn (4 × 14₡
+  node)`), not the per-node figure `scaledStats` alone would show; a
+  from-scratch, fully-upgraded build clears both levels (Outpost 6/6 waves,
+  Ridge 5/5, zero HQ damage in either); `npx tsc --noEmit` is clean; zero
+  console errors across the whole session. **One deliberate deviation from
+  a literal reading of design R4, flagged for the architect/QA to sign off
+  on:** the validator's 20px obstacle-clearance rule is scoped to `kind:
+  "rock"` only (not crystal/plasma) — a literal all-kinds reading fails on
+  the design doc's OWN authored coordinates (e.g. Ridge's Outpost `m2` site
+  sits ~10px from its own Rift Field crystal, and Ridge's Far Field has a
+  crystal ~19px from a `south_west` path waypoint), because resource sites
+  are deliberately placed inside/near the fields they mine. See the comment
+  block atop `src/data/validate.ts` for the reasoning.
+  QA focus per design §12: items 1, 2, 3, 11 are in scope for this slice
+  (income invariant, idle-money discipline, contested-mine-not-a-trap,
+  requirement filtering); items 4-10 and 13-14 are research-dependent and
+  belong to Step 4. Also worth a deeper pass than this session's ad hoc
+  scripts: Ridge's new `a1`/`d5` lane coverage under a *modest* (non-maxed)
+  build — an early quick script misread its own `waveIndex` logging and
+  looked like an early defeat; corrected reading showed both levels clear
+  most waves cleanly with a modest build and only struggle near the
+  respective finale, which matches this project's known difficulty-curve
+  history, but a real qa-engineer pass should confirm rather than take my
+  correction at face value.
+  Knock-on to track: CD-40 is blocked on Step 4's
+  research facility, so the Godot port gate is blocked on that decision too.
+  Design in one line: income is derived from
   the count of crystal obstacles within a mining facility's radius, so the
   map becomes the budget. Five steps, each playable + typecheck-clean:
   (1) resource model + derivation + a DEV `validate.ts` (no gameplay

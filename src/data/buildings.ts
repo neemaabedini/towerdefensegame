@@ -1,3 +1,4 @@
+import { countResourcesNear, type LevelDef, type ResourceKind } from "./levels";
 import rawBuildings from "./buildings.json";
 
 export type BuildingCategory = "defense" | "production" | "support";
@@ -26,6 +27,22 @@ export interface BranchOption {
   squad?: { unitId: string; countByLevel: number[] };
 }
 
+/** A mining-type building's placement gate + node math (docs/design-economy-
+ *  rework.md D1/D3/D5). `incomePerDay` on the def means PER NODE when
+ *  `mining` is present — see `deriveSiteResources` and `Game.previewIncome`/
+ *  `collectDawnIncome`. */
+export interface MiningSpec {
+  resource: ResourceKind;
+  /** px from the site */
+  radius: number;
+  /** Below this the option is filtered out of the site at loadLevel (D5) —
+   *  a field too small to be worth building on is never offered. */
+  minNodes: number;
+  /** The income ceiling: node count is capped here regardless of how rich
+   *  an author makes the field (R2 knob #1). */
+  maxNodes: number;
+}
+
 export interface BuildingDef {
   id: string;
   name: string;
@@ -38,7 +55,8 @@ export interface BuildingDef {
   range: number;
   fireRate: number; // shots per second
   splashRadius: number;
-  /** Credits paid as a lump sum at dawn after each cleared wave (production only) */
+  /** Credits paid as a lump sum at dawn after each cleared wave (production
+   *  only). Means PER NODE when `mining` is present — see `mining` below. */
   incomePerDay: number;
   /** Max upgrade level (1 = no upgrades beyond base) */
   maxLevel: number;
@@ -57,7 +75,8 @@ export interface BuildingDef {
     | "missile"
     | "radar"
     | "hq"
-    | "sniper";
+    | "sniper"
+    | "tap";
   /** Which enemies this building's weapon can target. Loader defaults to "all"
    *  when absent from JSON, so existing data keeps working unchanged. */
   targets: TargetMode;
@@ -68,6 +87,21 @@ export interface BuildingDef {
    *  A branch option's own `squad` (if the building has branched) overrides
    *  this — see `Game.squadSpecFor`. Absent = building never fields units. */
   squad?: { unitId: string; countByLevel: number[] };
+  /** Placement gate + node math for a resource-extracting building (D1/D3).
+   *  Absent = building never mines (pays incomePerDay flat, if at all). */
+  mining?: MiningSpec;
+  /** Filters this option out of a site's effective list at loadLevel unless
+   *  the site has >= `min` of `resource` in range (D5) — this is what keeps
+   *  a 1-node field from ever offering `mining_facility`. */
+  requires?: { resource: ResourceKind; min: number };
+  /** At most one built per level (D9). Typed now; no def sets it until the
+   *  research facility ships — see TICKETS.md CD-7 (Step 4 is PARKED on
+   *  ROADMAP Open Question 1). */
+  unique?: boolean;
+  /** This building hosts the research tree (Step 4 — PARKED, see above).
+   *  Typed now so UpgradeChip's future early-return has a stable flag to
+   *  check, rather than a fragile id-string comparison. */
+  research?: boolean;
 }
 
 /** Shape of a buildings.json entry before the loader default is applied. */
@@ -87,6 +121,41 @@ export function getBuilding(id: string): BuildingDef {
   const def = BUILDINGS[id];
   if (!def) throw new Error(`Unknown building: ${id}`);
   return def;
+}
+
+const RESOURCE_KINDS: readonly ResourceKind[] = ["mineral", "plasma"];
+
+/** Whichever def's `mining.resource` matches `kind` is the authority on that
+ *  resource's radius/cap — today that's exactly one def per kind
+ *  (mining_facility/mineral, plasma_tap/plasma). Centralizing the lookup
+ *  here means Game.loadLevel and validate.ts derive identical node counts
+ *  from the same source instead of two hand-synced copies. */
+function miningDefFor(kind: ResourceKind): BuildingDef | null {
+  for (const def of Object.values(BUILDINGS)) {
+    if (def.mining?.resource === kind) return def;
+  }
+  return null;
+}
+
+/**
+ * A site's node count per resource kind, derived once at load (D1) and
+ * capped at the owning mining def's maxNodes (R2 knob #1). Zero for a kind
+ * no def mines yet — dormant until a `mining` def exists (Step 1 no-op).
+ * Pure, no RNG (C3).
+ */
+export function deriveSiteResources(
+  level: LevelDef,
+  x: number,
+  y: number,
+): Record<ResourceKind, number> {
+  const result = {} as Record<ResourceKind, number>;
+  for (const kind of RESOURCE_KINDS) {
+    const def = miningDefFor(kind);
+    result[kind] = def?.mining
+      ? Math.min(countResourcesNear(level, x, y, kind, def.mining.radius), def.mining.maxNodes)
+      : 0;
+  }
+  return result;
 }
 
 export function upgradeCost(def: BuildingDef, currentLevel: number): number {

@@ -1,4 +1,5 @@
 import { LEVELS } from "../data/levels";
+import { validateLevels } from "../data/validate";
 import { Game } from "../game/Game";
 import type { GameSnapshot, Phase } from "../game/types";
 import {
@@ -44,6 +45,10 @@ export class AppShell {
   private persistDebounced = debounce(() => this.persistNow(), 200);
 
   constructor(backend: StorageBackend = new LocalStorageBackend(SAVE_KEY)) {
+    // DEV-only data contract check (docs/design-economy-rework.md R4) —
+    // fails loud on boot rather than shipping a stale level.json edit that
+    // tsc's `as unknown as` casts can't catch. See src/data/validate.ts.
+    if (import.meta.env.DEV) validateLevels();
     this.backend = backend;
     this.data = load(this.backend);
     this._nightSpeed = this.data.settings.nightSpeed;

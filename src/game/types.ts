@@ -1,5 +1,5 @@
 import type { BuildingDef, TargetMode } from "../data/buildings";
-import type { BuildSiteDef, LevelDef } from "../data/levels";
+import type { BuildSiteDef, LevelDef, ResourceKind } from "../data/levels";
 
 export type Phase = "day" | "night" | "victory" | "defeat";
 
@@ -127,6 +127,12 @@ export interface Particle {
 
 export interface BuildSiteState extends BuildSiteDef {
   buildingId: string | null;
+  /** Derived once at loadLevel from `obstacles` (docs/design-economy-rework
+   *  .md D1), never mutated after — safe to expose by reference from
+   *  getSnapshot() (unlike research's `purchased`, this has no CD-15 bite).
+   *  `options` (inherited from BuildSiteDef) is overwritten with the
+   *  requires-filtered EFFECTIVE list at loadLevel — see D5. */
+  resources: Record<ResourceKind, number>;
 }
 
 /** A building destroyed during the current night; rebuilt free at dawn */

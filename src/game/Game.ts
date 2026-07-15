@@ -1,4 +1,5 @@
 import {
+  deriveSiteResources,
   getBuilding,
   scaledStats,
   SELL_REFUND,
@@ -108,10 +109,18 @@ export class Game {
     this.selectedSiteId = null;
     this.selectedBuildingId = null;
 
-    this.sites = this.level.sites.map((s) => ({
-      ...s,
-      buildingId: null,
-    }));
+    this.sites = this.level.sites.map((s) => {
+      const resources = deriveSiteResources(this.level, s.x, s.y);
+      // Requires-filtered EFFECTIVE options (D5) — keeps options.length <= 4
+      // and the 1-4 key mapping honest by construction. A site that offers
+      // a mining option it doesn't actually qualify for is an authoring
+      // error caught by validate.ts, not silently tolerated here.
+      const options = s.options.filter((optId) => {
+        const def = getBuilding(optId);
+        return !def.requires || resources[def.requires.resource] >= def.requires.min;
+      });
+      return { ...s, buildingId: null, resources, options };
+    });
 
     const hqDef = getBuilding("command_center");
     const hqStats = scaledStats(hqDef, 1);
@@ -340,6 +349,18 @@ export class Game {
     if (!site.options.includes(buildingDefId)) return false;
     const def = getBuilding(buildingDefId);
     return this.money >= def.cost;
+  }
+
+  /** L1 dawn income `buildingDefId` would pay if built at `siteId` right
+   *  now — the number BuildRing shows on the button face before purchase
+   *  (C2/C7: no trap picks, no hover-only info). 0 for non-mining defs. */
+  previewIncome(siteId: string, buildingDefId: string): number {
+    const site = this.sites.find((s) => s.id === siteId);
+    if (!site) return 0;
+    const def = getBuilding(buildingDefId);
+    if (!def.mining) return 0;
+    const nodes = site.resources[def.mining.resource];
+    return Math.round(scaledStats(def, 1).incomePerDay * nodes);
   }
 
   build(siteId: string, buildingDefId: string): boolean {
@@ -598,15 +619,22 @@ export class Game {
     void dt;
   }
 
-  /** Lump-sum income from surviving production buildings, paid at dawn */
+  /** Lump-sum income from surviving production buildings, paid at dawn.
+   *  Mining defs pay PER NODE (D3) — node count comes from the building's
+   *  own site, already capped at maxNodes by deriveSiteResources. */
   private collectDawnIncome(): void {
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
       const def = getBuilding(b.defId);
       const stats = scaledStats(def, b.level, b.branchId);
       if (stats.incomePerDay <= 0) continue;
-      this.money += stats.incomePerDay;
-      this.floatText(b.x, b.y - 24, `+${Math.round(stats.incomePerDay)}₡`, "#ffd54f");
+      const nodes = def.mining
+        ? (this.sites.find((s) => s.id === b.siteId)?.resources[def.mining.resource] ?? 0)
+        : 1;
+      const income = Math.round(stats.incomePerDay * nodes);
+      if (income <= 0) continue;
+      this.money += income;
+      this.floatText(b.x, b.y - 24, `+${income}₡`, "#ffd54f");
     }
   }
 

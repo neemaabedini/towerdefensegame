@@ -153,16 +153,16 @@ export class Renderer {
     r: number;
     kind: string;
   }): boolean {
-    const key =
-      o.kind === "rock"
-        ? o.r <= 24
-          ? "rock:s:0"
-          : o.r <= 31
-            ? "rock:m:0"
-            : "rock:l:0"
-        : o.r <= 17
-          ? "crystal:s:0"
-          : "crystal:m:0";
+    // "plasma" has no atlas entry yet (Step 5 cosmetics) — falls through to
+    // the vector fallback below by design, same pipeline rule as everything
+    // else (ROADMAP art pipeline: fallbacks first, per-entity sprite swap).
+    let key: string | null = null;
+    if (o.kind === "rock") {
+      key = o.r <= 24 ? "rock:s:0" : o.r <= 31 ? "rock:m:0" : "rock:l:0";
+    } else if (o.kind === "crystal") {
+      key = o.r <= 17 ? "crystal:s:0" : "crystal:m:0";
+    }
+    if (!key) return false;
     const f = this.atlas.get(key);
     if (!f) return false;
 
@@ -219,6 +219,35 @@ export class Renderer {
             else ctx.lineTo(px, py);
           }
           ctx.closePath();
+          ctx.fill();
+        }
+      } else if (o.kind === "plasma") {
+        // Plasma Well: pulsing amber pool + rising motes. Vector fallback
+        // (Step 5 ships plasma:0|1 atlas frames) — amber deliberately, not
+        // green, so it reads distinct from Blizzard's vespene trade dress
+        // (docs/design-economy-rework.md C1/§5 naming note).
+        const glow = 0.5 + 0.3 * Math.sin(this.time * 1.2 + o.x);
+        const grad = ctx.createRadialGradient(o.x, o.y, o.r * 0.1, o.x, o.y, o.r);
+        grad.addColorStop(0, `rgba(255, 202, 40, ${0.75 + glow * 0.2})`);
+        grad.addColorStop(1, `rgba(239, 108, 0, ${0.25 + glow * 0.15})`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.ellipse(o.x, o.y, o.r, o.r * 0.62, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = `rgba(255, 167, 38, ${0.5 + glow * 0.3})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        for (let i = 0; i < 3; i++) {
+          const t = (this.time * 0.6 + i / 3 + o.x * 0.01) % 1;
+          ctx.fillStyle = `rgba(255, 224, 130, ${0.5 * (1 - t)})`;
+          ctx.beginPath();
+          ctx.arc(
+            o.x + Math.sin(this.time * 2 + i * 3) * o.r * 0.3,
+            o.y - t * o.r * 1.4,
+            2 + (1 - t) * 2,
+            0,
+            Math.PI * 2,
+          );
           ctx.fill();
         }
       } else {
@@ -344,8 +373,8 @@ export class Renderer {
         : `rgba(144, 164, 174, ${0.12 + pulse * 0.08})`;
       ctx.strokeStyle = selected
         ? "#4fc3f7"
-        : site.category === "production"
-          ? "#81c784"
+        : site.category === "resource"
+          ? "#4dd0e1"
           : site.category === "defense"
             ? "#90a4ae"
             : "#ce93d8";
@@ -373,6 +402,24 @@ export class Renderer {
       ctx.fillStyle = "rgba(200, 210, 230, 0.7)";
       ctx.textAlign = "center";
       ctx.fillText(site.category.toUpperCase(), site.x, site.y + 34);
+
+      // Resource badge (C2/C7: numbers visible without hover) — how many
+      // crystal/plasma nodes a mining building would see if built here.
+      // Gated on the site actually OFFERING a matching mining option — a
+      // site can incidentally have a crystal within another building's
+      // hypothetical mining radius without ever offering one (e.g. Ridge
+      // d5 sits near the Far Field but only offers gun_tower/garrison).
+      const offersPlasma = site.options.some((id) => getBuilding(id).mining?.resource === "plasma");
+      const offersMineral = site.options.some((id) => getBuilding(id).mining?.resource === "mineral");
+      if (offersPlasma && site.resources.plasma > 0) {
+        ctx.font = "bold 11px Segoe UI, sans-serif";
+        ctx.fillStyle = "#ffb74d";
+        ctx.fillText(`◆ ×${site.resources.plasma}`, site.x, site.y - 32);
+      } else if (offersMineral && site.resources.mineral > 0) {
+        ctx.font = "bold 11px Segoe UI, sans-serif";
+        ctx.fillStyle = "#4dd0e1";
+        ctx.fillText(`◆ ×${site.resources.mineral}`, site.x, site.y - 32);
+      }
     }
   }
 
@@ -521,6 +568,9 @@ export class Renderer {
           break;
         case "sniper":
           this.drawSniper(b.x, b.y, s, def.color, def.accent);
+          break;
+        case "tap":
+          this.drawTap(b.x, b.y, s, def.color, def.accent);
           break;
       }
     }
@@ -931,6 +981,41 @@ export class Renderer {
     ctx.fillStyle = `rgba(255, 213, 79, ${0.35 + 0.25 * Math.sin(this.time * 4)})`;
     ctx.beginPath();
     ctx.arc(x - s * 0.48, y - vatH * 0.45 - 6 + bob, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  /** Plasma Tap: squat drill housing over the well, bobbing pump arm with an
+   *  amber cap, pulsing core glow. Vector fallback — Step 5 ships bld:tap:0|1. */
+  private drawTap(x: number, y: number, s: number, color: string, accent: string): void {
+    const ctx = this.ctx;
+    // Base collar over the well
+    ctx.fillStyle = "rgba(38, 50, 56, 0.8)";
+    ctx.beginPath();
+    ctx.ellipse(x, y + s * 0.5, s * 0.95, s * 0.32, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Housing
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.roundRect(x - s * 0.55, y - s * 0.35, s * 1.1, s * 0.85, 6);
+    ctx.fill();
+    // Pump arm, bobs slowly
+    const bob = Math.sin(this.time * 2.2 + x) * s * 0.08;
+    ctx.strokeStyle = "#37474f";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x, y - s * 0.35 + bob);
+    ctx.lineTo(x, y + s * 0.15);
+    ctx.stroke();
+    // Amber cap
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.ellipse(x, y - s * 0.35 + bob, s * 0.32, s * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Pulsing core glow
+    const pulse = 0.5 + 0.5 * Math.sin(this.time * 3);
+    ctx.fillStyle = `rgba(255, 167, 38, ${0.4 + pulse * 0.3})`;
+    ctx.beginPath();
+    ctx.arc(x, y + s * 0.05, 5 + pulse * 2, 0, Math.PI * 2);
     ctx.fill();
   }
 

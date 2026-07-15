@@ -58,6 +58,16 @@ export class BuildRing {
       cost.textContent = `${def.cost}₡`;
 
       btn.append(name, cost);
+
+      // Income-on-button (C2/C7: no trap picks, no hover-only info) — shown
+      // for mining options only, using the site's already-derived nodes.
+      if (def.mining) {
+        const income = document.createElement("span");
+        income.className = "income";
+        income.textContent = `${this.game.previewIncome(site.id, optId)}₡/dawn`;
+        btn.append(income);
+      }
+
       btn.addEventListener("click", () => this.game.build(site.id, optId));
       this.root.appendChild(btn);
       buttons.push(btn);

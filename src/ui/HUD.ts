@@ -274,7 +274,16 @@ export class HUD {
       }
     }
     if (stats.incomePerDay > 0) {
-      lines.push(`Income ${Math.round(stats.incomePerDay)} credits at dawn`);
+      if (def.mining) {
+        // incomePerDay is PER NODE for a mining def (D3) — show the real
+        // total this building pays, not the per-node figure.
+        const site = state.sites.find((s) => s.id === b.siteId);
+        const nodes = site?.resources[def.mining.resource] ?? 0;
+        const total = Math.round(stats.incomePerDay * nodes);
+        lines.push(`Income ${total} credits at dawn (${nodes} × ${Math.round(stats.incomePerDay)}₡ node)`);
+      } else {
+        lines.push(`Income ${Math.round(stats.incomePerDay)} credits at dawn`);
+      }
     }
     // Garrison squad line (Batch 3) — resolved from def + level + branch,
     // not live survivor count, so it reads as "what you composed" rather
