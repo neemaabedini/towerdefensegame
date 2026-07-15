@@ -175,8 +175,42 @@ reviewer); Sonnet does (coder, QA).
   reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
   reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
   shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
-- [ ] CD-45 (bug, P2) — **Enemies stack on the same pixel, so a dead enemy's HP bar "transfers" to a
-  healthy one behind it — reads to the player as an enemy healing to full** — user-reported 2026-07-15
+- [ ] CD-45 (bug, P2) — **FIXED 2026-07-15 via enemy separation steering (user-directed) — awaiting
+  code-review + qa-engineer balance re-baseline; left open until QA signs off.** `Game.separateEnemies(dt)`
+  mirrors the existing `separateUnits()` boids-lite, called from `updateNight` after the move loop (it
+  must cover `engaged` enemies too — they're the ones stacked on a contact ring). Enemy↔enemy and
+  same-layer only, so units still never push enemies (D5's porousness guarantee untouched) and flyers
+  don't shove the ground units they overfly (D6). No RNG → CD-20-safe; determinism re-verified
+  byte-identical across repeat runs.
+  **The one non-obvious part, worth not "simplifying" later:** the push is capped at half a mover's step
+  (`SEPARATION_STEP_FRACTION = 0.5`) instead of resolving the overlap outright the way `separateUnits`
+  does. That cap is load-bearing. `moveEnemy` only advances a waypoint within **2px** of it
+  (`Game.ts:712`), and an uncapped push is up to **16px/tick** for a siege walker against its
+  **1.4px/tick** step — so enemies get shoved past the arrival window permanently. First implementation
+  did exactly that and **deadlocked**: two siege walkers converging on one waypoint, one pushed past it,
+  each then walking back at the other, forever. Caught live — Ridge W4 and W5 and Outpost W5 and W6 all
+  ran 8,000 ticks without terminating (HQ 600/600, 2 enemies alive, both stuck at `pathIndex 1`). Units
+  are immune to this class because a leash re-clamps them; enemies follow a path. Keeping the push below
+  the step guarantees net progress toward the waypoint, so declumping can never stall a lane.
+  **Measured, same probe before/after (Ridge W5, garrisons on every capable site):** same-type body
+  overlap **36% of the night → 5-6%**; tightest same-type gap **0.00px → 1.5px**; the actual illusion
+  condition (a wounded body sharing a pixel with a full-health, bar-less one) now occurs on **1-2% of
+  ticks, worst pair 5.5px apart** (vs. the reported 71%/100% brutes at 0.00px) — far enough that two
+  bodies read as two bodies. Zero HP increases throughout (there never were any). Perf is a non-issue:
+  worst tick **0.3ms = 1.8% of a 16.7ms frame** at 18 concurrent enemies.
+  **⚠ Balance blast radius is real and is NOT yet assessed — this is why the ticket stays open.** Spreading
+  bodies changes both splash coverage and how concentrated incoming building damage is, and it moved the
+  needle hard in an *unlimited-money, garrison-everywhere* script: **Outpost went from a W4 hard defeat
+  to clearing W4 and W5 and only losing at W6**; Ridge now clears W4 and loses at W5. That direction is
+  the opposite of intuition (spread bodies = less splash value = should be harder) — the likely cause is
+  that clumped enemies previously focus-fired one building at once. It plausibly overlaps **CD-41**
+  (Outpost W4 cliff), but that script is not a realistic build, so **do not close CD-41 on this** —
+  QA must re-run its 15-build sweep. **The CD-36/CD-38/CD-41 per-wave damage baselines are all
+  invalidated and need re-measuring against this change.**
+  ---
+  Original report and diagnosis, retained: **Enemies stack on the same pixel, so a dead enemy's HP bar
+  "transfers" to a healthy one behind it — reads to the player as an enemy healing to full** —
+  user-reported 2026-07-15
   ("on wave 5 one of the enemies is recovering all of its health after destroying a garrison"),
   root-caused and reproduced the same day. **The HP does not actually change — verified twice over:**
   statically, the only writes to `e.hp` are `def.maxHp` at spawn (`Game.ts:589`), `-= dmg` in

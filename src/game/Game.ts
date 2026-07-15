@@ -662,6 +662,10 @@ export class Game {
       if (e.hitTimer > 0) e.hitTimer -= dt;
     }
 
+    // Declump bodies (CD-45) — must run over engaged enemies too, since the
+    // tightest stacks are exactly the ones halted on a building's contact ring.
+    this.separateEnemies(dt);
+
     // Garrison squads act — night only, stateless per-tick derivation (D5-D7)
     this.updateUnits(dt);
 
@@ -1299,9 +1303,10 @@ export class Game {
     }
   }
 
-  /** Boids-lite pairwise separation between UNITS only — enemies are never
-   *  pushed (D5: no physics/nav changes, this is purely a unit-vs-unit
-   *  visual declump). O(n^2) over <=~30 units. */
+  /** Boids-lite pairwise separation between UNITS only. Units never push
+   *  enemies (D5: blocking stays the engage-stop mechanic, not physics, so a
+   *  squad slows a lane and can never seal it). Enemy-vs-enemy declumping is
+   *  a separate pass — see separateEnemies (CD-45). O(n^2) over <=~30 units. */
   private separateUnits(): void {
     const n = this.units.length;
     for (let i = 0; i < n; i++) {
@@ -1324,6 +1329,67 @@ export class Game {
           continue;
         }
         const push = (minD - d) / 2;
+        const nx = dx / d;
+        const ny = dy / d;
+        a.x -= nx * push;
+        a.y -= ny * push;
+        b.x += nx * push;
+        b.y += ny * push;
+      }
+    }
+  }
+
+  /** Boids-lite pairwise separation between ENEMIES (CD-45). Without it,
+   *  enemies walking identical waypoint paths at identical speeds stack on
+   *  one pixel — worst at the contact ring where resolveEnemyContact halts a
+   *  whole group around one building — and each body draws its own health bar
+   *  at the same coordinates. Killing the front body reveals an untouched one
+   *  behind it, which reads as an enemy healing to full.
+   *
+   *  Enemy<->enemy only, and same-layer only: units still never push enemies,
+   *  so D5's porousness guarantee is untouched, and flyers don't shove the
+   *  ground units they fly over (D6). Deterministic — no RNG, so the sim
+   *  stays lockstep/replay-safe (CD-20). O(n^2) over the live enemy count.
+   *
+   *  The push is capped at half a mover's step (SEPARATION_STEP_FRACTION)
+   *  rather than resolving the overlap outright the way separateUnits does.
+   *  That cap is load-bearing, not tuning: moveEnemy only advances a waypoint
+   *  within 2px of it (Game.ts ~712), so an uncapped push — up to 16px/tick
+   *  for a siege walker against a 1.4px/tick step — shoves enemies past that
+   *  window forever. Two of them converging on one waypoint then deadlock,
+   *  each walking back at the other, and the wave never ends. Units are immune
+   *  to this because a leash re-clamps them; enemies follow a path instead.
+   *  Keeping the push below the step guarantees net progress toward the
+   *  waypoint, so declumping can never stall a lane. */
+  private static readonly SEPARATION_STEP_FRACTION = 0.5;
+
+  private separateEnemies(dt: number): void {
+    const n = this.enemies.length;
+    for (let i = 0; i < n; i++) {
+      const a = this.enemies[i]!;
+      if (a.hp <= 0) continue;
+      const defA = getEnemy(a.defId);
+      const flyerA = defA.archetype === "flyer";
+      for (let j = i + 1; j < n; j++) {
+        const b = this.enemies[j]!;
+        if (b.hp <= 0) continue;
+        const defB = getEnemy(b.defId);
+        if (flyerA !== (defB.archetype === "flyer")) continue;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        const minD = defA.radius + defB.radius;
+        if (d >= minD) continue;
+        const cap =
+          Math.min(defA.speed, defB.speed) * dt * Game.SEPARATION_STEP_FRACTION;
+        if (d < 0.01) {
+          // Identical position (same spawn, same speed) — nudge along the axis
+          // deterministically so the next tick has a normal to work with.
+          a.x -= cap;
+          b.x += cap;
+          continue;
+        }
+        const push = Math.min((minD - d) / 2, cap);
         const nx = dx / d;
         const ny = dy / d;
         a.x -= nx * push;
