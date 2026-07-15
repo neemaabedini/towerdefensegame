@@ -61,8 +61,32 @@ appends new bug/balance tickets here.
   controller story).
 - [ ] CD-6 (feature, P2) — Projectile & muzzle-flash sprites — extend the
   atlas; barrels rotate toward targets (ROADMAP art pipeline step 5).
-- [ ] CD-7 (feature, P2) — Economy rework: mining near crystals + vespene
-  geysers + one research slot (ROADMAP Phase 2; architect first).
+- [ ] CD-7 (feature, P2) — Economy rework: mining near crystals + Plasma
+  Wells + one research slot (ROADMAP Phase 2). **Designed 2026-07-15 —
+  `docs/design-economy-rework.md`; awaiting user sign-off on two calls
+  before implementation starts.** Design in one line: income is derived from
+  the count of crystal obstacles within a mining facility's radius, so the
+  map becomes the budget. Five steps, each playable + typecheck-clean:
+  (1) resource model + derivation + a DEV `validate.ts` (no gameplay
+  change); (2) new defs + `× nodes` income + Outpost layout (Ridge stays on
+  the old economy, so both are A/B-able in one build); (3) Ridge layout +
+  retire the old defs; (4) research facility + tree + a `Game.resolveOption`
+  refactor that moves build-vs-branch-vs-research dispatch out of the
+  browser input handler into the sim (port-facing win); (5) cosmetics.
+  **Two decisions needing sign-off:** (a) it answers ROADMAP Open Question 1
+  in favor of a *global track tree, one purchase per day*, rejecting the
+  roguelite pick-1-of-3 draft — the draft needs an RNG in a sim path (CD-20
+  is still open), and it collides with CD-30, which already owns the
+  build-variety slot; the draft stays available later as a pure
+  presentation layer once CD-20 lands a seeded RNG. (b) it DELETES
+  `barracks` and `refinery` outright rather than repurposing their ids
+  (CD-38's D1 precedent), and rewrites both levels' obstacle/site layouts;
+  no save migration is needed (`SaveDataV1` stores no building ids). Also
+  argues, from the live data, that ROADMAP's proposed Weapons and Servos
+  tracks cannot both exist under the no-trap-picks rule (+% damage is a
+  strict no-op at our small integer HP/armor values — a gun tower needs 2
+  shots for a swarmling at both 10 and 10.7 damage) and merges them into one
+  track granting both.
 - [ ] CD-40 (feature, P2) — Commander abilities (ROADMAP Phase 3b; architect
   first) — filed 2026-07-15 to close a tracker gap: Phase 3b was only ever
   referenced inside CD-8's body ("commander abilities follow as Phase 3b"),
@@ -74,7 +98,15 @@ appends new bug/balance tickets here.
   research capstone. Adds exactly one new input verb (select ability →
   target → confirm) that must work identically on mouse/keyboard/controller/
   touch, so it lands on the `GameAction` layer (UI_PLAN.md), not on mouse
-  handlers. Anti-spam: long cooldowns or caster energy. Note the naming
+  handlers. **Seam reserved by
+  CD-7's design (`docs/design-economy-rework.md` §9): the research tree's
+  `ResearchEffect` union already includes `{ kind: "unlock"; abilityId }`,
+  and `Game.unlockedAbilities()`/`hasResearch()` ship with CD-7 — so
+  airstrike and the nuke capstone hook up as two JSON nodes in an
+  `ordnance` track, with zero changes to `research.ts`, `buildings.json`, or
+  the research UI (tracks render from data; the ≤4-track cap reserves the
+  key). Sensor Pulse is Command-Center-native and needs no research at
+  all.** Anti-spam: long cooldowns or caster energy. Note the naming
   constraint from ROADMAP's IP rules — "Sensor Pulse", never "Scanner
   Sweep". **Gate significance: ROADMAP's Godot port gate is "Phases 2–3
   stable and fun". Phase 3a shipped with CD-38, so CD-7 + this ticket are
