@@ -524,7 +524,51 @@ reviewer); Sonnet does (coder, QA).
   CD-48.** Closing this re-baseline ticket now that the numbers are recorded, per house precedent of
   spinning findings into fresh tickets rather than leaving the re-baseline ticket open indefinitely
   (CD-35→36/37, CD-38→39, CD-7→41/42, CD-45→46→48).
-- [ ] CD-48 (balance, P1) — **ROOT CAUSE FALSIFIED 2026-07-15 — back to the architect; do NOT apply the
+- [ ] CD-48 (balance, P1) — **DIAGNOSED 2026-07-15: the cliff is ONE ENEMY — the warlord. Do not
+  lengthen the level; do not stagger; do not nerf the wave wholesale.** Two architect hypotheses have now
+  been falsified by their own gates, and the third probe pinpointed it. Ready for a surgical fix.
+  **P4 (demand curve) FALSIFIED the lengthening thesis** (`docs/design-level-length.md` §3, its own
+  stated falsifier: *"if P4 shows the demand curve is roughly linear and only W6 is an outlier, the
+  exponential-vs-linear story is a rationalisation and the correct fix is to nerf W6, not lengthen"*).
+  Measured minimum war chest to clear each Outpost wave in isolation, reference build, identical
+  upgrade rule: **W1 200 · W2 400 · W3 600 · W4 700 · W5 700 · W6 2500-2600₡.** Wave-over-wave growth:
+  **×2.00 → ×1.50 → ×1.17 → ×1.00 → ×3.57.** The curve **decelerates to flat and then spikes once.**
+  That is not an exponential regime; it is a **lone outlier**. The "we ship only the exponential half of
+  Thronefall's budget curve" story does not survive its own instrument.
+  **The outlier is the warlord — 54% of W6's demand, in one unit.** Deep-cloned wave data per run,
+  sanity-checked against an unmutated control (2600₡ both times):
+  | W6 variant | min war chest | HQ min at clear |
+  |---|---|---|
+  | as shipped | **2600₡** | 252/600 |
+  | **minus the warlord** | **1200₡** | 469/600 |
+  | **warlord ONLY, nothing else** | **800₡** | **23/600** |
+  | warlord `delay` 12→28s | 2000₡ | 53/600 |
+  **A single warlord demands more board than the whole of W5 (700₡) and takes the HQ to 23/600 with
+  nothing else on the map.** Strip it and W6 needs 1200₡ against the board's 1738₡ — margin **1.45×**,
+  comfortably inside the W1-W5 range (1.05×-1.70×). **Delaying it is not the lever** (2600→2000, still
+  short); the warlord's own stats are (`enemies.json`: maxHp 900, armor 6, damage 30, speed 26, boss).
+  **P1 (band ladder) DISSOLVED Defect C — and corrected my own measurement error.** I previously reported
+  2500₡ → "victory, HQ 600/600, zero wrecks — flawless, no bloody-win band." **That was wrong: I read HQ
+  hp *after* the wave, so dawn restoration had already healed it.** True HQ **minimum during** W6 at
+  100₡ granularity: **2000-2400₡ → defeat (HQ 0, 6 wrecks) · 2500-2600₡ → victory, HQ min 252/600.**
+  The win **is** bloody (42% HQ). **No band mechanic is needed — the architect's C3 (`squad.respawnSeconds`)
+  is cancelled before it was designed**, exactly as `design-level-length.md` §6a predicted it might be.
+  The transition is still sharp (2400→2500 flips 0→252), but that is Defect B (demand level), not C.
+  **Recommended fix, for architect sign-off:** tune the **warlord**, not the wave and not the level.
+  Target: W6 demand ≈ **1500₡** (margin ~1.15× against the 1738₡ board, matching the W1-W5 ramp), i.e.
+  the warlord should add ~**300₡**, not 1400₡. Its `maxHp 900` / `armor 6` are the obvious knobs;
+  ROADMAP's IP/design note that a boss should be a *climax*, not a coin-flip, applies — and Thronefall's
+  single most-cited complaint is precisely a final boss that "guarantees you'll lose your first time."
+  **Also still true and unaffected by any of this:** CD-50 (production upgrades are dead options) is
+  independent and ships either way; the sink finding stands (a perfect run funds **46%** of the reference
+  build's own 3742₡ ceiling — the architect's corrected denominator, not 5953₡).
+  **Probe hygiene note for future sessions:** `levels.json` is imported as a **shared module object**, so
+  mutating `g.level.waves[...]` **persists across `loadLevel()`** and silently contaminates every
+  subsequent run in the same page session. An earlier version of this probe reported nonsense (every
+  variant clearing at 400₡) for exactly that reason. **Snapshot a deep clone immediately after a fresh
+  page load, restore it per run, and always include an unmutated sanity control.**
+  ---
+  Prior status (both hypotheses now falsified): **ROOT CAUSE FALSIFIED 2026-07-15 — back to the architect; do NOT apply the
   planned fix.** `docs/design-wave-legibility.md` §7a/Finding 3 planned an arrival-profile **stagger**, on
   QA's hypothesis that CD-45's declumping lets more of W6's 33 enemies engage at once instead of queuing.
   The doc gated that on its own probe 2 (§11 Step 1): *"Dies either way ⇒ the stagger is a paper-over and
