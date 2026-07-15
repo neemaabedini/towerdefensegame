@@ -490,6 +490,33 @@ reviewer); Sonnet does (coder, QA).
   ≥ roughly the old 400/600 floor, without needing a maxed/rushed build. Do not conflate with CD-41 (that
   ticket's cliff is W4, for weaker/leaner archetypes, and is a separate income-floor problem — see CD-41's
   own note that CD-45 did not resolve it).
+- [ ] CD-49 (feature, P2) — **Widen branch coverage — the cheapest build-variety win available** — filed
+  2026-07-15 against the user's stated goal ("different build options so things don't get stale over
+  multiple playthroughs"). **Architect first** (new options are new balance surface), but zero engine work:
+  this is pure `buildings.json` data on the `branch`/`branchId` mechanism CD-38 already shipped and QA
+  verified end-to-end (CD-38 test plan item 5: real mouse click on a `.branch-chip`, real dispatched
+  keydown, same-day undo, later-day undo-upgrade clearing `branchId`, and destroy→dawn-rebuild all
+  preserving the choice).
+  **Measured gap vs. the Thronefall benchmark (see the design-benchmark rule):** Thronefall's single Tower
+  offers **1 of 4** at L3 (Archer's / Ballistic / Fire / Healing Spire — full stat numbers shown before
+  purchase, locked per building, 5g then 15g). We ship **2 of 9 buildings branching, 1 of 2 each**:
+  `gun_tower` (rapid/longbarrel) and `garrison` (riflemen/snipers). `siege_tank`, `missile_battery`,
+  `sniper_tower`, `mining_facility`, `plasma_tap`, `sensor_array` and `command_center` have **no branch at
+  all**. So our widest choice is half Thronefall's, on a quarter as many buildings.
+  **Benchmark verdict: ADOPT.** Per-building branching is in Thronefall's praised column, not its complaint
+  list (rigid nodes / no undo-sell / micromanagement / difficulty cliffs / clutter) — it is in fact part of
+  their answer to complaint #1 (rigid building nodes), which ROADMAP logs as our inherited problem too.
+  **Scope to settle with the architect:** which buildings get branches (the three unbranched defenses are
+  the obvious start); whether to widen 1-of-2 → 1-of-3/4 (note UI_PLAN's ≤4-options/keys-1-4 cap is a hard
+  ceiling and `sniper_tower`'s site already carries 4 options on Ridge `d3`); and the no-dead-options rule
+  every branch must satisfy — CD-37 is still open precisely because a branch-like option's value was
+  measured with the wrong metric, so **each new branch needs its non-dominance metric named up front**, not
+  after the third re-measure.
+  **Sequencing:** must land AFTER CD-41/CD-48/CD-46 close — adding balance surface while two P1 cliffs are
+  open would make both un-measurable. Related: **CD-30** (pre-run perks/mutators) is the *other* variety
+  layer and the one ROADMAP calls "the top replayability driver every studied community ranks top";
+  Thronefall gives 1 perk slot at start rising to 5 by level 24, we give 0. This ticket is the cheap in-run
+  layer; CD-30 is the across-run layer. They are complementary, not alternatives.
 - [ ] CD-47 (feature, P2) — **Cheap low-yield "house"-archetype economy building (a safe income floor)** —
   filed 2026-07-15 at user request. **Architect design pass required before implementation — do NOT
   implement from this ticket** (same precedent as CD-7: designed first, then user decisions). Concept, in
