@@ -524,7 +524,41 @@ reviewer); Sonnet does (coder, QA).
   CD-48.** Closing this re-baseline ticket now that the numbers are recorded, per house precedent of
   spinning findings into fresh tickets rather than leaving the re-baseline ticket open indefinitely
   (CD-35→36/37, CD-38→39, CD-7→41/42, CD-45→46→48).
-- [ ] CD-48 (balance, P1) — **New Wave 6 hard-defeat cliff on Outpost Alpha's strongest defense build,
+- [ ] CD-48 (balance, P1) — **ROOT CAUSE FALSIFIED 2026-07-15 — back to the architect; do NOT apply the
+  planned fix.** `docs/design-wave-legibility.md` §7a/Finding 3 planned an arrival-profile **stagger**, on
+  QA's hypothesis that CD-45's declumping lets more of W6's 33 enemies engage at once instead of queuing.
+  The doc gated that on its own probe 2 (§11 Step 1): *"Dies either way ⇒ the stagger is a paper-over and
+  Step 3 must not proceed as written."* **The probe fired. The hypothesis is backwards.**
+  **Measured — isolated W6, identical board + upgrade rule, only separation differs:**
+  minimum war chest to clear W6 is **2500₡ with separation ON (shipped)** vs **3500₡ with it OFF**.
+  **CD-45 made W6 ~1000₡ EASIER, not harder.** W5 control: 800₡ either way (separation is irrelevant
+  there). So the cliff is not an arrival-timing artifact and staggering `delay`/`interval` would be tuning
+  a variable that isn't the cause.
+  **The real cause — W6 demands more board than the economy can fund.** Isolated W6 budget ladder
+  (shipped sim): 1000₡ → defeat (HQ 0) · 2000₡ → defeat (HQ 0) · **2500₡ → victory (HQ 600/600, zero
+  wrecks)** · 4000₡ → victory. Then the decisive number, from a **realistic run with no money cheat and
+  disciplined idle (13-60₡/dawn, inside CD-35's ≤70 rule)**: the best build reaches W6 with **1738₡
+  invested** (d1:260 → d2:420 → d3:550 → d4:890 → d5:1188 → **d6:1738**). **W6 is tuned ~44% above what
+  a perfect run can pay for.** Greedy/economy-first never even reaches W6 (dies W3 with 770₡ invested).
+  **Second defect, arguably the worse one: W6 is binary.** 2000₡ → HQ **0**; 2500₡ → HQ **600**, zero
+  wrecks. There is **no bloody-win band at all** — it flips from total loss to flawless. A climax should
+  be survivable-but-costly. This is the same "damage curve smooth, outcome a cliff" tell the doc itself
+  named, and it means no knob that only moves *demand* will produce a good W6; the band has to widen too.
+  **Correction the architect must fold in: §3a's "income cannot matter" bound is W4-SPECIFIC and does not
+  generalise.** W4 is three dawns deep, so an income delta is worth ≤162₡ there — that bound is sound and
+  CD-41's falsifier confirmed it live. **W6 is five dawns deep and sits at ~100% of the run's theoretical
+  total credits (the doc's own §7c estimate: ~2500₡ per run), so income compounds AND there is zero
+  margin.** Income is plausibly load-bearing at W6 precisely where it was provably irrelevant at W4.
+  **This also re-opens CD-47's relevance in the other direction:** a house at +30₡/dawn is worth ~+150₡
+  by W6 — real, but ~20% of the 762₡ gap, so not a fix on its own.
+  **Options for the architect (mine, not applied):** lower W6's demand ~30% to meet a realistic 1738₡
+  board; and/or widen the bloody-win band so a slightly-under-funded board loses buildings instead of the
+  HQ; and/or raise late income (5-dawn compounding); explicitly **not** a stagger. Note ROADMAP's own
+  Thronefall verdict already applies — their most-cited complaint is a final-wave cliff that
+  "guarantees you'll lose your first time," and ours currently guarantees exactly that for every build the
+  economy can actually fund.
+  ---
+  Original report, retained (hypothesis now falsified): **New Wave 6 hard-defeat cliff on Outpost Alpha's strongest defense build,
   post-CD-45** — found 2026-07-15 during the combined CD-46/CD-41 re-baseline pass. The single build
   archetype that survives Outpost's Wave 4 cliff (full 7-site defense-then-economy coverage: d1 garrison,
   d2 gun_tower, d3 siege_tank, d4 missile_battery, d5 sniper_tower, s1 sensor_array, m1 mining_facility)
