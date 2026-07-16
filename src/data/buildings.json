@@ -111,6 +111,18 @@
           "name": "Sniper Team",
           "blurb": "Armor-piercing. Ground only.",
           "squad": { "unitId": "sniper", "countByLevel": [3, 2, 3] }
+        },
+        {
+          "id": "flak",
+          "name": "Flak Team",
+          "blurb": "Air only. Shreds flyers, ignores ground.",
+          "squad": { "unitId": "flak_trooper", "countByLevel": [3, 4, 5] }
+        },
+        {
+          "id": "bulwarks",
+          "name": "Bulwarks",
+          "blurb": "Heavy shields. Block lanes, kill slowly.",
+          "squad": { "unitId": "bulwark", "countByLevel": [3, 3, 4] }
         }
       ]
     }

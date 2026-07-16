@@ -28,5 +28,35 @@
     "color": "#37474f",
     "accent": "#4dd0e1",
     "kind": "ranged"
+  },
+  "flak_trooper": {
+    "id": "flak_trooper",
+    "name": "Flak Trooper",
+    "maxHp": 45,
+    "damage": 7,
+    "fireRate": 2.0,
+    "range": 120,
+    "targets": "air",
+    "radius": 6,
+    "moveSpeed": 55,
+    "leash": 60,
+    "color": "#1b5e20",
+    "accent": "#a5d6a7",
+    "kind": "ranged"
+  },
+  "bulwark": {
+    "id": "bulwark",
+    "name": "Bulwark",
+    "maxHp": 120,
+    "damage": 5,
+    "fireRate": 1.0,
+    "range": 45,
+    "targets": "ground",
+    "radius": 7,
+    "moveSpeed": 45,
+    "leash": 60,
+    "color": "#5d4037",
+    "accent": "#ffab91",
+    "kind": "ranged"
   }
 }
