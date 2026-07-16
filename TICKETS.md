@@ -18,6 +18,33 @@ coder; the **qa-engineer** verifies end-to-end, reviews balance, and appends
 new bug/balance tickets here. Opus plans and checks (PM, architect,
 reviewer); Sonnet does (coder, QA).
 
+> ## ⛔ BALANCE FREEZE — in effect 2026-07-15, user decision
+>
+> *"We are overtuning at a time when the game is barely playable. If we can modify the number of enemies
+> spawned, the types, and the hp/dps, the # of levels, and more, we can do this later and not beat a dead
+> horse."*
+>
+> **Every balance lever is data in `src/data/*.json`** — enemy counts/types/HP/damage/armor, wave
+> composition and timing, income, costs, wave count, level count. All of it is a one-minute edit at any
+> point. **It is cheap to change later and expensive to change repeatedly now**, because each change
+> invalidates every prior measurement (we re-baselined three times in one session).
+>
+> **Until the feature set is done:**
+> - A balance bug that **blocks playability** (unwinnable wave, unreachable ending) → fix it crudely with
+>   a tested number, confirm the game is completable, move on. **Do not optimise it.**
+> - A balance bug that is **merely suboptimal** (dead option, rough curve, a cliff a good player routes
+>   around) → **file it, don't fix it.**
+> - **No knob ladders, archetype sweeps, or re-baselines** unless a blocker is actually blocking.
+>
+> **FROZEN (analysis is good and banked — do not resume until the feature set lands):** CD-48 (warlord
+> tuned to unblock; the two-sided criterion, the wrecks clause and the demand-curve work are parked),
+> CD-41 (fix shipped; the re-scope call is parked), CD-50 (dead production upgrades — filed, real, waits),
+> CD-42, CD-37, CD-39, CD-46's follow-ups, and `docs/design-level-length.md`'s Steps 1-3 (the level-length
+> question is answered "not now" — its own P4 probe falsified the case for lengthening anyway).
+>
+> **Unfrozen work is the feature set:** CD-7 Step 4 → CD-40 → CD-49 → CD-30, plus CD-16 (demo gate) and
+> CD-17 (Godot spike). See [[citydefense-balance-timing]] in memory.
+
 ## Open
 
 - [ ] CD-37 (balance, P2) — Garrison's non-dead-option status still not decisively demonstrated in the
@@ -524,7 +551,20 @@ reviewer); Sonnet does (coder, QA).
   CD-48.** Closing this re-baseline ticket now that the numbers are recorded, per house precedent of
   spinning findings into fresh tickets rather than leaving the re-baseline ticket open indefinitely
   (CD-35→36/37, CD-38→39, CD-7→41/42, CD-45→46→48).
-- [ ] CD-48 (balance, P1) — **DIAGNOSED 2026-07-15: the cliff is ONE ENEMY — the warlord. Do not
+- [x] CD-48 (balance, P1) — **CLOSED 2026-07-15 — blocker fixed, remaining tuning FROZEN (see the freeze
+  notice above).** `enemies.json` warlord **maxHp 900→550, damage 30→24** (armor 6 unchanged — measured
+  dead: 6→2 moves nothing, the sniper tower already cracks it). Verified: **a realistic no-cheat run now
+  finishes Outpost — victory, HQ trace W1:597 W2:551 W3:35 W4:420 W5:600 W6:325.** The game is completable
+  end-to-end for the first time. Value chosen because 550/24 and 600/18 both land HQ 325/600 (dead centre
+  of the 200-480 band) and 550/24 keeps the boss hitting harder than a siege walker (20) — 600/18 would
+  have made the boss hit softer than a regular unit.
+  **Deliberately NOT pursued, per the freeze:** the wrecks-1-to-3 half of the two-sided criterion (every
+  win has 0 wrecks, every loss 6 — no warlord knob moves it, since the warlord walks past towers to the
+  HQ stop-ring; the criterion's wrecks clause is unachievable for a boss wave and should be revisited
+  with the whole balance pass); W3's HQ dipping to 35/600 in the trace above; and Ridge Pass, which is
+  unmeasured post-change. **All of it is data. None of it blocks playability. It waits.**
+  ---
+  Diagnosis retained (good, banked, do not redo): **the cliff is ONE ENEMY — the warlord. Do not
   lengthen the level; do not stagger; do not nerf the wave wholesale.** Two architect hypotheses have now
   been falsified by their own gates, and the third probe pinpointed it. Ready for a surgical fix.
   **P4 (demand curve) FALSIFIED the lengthening thesis** (`docs/design-level-length.md` §3, its own
