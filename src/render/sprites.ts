@@ -434,7 +434,7 @@ const UNIT_BUILDERS: Record<string, Builder> = {
 /* ---------------- building sprite builders ---------------- */
 /* Keyed by BuildingDef.shape. frame is 0/1 idle animation. */
 
-/** Command Center: pad, slab, dome, side pods, blinking antenna, energy core */
+/** Command Post: pad, slab, dome, side pods, blinking antenna, energy core */
 function hqSprite(frame: number): Grid {
   const base = "#1e88e5";
   const g = makeGrid(40, 32);
@@ -522,7 +522,7 @@ function bunkerSprite(frame: number): Grid {
   })();
 }
 
-/** Siege Tank (deployed): outriggers, hull, turret, long elevated barrel */
+/** Artillery Platform (deployed): outriggers, hull, turret, long elevated barrel */
 function tankSprite(frame: number): Grid {
   const base = "#37474f";
   const g = makeGrid(28, 22);

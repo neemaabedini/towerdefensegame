@@ -62,7 +62,7 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
   const errors: string[] = [];
 
   // R9 (docs/design-wave-legibility.md): a def with maxLevel > 1 but no real
-  // upgrade cost silently upgrades for free — the Command Center's cost: 0
+  // upgrade cost silently upgrades for free — the Command Post's cost: 0
   // is exactly this trap (its own `upgradeCosts` override is what saves it).
   // Level-independent, so this runs once, not once per level.
   for (const def of Object.values(BUILDINGS)) {

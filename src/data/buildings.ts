@@ -87,7 +87,7 @@ export interface BuildingDef {
   /** Per-level upgrade cost overrides, index = currentLevel - 1 (cost to go
    *  FROM that level to the next). When present, `upgradeCost()` reads this
    *  instead of the `cost * upgradeCostMult * level` formula — needed for
-   *  any def with `cost: 0` (the Command Center: it's placed automatically,
+   *  any def with `cost: 0` (the Command Post: it's placed automatically,
    *  never bought, so the formula would make every upgrade free). A
    *  validate.ts assert enforces that any def with `maxLevel > 1` has a
    *  real upgrade cost one way or the other. */

@@ -27,7 +27,7 @@ export interface UnitDef {
   slowSeconds?: number;
   color: string;
   accent: string;
-  kind: "ranged"; // "melee" reserved for a future Firebat
+  kind: "ranged"; // "melee" reserved for a future Scorcher
 }
 
 export const UNITS = rawUnits as unknown as Record<string, UnitDef>;

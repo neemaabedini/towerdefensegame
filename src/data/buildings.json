@@ -1,7 +1,7 @@
 {
   "command_center": {
     "id": "command_center",
-    "name": "Command Center",
+    "name": "Command Post",
     "category": "support",
     "description": "Your headquarters with a light defensive gun. If it falls, the level is lost. Its light gun hits air.",
     "cost": 0,
@@ -33,9 +33,9 @@
         {
           "id": "plating",
           "name": "Plating",
-          "blurb": "+10% max HP for every structure and squad, including the Command Center itself.",
+          "blurb": "+10% max HP for every structure and squad, including the Command Post itself.",
           "mods": { "maxHp": 1.10 },
-          "scope": "all structures & squads, incl. the Command Center"
+          "scope": "all structures & squads, incl. the Command Post"
         }
       ]
     }
@@ -108,13 +108,13 @@
         },
         {
           "id": "firebats",
-          "name": "Firebats",
+          "name": "Scorchers",
           "blurb": "Splash. Melts ground swarms up close.",
           "squad": { "unitId": "firebat", "countByLevel": [3, 4, 5] }
         },
         {
           "id": "marauders",
-          "name": "Marauders",
+          "name": "Breakers",
           "blurb": "Anti-armor. Slows what it hits.",
           "squad": { "unitId": "marauder", "countByLevel": [3, 3, 4] }
         },
@@ -129,7 +129,7 @@
   },
   "siege_tank": {
     "id": "siege_tank",
-    "name": "Siege Tank",
+    "name": "Artillery Platform",
     "category": "defense",
     "description": "Long-range splash artillery. Shreds packed swarms. Ground only.",
     "cost": 160,

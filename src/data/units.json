@@ -16,7 +16,7 @@
   },
   "firebat": {
     "id": "firebat",
-    "name": "Firebat",
+    "name": "Scorcher",
     "maxHp": 55,
     "damage": 6,
     "fireRate": 1.8,
@@ -32,7 +32,7 @@
   },
   "marauder": {
     "id": "marauder",
-    "name": "Marauder",
+    "name": "Breaker",
     "maxHp": 70,
     "damage": 20,
     "fireRate": 0.7,

@@ -589,7 +589,7 @@ export class Renderer {
       ctx.fillRect(bx, by, bw * pct, bh);
     }
 
-    // Level badge — the HQ can level now too (Command Center picks), so it
+    // Level badge — the HQ can level now too (Command Post picks), so it
     // gets the same badge once it's above L1.
     if (b.level > 1) {
       ctx.fillStyle = "#1a2440";
@@ -674,7 +674,7 @@ export class Renderer {
     }
   }
 
-  /** Command Center: wide pad, dome, side pods, antenna — Terran CC vibes */
+  /** Command Post: wide pad, dome, side pods, antenna — Terran CC vibes */
   private drawHq(x: number, y: number, s: number, color: string, accent: string): void {
     const ctx = this.ctx;
     // Landing pad
@@ -867,7 +867,7 @@ export class Renderer {
     }
   }
 
-  /** Siege Tank: deployed artillery — outriggers, hull, long elevated barrel */
+  /** Artillery Platform: deployed artillery — outriggers, hull, long elevated barrel */
   private drawTank(x: number, y: number, s: number, color: string, accent: string): void {
     const ctx = this.ctx;
     // Outrigger legs

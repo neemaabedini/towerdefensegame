@@ -516,7 +516,7 @@ export class Game {
   }
 
   /** Re-derives globalStatMods from every building holding a global branch
-   *  pick (today: only the Command Center, merged for CD-49's future seam
+   *  pick (today: only the Command Post, merged for CD-49's future seam
    *  of more than one). Multiplicative merge, not overwrite, so two global
    *  picks on the same stat would compound rather than one winning. */
   private computeGlobalMods(): StatMods {
@@ -1555,8 +1555,8 @@ export class Game {
         if (d <= unitDef.range) {
           if (u.cooldown <= 0) {
             u.cooldown = 1 / stats.fireRate;
-            // Firebats route through applyDamage for splash (respecting the
-            // squad's TargetMode); single-target squads hit directly. Marauder
+            // Scorchers route through applyDamage for splash (respecting the
+            // squad's TargetMode); single-target squads hit directly. Breaker
             // slow reuses the enemy slowTimer the movement code already reads.
             if (unitDef.splashRadius && unitDef.splashRadius > 0) {
               this.applyDamage(

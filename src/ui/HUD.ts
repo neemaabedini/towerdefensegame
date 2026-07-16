@@ -338,7 +338,7 @@ export class HUD {
     } else if (state.phase === "defeat") {
       this.showOverlay(
         "Defeat",
-        "The Command Center has fallen. Rebuild and try a different layout.",
+        "The Command Post has fallen. Rebuild and try a different layout.",
         "Retry",
       );
     } else {
