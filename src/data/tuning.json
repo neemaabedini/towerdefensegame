@@ -23,12 +23,6 @@
     "hqContactPadPx": 40,
     "separationStepFraction": 0.5
   },
-  "sensorArray": {
-    "rangeBonusBase": 0.12,
-    "rangeBonusPerLevel": 0.04,
-    "fireRateBonusBase": 0.1,
-    "fireRateBonusPerLevel": 0.03
-  },
   "input": {
     "sellLockoutMs": 350
   }

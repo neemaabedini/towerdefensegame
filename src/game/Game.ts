@@ -1013,31 +1013,15 @@ export class Game {
     this.notify();
   }
 
-  private sensorBoost(building: PlacedBuilding): { range: number; rate: number } {
-    let rangeMul = 1;
-    let rateMul = 1;
-    for (const other of this.buildings) {
-      if (other.hp <= 0 || other.defId !== "sensor_array") continue;
-      const odef = getBuilding(other.defId);
-      const ostats = scaledStats(odef, other.level, other.branchId, this.globalStatMods);
-      if (dist(building.x, building.y, other.x, other.y) <= ostats.range) {
-        rangeMul += TUNING.sensorArray.rangeBonusBase + other.level * TUNING.sensorArray.rangeBonusPerLevel;
-        rateMul += TUNING.sensorArray.fireRateBonusBase + other.level * TUNING.sensorArray.fireRateBonusPerLevel;
-      }
-    }
-    return { range: rangeMul, rate: rateMul };
-  }
-
   private resolveCombat(dt: number): void {
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
       const def = getBuilding(b.defId);
       if (def.damage <= 0 || def.fireRate <= 0) continue;
 
-      const boost = this.sensorBoost(b);
       const stats = scaledStats(def, b.level, b.branchId, this.globalStatMods);
-      const range = stats.range * boost.range;
-      const fireRate = stats.fireRate * boost.rate;
+      const range = stats.range;
+      const fireRate = stats.fireRate;
 
       b.cooldown -= dt;
       if (b.cooldown > 0) continue;

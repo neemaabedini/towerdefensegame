@@ -138,6 +138,13 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
       if (!VALID_CATEGORIES.includes(site.category)) {
         errors.push(`${level.id}/${site.id}: unknown category "${site.category}"`);
       }
+      // A site whose only option(s) get deleted from buildings.json silently
+      // becomes unselectable-productively rather than throwing — this is
+      // exactly the class of mistake CD-54 (deleting sensor_array/plasma_tap)
+      // could have shipped if a site's replacement had been missed.
+      if (site.options.length === 0) {
+        errors.push(`${level.id}/${site.id}: has zero build options — dead site`);
+      }
 
       for (const optId of site.options) {
         const def = BUILDINGS[optId];

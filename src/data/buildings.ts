@@ -157,10 +157,11 @@ export function getBuilding(id: string): BuildingDef {
 const RESOURCE_KINDS: readonly ResourceKind[] = ["mineral", "plasma"];
 
 /** Whichever def's `mining.resource` matches `kind` is the authority on that
- *  resource's radius/cap — today that's exactly one def per kind
- *  (mining_facility/mineral, plasma_tap/plasma). Centralizing the lookup
- *  here means Game.loadLevel and validate.ts derive identical node counts
- *  from the same source instead of two hand-synced copies. */
+ *  resource's radius/cap — today only `mining_facility` claims "mineral";
+ *  no def claims "plasma" since CD-54 deleted `plasma_tap` (Plasma Well
+ *  obstacles are now decorative terrain, like rocks). Centralizing the
+ *  lookup here means Game.loadLevel and validate.ts derive identical node
+ *  counts from the same source instead of two hand-synced copies. */
 function miningDefFor(kind: ResourceKind): BuildingDef | null {
   for (const def of Object.values(BUILDINGS)) {
     if (def.mining?.resource === kind) return def;
