@@ -3,6 +3,7 @@ import { AudioBus } from "./audio/AudioBus";
 import { bindSounds } from "./audio/bindings";
 import { STRINGS } from "./data/strings";
 import { actionFromKey } from "./input/actions";
+import type { Phase } from "./game/types";
 import { PauseModal } from "./ui/PauseModal";
 import { Renderer } from "./render/Renderer";
 import { BuildRing } from "./ui/BuildRing";
@@ -85,11 +86,81 @@ canvas.addEventListener("click", (ev) => {
   game.selectAt(x, y);
 });
 
+// --- Hero movement (CD-29 Slice 1, docs/design-hero-commander.md §8/§9) ---
+// A held-direction-key Set, updated on keydown AND keyup (this file
+// previously had no keyup listener at all — the WASD/arrow keys only ever
+// fed one-shot `nav` actions, which read fine off held-key OS repeat). Hero
+// movement can't rely on repeat timing, so it's recomputed from the Set on
+// every press/release edge and latched into the sim via Game.setHeroMove —
+// never read live inside the frame()/update() loop (C4).
+const heldDirs = new Set<"up" | "down" | "left" | "right">();
+
+function dirFromKey(key: string): "up" | "down" | "left" | "right" | null {
+  switch (key) {
+    case "w":
+    case "W":
+    case "ArrowUp":
+      return "up";
+    case "s":
+    case "S":
+    case "ArrowDown":
+      return "down";
+    case "a":
+    case "A":
+    case "ArrowLeft":
+      return "left";
+    case "d":
+    case "D":
+    case "ArrowRight":
+      return "right";
+    default:
+      return null;
+  }
+}
+
+/** Derives the normalized 8-way vector from the held-key Set and latches it.
+ *  Safe to call any time the Set changes (or on a phase/pause transition
+ *  that needs a re-latch) — no-ops by itself while off-screen or paused, and
+ *  Game.setHeroMove is itself a no-op outside phase === "night" (defense in
+ *  depth, §9.5). */
+function dispatchHeroMove(): void {
+  if (shell.screen !== "game" || shell.modal !== "none") return;
+  let dx = 0;
+  let dy = 0;
+  if (heldDirs.has("left")) dx -= 1;
+  if (heldDirs.has("right")) dx += 1;
+  if (heldDirs.has("up")) dy -= 1;
+  if (heldDirs.has("down")) dy += 1;
+  game.setHeroMove(dx, dy);
+}
+
+// Keyup has no other consumer in this file today, but the held-key Set must
+// keep updating even while the pause modal is open (a release mid-pause
+// can't strand a latched vector) — dispatchHeroMove's own modal check keeps
+// it from actually moving the hero while paused.
+window.addEventListener("keyup", (ev) => {
+  if (shell.screen !== "game") return;
+  const dir = dirFromKey(ev.key);
+  if (!dir) return;
+  heldDirs.delete(dir);
+  dispatchHeroMove();
+});
+
 // Keyboard → semantic actions (see src/input/actions.ts and UI_PLAN.md).
 // Dead while off the game screen — the title/level-select screens use
 // plain DOM focus + Enter/click instead.
 window.addEventListener("keydown", (ev) => {
   if (shell.screen !== "game") return;
+
+  // Set maintenance runs unconditionally (even while paused, for the same
+  // release-stranding reason as keyup above); dispatchHeroMove no-ops while
+  // paused so this can't move the hero mid-pause.
+  const dir = dirFromKey(ev.key);
+  if (dir) {
+    heldDirs.add(dir);
+    dispatchHeroMove();
+  }
+
   const action = actionFromKey(ev);
   if (!action) return;
 
@@ -113,7 +184,9 @@ window.addEventListener("keydown", (ev) => {
   switch (action.kind) {
     case "nav":
       ev.preventDefault();
-      game.navigate(action.dx, action.dy);
+      // Night building-inspection nav is demoted to mouse/touch (selectAt
+      // already works) — at night WASD now drives the hero instead (§9.3).
+      if (state.phase === "day") game.navigate(action.dx, action.dy);
       break;
     case "option": {
       // If a building is selected and a branch choice is pending, 1/2 pick
@@ -167,6 +240,17 @@ window.addEventListener("keydown", (ev) => {
   }
 });
 
+// Hero movement re-latch bookkeeping (§9.5): entering night must re-emit
+// the currently-held vector, since a key held ACROSS the day→night edge
+// produces no new keydown/keyup — dispatchHeroMove only runs on those
+// edges otherwise. Entering day zeroes it explicitly (Game already zeroes
+// heroMoveDir internally too — this is the main.ts half of the same
+// defense-in-depth). Unpausing re-latches for the same reason: a key held
+// through the pause modal produces no edge either, and dispatchHeroMove
+// was a no-op the whole time it was open.
+let lastHeroPhase: Phase | null = null;
+let lastModal: "none" | "pause" = "none";
+
 // Structural rebuilds only on real state changes (screen transitions or
 // game state) — rebuilding per frame destroys buttons between mousedown
 // and mouseup, eating clicks. Screens replace the game area/side panel
@@ -191,6 +275,17 @@ shell.onChange(() => {
     hints.render(state);
   } else {
     hints.hide();
+  }
+
+  const phase = inGame ? game.getSnapshot().phase : null;
+  if (phase !== lastHeroPhase) {
+    if (phase === "night") dispatchHeroMove();
+    else if (lastHeroPhase === "night") game.setHeroMove(0, 0);
+    lastHeroPhase = phase;
+  }
+  if (shell.modal !== lastModal) {
+    if (shell.modal === "none" && lastModal === "pause") dispatchHeroMove();
+    lastModal = shell.modal;
   }
 });
 

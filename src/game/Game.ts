@@ -10,6 +10,7 @@ import {
   type TargetMode,
 } from "../data/buildings";
 import { getEnemy, type EnemyDef } from "../data/enemies";
+import { getHero } from "../data/hero";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
 import { TUNING } from "../data/tuning";
 import { getUnit, unitStats } from "../data/units";
@@ -20,6 +21,7 @@ import type {
   GameEvent,
   GameSnapshot,
   GarrisonUnit,
+  HeroState,
   Particle,
   Phase,
   PlacedBuilding,
@@ -77,6 +79,15 @@ export class Game {
    *  paths; call the public globalMods() getter only from outside the sim
    *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
   private globalStatMods: StatMods = {};
+  /** The hero commander (docs/design-hero-commander.md, CD-29 Slice 1).
+   *  Never null after loadLevel — parked at the HQ (deployed: false) during
+   *  the day, deployed during night. */
+  private hero: HeroState | null = null;
+  /** Latched, normalized move-vector — the ONLY input seam for hero
+   *  movement (C4/§8). Mutated only by setHeroMove, which is called only
+   *  from main.ts's event listeners, never from inside update()/updateHero,
+   *  so it stays constant across a 2x sub-step's two update() calls. */
+  private heroMoveDir: Vec2 = { x: 0, y: 0 };
 
   constructor(nowMs: () => number = () => Date.now()) {
     this.nowMs = nowMs;
@@ -161,6 +172,7 @@ export class Game {
       },
     ];
     this.lastSellAt = 0;
+    this.parkHero();
 
     this.notify();
   }
@@ -228,6 +240,9 @@ export class Game {
       dayTime: 0,
       nightTime: this.waveElapsed,
       hqId: this.hqId,
+      // Live reference, not a clone — CD-15's standing flag (see types.ts
+      // GameSnapshot.hero), matching every other array/object field here.
+      hero: this.hero,
     };
   }
 
@@ -632,6 +647,54 @@ export class Game {
     return true;
   }
 
+  /** Hero's day-phase / dawn-restored state — idle at the HQ, full HP, not
+   *  controllable, not in combat (design §4/§5). Called at loadLevel (so
+   *  `hero` is never null after boot) and at dawn/victory (onWaveCleared),
+   *  where it doubles as the "restored to full HP and repositioned at the
+   *  HQ; if dead, revived" dawn rule. Also zeroes heroMoveDir — the
+   *  transition-hygiene half of C4/§9.5 that belongs to the sim, not just
+   *  main.ts's own re-latch/zero on the same edges. */
+  private parkHero(): void {
+    const def = getHero("commander");
+    this.hero = {
+      defId: def.id,
+      x: this.level.hq.x,
+      y: this.level.hq.y,
+      hp: def.maxHp,
+      maxHp: def.maxHp,
+      alive: true,
+      deployed: false,
+      facing: 1,
+      cooldown: 0,
+    };
+    this.heroMoveDir = { x: 0, y: 0 };
+  }
+
+  /** Deploys the hero for the night: full HP, alive, at the HQ, controllable. */
+  private deployHero(): void {
+    const def = getHero("commander");
+    this.hero = {
+      defId: def.id,
+      x: this.level.hq.x,
+      y: this.level.hq.y,
+      hp: def.maxHp,
+      maxHp: def.maxHp,
+      alive: true,
+      deployed: true,
+      facing: 1,
+      cooldown: 0,
+    };
+  }
+
+  /** Latches a normalized hero move-vector (§8). No-op outside night — both
+   *  because the hero isn't on the map any other phase, and as defense in
+   *  depth per §9.5 even if a caller forgets to gate on phase itself. */
+  setHeroMove(dx: number, dy: number): void {
+    if (this.phase !== "night") return;
+    const len = Math.hypot(dx, dy);
+    this.heroMoveDir = len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
+  }
+
   startNight(): void {
     if (this.phase !== "day") return;
     if (this.waveIndex >= this.level.waves.length) return;
@@ -642,6 +705,7 @@ export class Game {
     this.waveSpawnComplete = false;
     this.pendingSpawns = [];
     this.projectiles = [];
+    this.deployHero();
 
     // Per-day undo/sell ledger only covers today's spend — clear it as the
     // day ends (see design-demo-milestone.md Problem 3).
@@ -771,6 +835,12 @@ export class Game {
     // tightest stacks are exactly the ones halted on a building's contact ring.
     this.separateEnemies(dt);
 
+    // Hero acts (CD-29 Slice 1) — after enemy movement (so this tick's
+    // resolveEnemyContact/resolveRangedAttack next frame see the hero's
+    // post-move position, matching the same one-frame-lag convention units
+    // already have relative to their own updateUnits call below).
+    this.updateHero(dt);
+
     // Garrison squads act — night only, stateless per-tick derivation (D5-D7)
     this.updateUnits(dt);
 
@@ -798,6 +868,7 @@ export class Game {
     const hq = this.buildings.find((b) => b.id === this.hqId);
     if (!hq || hq.hp <= 0) {
       this.phase = "defeat";
+      this.heroMoveDir = { x: 0, y: 0 };
       this.emit({ type: "defeat" });
       this.notify();
     }
@@ -836,6 +907,61 @@ export class Game {
     }
   }
 
+  /** Night-only hero tick (CD-29 Slice 1): integrate movement (clamped to
+   *  the level bounds), then auto-attack on cooldown — the same
+   *  findTarget/hurtEnemy idiom updateUnits uses for a garrison unit, just
+   *  with no leash/anchor (design §7, C8: lone fighter, no rally). Dead or
+   *  undeployed hero does nothing — it stops moving/attacking/blocking. */
+  private updateHero(dt: number): void {
+    const hero = this.hero;
+    if (!hero || !hero.deployed || !hero.alive) return;
+    const def = getHero(hero.defId);
+
+    if (this.heroMoveDir.x !== 0 || this.heroMoveDir.y !== 0) {
+      hero.x += this.heroMoveDir.x * def.moveSpeed * dt;
+      hero.y += this.heroMoveDir.y * def.moveSpeed * dt;
+      hero.x = Math.max(def.radius, Math.min(this.level.width - def.radius, hero.x));
+      hero.y = Math.max(def.radius, Math.min(this.level.height - def.radius, hero.y));
+      if (this.heroMoveDir.x > 0) hero.facing = 1;
+      else if (this.heroMoveDir.x < 0) hero.facing = -1;
+    }
+
+    if (hero.cooldown > 0) hero.cooldown -= dt;
+    if (hero.cooldown <= 0) {
+      const target = this.findTarget(hero.x, hero.y, def.range, def.targets);
+      if (target) {
+        hero.cooldown = 1 / def.fireRate;
+        this.hurtEnemy(target, def.damage);
+        // Reuses unitFired (audio hookup optional per design §13) — bindings.ts
+        // maps every unitFired to one shot sound regardless of unitDefId.
+        this.emit({ type: "unitFired", unitDefId: hero.defId });
+        this.particles.push({
+          id: uid("pt"),
+          x: (hero.x + target.x) / 2,
+          y: (hero.y + target.y) / 2,
+          vx: 0,
+          vy: 0,
+          life: 0.08,
+          maxLife: 0.08,
+          color: def.accent,
+          size: 2,
+        });
+      }
+    }
+  }
+
+  /** Same armor-free damage path as hurtUnit — the hero has no armor stat. */
+  private hurtHero(rawDamage: number): void {
+    const hero = this.hero;
+    if (!hero || hero.hp <= 0) return;
+    hero.hp -= rawDamage;
+    if (hero.hp <= 0) {
+      hero.hp = 0;
+      hero.alive = false;
+      this.emit({ type: "heroDied" });
+    }
+  }
+
   private resolveEnemyContact(dt: number): void {
     const hq = this.buildings.find((b) => b.id === this.hqId);
     if (!hq) return;
@@ -849,15 +975,17 @@ export class Game {
         continue;
       }
 
-      // Blocking squad units take priority over buildings/HQ (D5/D6):
-      // small contact radius (raider ~19px vs building 28-40px) IS the
-      // geometric porousness — a squad slows a lane, it doesn't seal it.
-      // Flyers pass straight over units (D6).
+      // Blocking squad units (and, since CD-29, the deployed hero) take
+      // priority over buildings/HQ (D5/D6): small contact radius (raider
+      // ~19px vs building 28-40px) IS the geometric porousness — a squad
+      // slows a lane, it doesn't seal it. Flyers pass straight over units
+      // AND the hero (D6/design §7 — v1 hero targets: "ground").
       if (def.archetype !== "flyer") {
-        const blocker = this.nearestLivingUnit(e.x, e.y, def.radius, 4);
+        const blocker = this.nearestLivingBlocker(e.x, e.y, def.radius, 4);
         if (blocker) {
           e.engaged = true;
-          this.hurtUnit(blocker, def.damage * dt);
+          if (blocker.unit) this.hurtUnit(blocker.unit, def.damage * dt);
+          else this.hurtHero(def.damage * dt);
           continue;
         }
       }
@@ -909,8 +1037,8 @@ export class Game {
     // only a unit that has walked into CONTACT gets engaged this way.
     // Flyers skip this entirely (they fly over units).
     if (def.archetype !== "flyer") {
-      const contactUnit = this.nearestLivingUnit(e.x, e.y, def.radius, 6);
-      if (contactUnit) {
+      const contact = this.nearestLivingBlocker(e.x, e.y, def.radius, 6);
+      if (contact) {
         e.engaged = true;
         if (e.attackCooldown > 0) e.attackCooldown -= dt;
         if (e.attackCooldown <= 0) {
@@ -920,8 +1048,8 @@ export class Game {
             id: uid("prj"),
             x: e.x,
             y: e.y,
-            targetX: contactUnit.x,
-            targetY: contactUnit.y,
+            targetX: contact.x,
+            targetY: contact.y,
             damage: def.damage,
             splash: 0,
             speed: TUNING.combat.enemyProjectileSpeed,
@@ -931,7 +1059,8 @@ export class Game {
             faction: "enemy",
             targets: "all",
             targetBuildingId: null,
-            targetUnitId: contactUnit.id,
+            targetUnitId: contact.unit ? contact.id : null,
+            targetHero: !contact.unit,
           });
           this.emit({ type: "enemyFired", defId: e.defId });
         }
@@ -1125,6 +1254,12 @@ export class Game {
           p.targetX = tx;
           p.targetY = ty;
         }
+      } else if (p.targetHero && this.hero && this.hero.alive) {
+        // Same homing idiom as targetUnitId, for a shot locked onto the hero.
+        tx = this.hero.x;
+        ty = this.hero.y;
+        p.targetX = tx;
+        p.targetY = ty;
       }
 
       const dx = tx - p.x;
@@ -1166,8 +1301,15 @@ export class Game {
     tx: number,
     ty: number,
   ): void {
-    // Unit impacts resolve BEFORE building impacts (D6) — fizzle silently
-    // if the unit died before impact, same as the building fizzle below.
+    // Hero/unit impacts resolve BEFORE building impacts (D6) — fizzle
+    // silently if the target died before impact, same as the building
+    // fizzle below.
+    if (p.targetHero) {
+      if (!this.hero || !this.hero.alive) return;
+      this.hurtHero(p.damage);
+      this.floatText(tx, ty - 10, `-${Math.round(p.damage)}`, "#ff8a65");
+      return;
+    }
     if (p.targetUnitId) {
       const unit = this.units.find((u) => u.id === p.targetUnitId);
       if (!unit || unit.hp <= 0) return;
@@ -1336,16 +1478,21 @@ export class Game {
     };
   }
 
-  /** Nearest LIVING unit within `enemyRadius + unit.radius + pad` of (x,y) —
-   *  the contact-priority check shared by melee (pad=4) and ranged (pad=6)
-   *  enemy targeting (D6). */
-  private nearestLivingUnit(
+  /** Nearest LIVING blocker — a garrison unit OR the deployed hero — within
+   *  `enemyRadius + blocker.radius + pad` of (x,y). The contact-priority
+   *  check shared by melee (pad=4) and ranged (pad=6) enemy targeting (D6),
+   *  extended in CD-29 Slice 1 so the hero body-blocks/draws fire exactly
+   *  like a garrison unit (design §7) without altering global targeting
+   *  priorities: this is still the same local-candidate-radius check, just
+   *  with one more candidate. `unit` is null when the winner is the hero —
+   *  callers branch on that to call hurtHero() instead of hurtUnit(). */
+  private nearestLivingBlocker(
     x: number,
     y: number,
     enemyRadius: number,
     pad: number,
-  ): GarrisonUnit | null {
-    let best: GarrisonUnit | null = null;
+  ): { id: string; x: number; y: number; unit: GarrisonUnit | null } | null {
+    let best: { id: string; x: number; y: number; unit: GarrisonUnit | null } | null = null;
     let bestD = Infinity;
     for (const u of this.units) {
       if (u.hp <= 0) continue;
@@ -1354,7 +1501,15 @@ export class Game {
       const d = dist(x, y, u.x, u.y);
       if (d <= contactRange && d < bestD) {
         bestD = d;
-        best = u;
+        best = { id: u.id, x: u.x, y: u.y, unit: u };
+      }
+    }
+    if (this.hero && this.hero.alive && this.hero.deployed) {
+      const heroDef = getHero(this.hero.defId);
+      const contactRange = enemyRadius + heroDef.radius + pad;
+      const d = dist(x, y, this.hero.x, this.hero.y);
+      if (d <= contactRange && d < bestD) {
+        best = { id: this.hero.defId, x: this.hero.x, y: this.hero.y, unit: null };
       }
     }
     return best;
@@ -1669,6 +1824,11 @@ export class Game {
     for (const u of this.units) {
       u.hp = u.maxHp;
     }
+
+    // Hero dawn restoration (design §5): full HP, alive, back at the HQ,
+    // parked until the next startNight() — applies identically whether the
+    // hero survived the night or died mid-wave ("if dead, revived").
+    this.parkHero();
 
     this.waveIndex += 1;
     this.projectiles = [];

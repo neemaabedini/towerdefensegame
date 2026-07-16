@@ -1,7 +1,14 @@
 import { getBuilding, scaledStats } from "../data/buildings";
 import { getEnemy } from "../data/enemies";
+import { getHero } from "../data/hero";
 import { getUnit } from "../data/units";
-import type { EnemyUnit, GameSnapshot, GarrisonUnit, PlacedBuilding } from "../game/types";
+import type {
+  EnemyUnit,
+  GameSnapshot,
+  GarrisonUnit,
+  HeroState,
+  PlacedBuilding,
+} from "../game/types";
 import { buildAtlas, type SpriteAtlas } from "./sprites";
 
 export class Renderer {
@@ -68,6 +75,7 @@ export class Renderer {
     this.drawHqStopRing(state);
     this.drawBuildings(state);
     this.drawUnits(state);
+    this.drawHero(state);
     this.drawEnemies(state);
     this.drawProjectiles(state);
     this.drawParticles(state);
@@ -1156,6 +1164,67 @@ export class Renderer {
     ctx.fillRect(bx, by, bw, 2.5);
     ctx.fillStyle = "#66bb6a";
     ctx.fillRect(bx, by, bw * (u.hp / u.maxHp), 2.5);
+  }
+
+  /** Hero draw pass (CD-29 Slice 1) — vector fallback only this slice, no
+   *  atlas entry yet (design §13; a `hero:<weapon>:<frame>` key is reserved
+   *  for CD-32). Parked (deployed: false) during the day: same idle figure
+   *  at the HQ, just no HP bar and no combat happening behind it. */
+  private drawHero(state: GameSnapshot): void {
+    const hero = state.hero;
+    if (!hero) return;
+    const def = getHero(hero.defId);
+    const ctx = this.ctx;
+    const r = def.radius;
+
+    // Downed marker: out until dawn (design §5) — a grey X at the last
+    // position instead of the fighting figure. parkHero() always revives
+    // the hero (alive: true) before the day begins, so this can only be
+    // seen mid-night.
+    if (!hero.alive) {
+      ctx.strokeStyle = "#9e9e9e";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(hero.x - r, hero.y - r);
+      ctx.lineTo(hero.x + r, hero.y + r);
+      ctx.moveTo(hero.x + r, hero.y - r);
+      ctx.lineTo(hero.x - r, hero.y + r);
+      ctx.stroke();
+      return;
+    }
+
+    // Shadow
+    ctx.fillStyle = "rgba(0,0,0,0.3)";
+    ctx.beginPath();
+    ctx.ellipse(hero.x, hero.y + r * 0.6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Distinct commander figure: body circle + a visor/accent stripe that
+    // flips with facing so movement direction reads without an atlas sprite.
+    ctx.save();
+    ctx.translate(hero.x, hero.y);
+    if (hero.facing < 0) ctx.scale(-1, 1);
+    ctx.fillStyle = def.color;
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = def.accent;
+    ctx.fillRect(-r * 0.15, -r * 0.7, r * 0.9, r * 0.35);
+    ctx.restore();
+
+    if (hero.deployed) this.drawHeroHpBar(hero, r);
+  }
+
+  private drawHeroHpBar(hero: HeroState, r: number): void {
+    if (hero.hp >= hero.maxHp) return;
+    const ctx = this.ctx;
+    const bw = r * 2.4;
+    const bx = hero.x - bw / 2;
+    const by = hero.y - r - 12;
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(bx, by, bw, 3);
+    ctx.fillStyle = "#66bb6a";
+    ctx.fillRect(bx, by, bw * (hero.hp / hero.maxHp), 3);
   }
 
   private drawEnemies(state: GameSnapshot): void {

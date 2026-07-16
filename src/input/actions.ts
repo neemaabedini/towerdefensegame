@@ -7,6 +7,12 @@
  */
 export type GameAction =
   | { kind: "nav"; dx: number; dy: number }
+  /** Latched hero move-vector (docs/design-hero-commander.md §8/§9). Unlike
+   *  every other action, this isn't produced by a single actionFromKey call —
+   *  main.ts derives it from a held-direction-key Set on every keydown/keyup
+   *  edge (so movement doesn't depend on OS key-repeat) and applies it via
+   *  Game.setHeroMove, which is itself a no-op outside phase === "night". */
+  | { kind: "heroMove"; dx: number; dy: number }
   | { kind: "option"; index: number }
   | { kind: "upgrade" }
   | { kind: "confirm" }

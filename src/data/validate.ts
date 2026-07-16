@@ -1,9 +1,11 @@
-import { BUILDINGS, deriveSiteResources } from "./buildings";
+import { BUILDINGS, deriveSiteResources, type TargetMode } from "./buildings";
 import { ENEMIES } from "./enemies";
+import { HEROES, type HeroDef } from "./hero";
 import { LEVELS, type LevelDef, type SiteCategory } from "./levels";
 import { UNITS } from "./units";
 
 const VALID_CATEGORIES: readonly SiteCategory[] = ["defense", "resource", "any"];
+const VALID_TARGET_MODES: readonly TargetMode[] = ["all", "ground", "air"];
 const MIN_OBSTACLE_CLEARANCE = 20;
 
 function dist(ax: number, ay: number, bx: number, by: number): number {
@@ -78,6 +80,33 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
         `${def.id}: maxLevel ${def.maxLevel} but no real upgrade cost ` +
           `(cost*upgradeCostMult formula is zero and upgradeCosts is absent/incomplete) — upgrades would be free`,
       );
+    }
+  }
+
+  // CD-29 Slice 1: hero data contract (docs/design-hero-commander.md §10).
+  // Ability-id existence ("every hero.abilities[] id exists in the abilities
+  // registry") is deferred to CD-40 Slice 2 — there is no abilities.json to
+  // check against yet, and hero.json ships `abilities: []` until then.
+  const HERO_POSITIVE_FIELDS: readonly (keyof HeroDef)[] = [
+    "maxHp",
+    "moveSpeed",
+    "damage",
+    "fireRate",
+    "range",
+    "radius",
+  ];
+  for (const def of Object.values(HEROES)) {
+    for (const field of HERO_POSITIVE_FIELDS) {
+      const v = def[field];
+      if (typeof v !== "number" || !(v > 0)) {
+        errors.push(`${def.id}: ${field} must be a positive number (got ${v})`);
+      }
+    }
+    if (!VALID_TARGET_MODES.includes(def.targets)) {
+      errors.push(`${def.id}: unknown targets "${def.targets}"`);
+    }
+    if (typeof def.respawn?.atDawn !== "boolean") {
+      errors.push(`${def.id}: respawn.atDawn must be a boolean`);
     }
   }
 

@@ -897,7 +897,16 @@ reviewer); Sonnet does (coder, QA).
   since CD-41 (Outpost's Wave 4 cliff) means the economy can't currently afford to lose `a1`'s income
   repeatedly without compounding that problem.
 - [ ] CD-40 (feature, P2) — Commander abilities (ROADMAP Phase 3b; architect
-  first). **Reframed 2026-07-16: abilities are the HERO's kit, not
+  first). **Update 2026-07-16 (coder session): CD-29 Slice 1 (the fighting avatar this ticket's kit
+  attaches to) shipped and closed — see the Done section.** The hero now exists in the sim every night
+  (`src/data/hero.json`/`hero.ts`, `Game.hero`/`updateHero`/`setHeroMove`), so this ticket (Slice 2,
+  Sensor Pulse) is next and unblocked: `abilities.json` + loader, `AbilityEffect` registry (`slow` first,
+  reusing the `slowTimer` path already wired for CD-49's marauder), `Game.castAbility`, the `ability`
+  `GameAction`, `Q`/night-`1..4` routing in `main.ts`, snapshot cooldowns, and the HUD ability bar —
+  none of that exists yet, `hero.json`'s `abilities` array ships empty on purpose (Slice 1 scope line).
+  See `docs/design-hero-commander.md` §13 Slice 2 and TICKETS.md CD-29's closure note for what Slice 1
+  already provides to build on (hero position/facing/alive/deployed in the snapshot, the `heroDied` event,
+  the night-only phase gate on hero input). **Reframed 2026-07-16: abilities are the HERO's kit, not
   building-cast — design with CD-29, not separately.** The user reversed the
   hero's deferral (it's now the baseline night-phase avatar, CD-29), and abilities
   belong to the commander you control, Thronefall-style. Sensor Pulse etc. are
@@ -996,35 +1005,6 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-29 (feature, P1) — **DESIGNED 2026-07-16 — `docs/design-hero-commander.md`; ready for the coder
-  (Slice 1 closes CD-29, Slice 2 closes CD-40 v1).** Hero commander — the baseline night-phase avatar
-  (promoted from Phase 5, user decision 2026-07-16). Architect first; this is
-  the active hero ticket.** Reverses the old "hero is deferred" framing (see
-  ROADMAP "Hero character"). The commander is on the map from the first second
-  of every night, WASD-controlled, auto-attacking, present from the start —
-  Thronefall's model. It is **the missing agency layer**: without it the night
-  is pure set-and-forget, which is the "nothing to do during a fight" gap that
-  has been flagged repeatedly. **CD-40's abilities are the hero's kit, not a
-  building's** — design the two together.
-  **Locked decisions (user, 2026-07-16):**
-  - **Lone fighter, NOT a rally commander.** Hero moves + auto-attacks; it does
-    **not** rally troops. Garrison squads still auto-anchor — no unit-command
-    verb. Thronefall's press-R-to-gather is their #1 complaint and our anchor
-    rule is our #1 differentiator; we keep rejecting it. (This also drops the
-    old "escort garrison" idea — the hero fights alone.)
-  - **Full night-phase avatar:** WASD movement, auto-attack, death penalty,
-    every night. Not a minimal stub.
-  - Single-screen 960×540 → **no camera work**; movement is one new
-    `GameAction` (a move vector / target), sim-side hero entity, render pass.
-  **Scope for the architect:** hero as a sim entity (movement via GameAction,
-  auto-attack reusing the unit/building combat path, death + penalty); how it
-  reads on keyboard AND the existing spatial-nav/controller/touch input model
-  (UI_PLAN); how abilities (CD-40) attach as its kit; and what the death
-  penalty is (Thronefall sends you back to base + a cost — pick our version).
-  **Balance-freeze interaction:** the hero adds combat power to every night, so
-  its *numbers* (hp, damage, cooldowns, penalty) join the end-of-project tuning
-  pass like everything else — but the *system* is feature work and is not
-  frozen. Build it; tune it later.
 - [ ] CD-30 (feature, P1, v1.0) — Meta progression: per-level stars
   (win / no-HQ-damage / mutator win), unlockable perks chosen pre-level,
   mutators as stat-modifier layers over the JSON defs (ROADMAP Phase 5;
@@ -1042,6 +1022,85 @@ reviewer); Sonnet does (coder, QA).
 
 ## Done
 
+- [x] CD-29 (feature, P1) — **Slice 1 (the fighting avatar) shipped and closed 2026-07-16 — coder session.**
+  Design: `docs/design-hero-commander.md`. Hero commander is now on the map every night from `startNight()`:
+  WASD-moved, auto-attacking, body-blocking, dies → out until dawn, restored full-HP at dawn/victory. Slice 2
+  (Sensor Pulse, abilities) stays open under **CD-40** — `hero.json` ships `abilities: []` on purpose this
+  slice; no `abilities.json`, `castAbility`, ability `GameAction`, or ability HUD exist yet.
+  **Data/types:** `src/data/hero.json` (`commander`: maxHp 200, moveSpeed 90, damage 12, fireRate 1.5, range
+  100, radius 8, targets "ground" — untuned placeholders per the balance freeze, join the end-of-project
+  tuning pass) + `src/data/hero.ts` loader (`HeroDef`/`HEROES`/`getHero`, mirrors `units.ts`). `validate.ts`
+  gained a hero data-contract block (positive combat fields, valid `targets`, `respawn.atDawn` boolean) —
+  ability-id existence is explicitly deferred to CD-40 (commented, no `abilities.json` to check against yet).
+  `types.ts`: new `HeroState` (`defId/x/y/hp/maxHp/alive/deployed/facing/cooldown`), `GameSnapshot.hero:
+  HeroState | null` (live reference, CD-15 pattern, commented), `GameEvent += heroDied`, `Projectile
+  += targetHero?: boolean` (the ranged-standoff-attacker homing/impact path needed a hero-target twin to
+  `targetUnitId`, since the hero isn't a `GarrisonUnit`).
+  **Sim (`Game.ts`):** `hero`/`heroMoveDir` fields; `parkHero()` (day/dawn/victory: full HP, alive, at the
+  HQ, `deployed: false`, zeroes `heroMoveDir`) called from `loadLevel` and `onWaveCleared`; `deployHero()`
+  (night: full HP, alive, at the HQ, `deployed: true`) called from `startNight`; `setHeroMove(dx,dy)`
+  normalizes and latches, no-ops outside `phase === "night"`; `updateHero(dt)` runs in `updateNight` after
+  enemy movement/`separateEnemies`, before `updateUnits` — integrates + clamps to `level.width/height`, sets
+  `facing`, auto-attacks via the existing `findTarget`/`hurtEnemy` idiom (reuses the `unitFired` event with
+  `unitDefId: "commander"` — bindings.ts maps every `unitFired` to one shot sound regardless of id, so no
+  audio file changed) on a `1/fireRate` cooldown; death (`hurtHero`) sets `alive: false` and emits
+  `heroDied`. **Blocker integration:** `nearestLivingUnit` renamed/extended to `nearestLivingBlocker` (both
+  call sites in `resolveEnemyContact` and `resolveRangedAttack` updated) — now also considers the
+  living/deployed hero as a candidate exactly like a garrison unit, without touching global enemy targeting
+  priorities; melee contact damages the hero via `hurtHero` (same armor-free path as `hurtUnit`); standoff
+  attackers lock a projectile onto the hero via the new `targetHero` field, homing/fizzling the same way
+  `targetUnitId` does. Flyers skip the blocker check entirely (D6), so they ignore the hero completely, and
+  the hero's own `targets: "ground"` means it never fires on flyers either (design §7).
+  **Input:** `actions.ts` gained `{ kind: "heroMove"; dx; dy }`. `main.ts`: new held-direction-key `Set`
+  (`heldDirs`) maintained by both a new `keydown` handler block and a brand-new `keyup` listener (this file
+  previously had none) — Set maintenance runs unconditionally (even while paused, so a release mid-pause
+  can't strand a latched vector), while the actual dispatch (`dispatchHeroMove`, which derives the
+  normalized 8-way vector and calls `game.setHeroMove`) no-ops whenever `shell.modal !== "none"`. The `nav`
+  case in the action switch is now day-gated (`if (state.phase === "day") game.navigate(...)`), demoting
+  night building-inspection nav to mouse/touch per design §9.3 (unchanged for `selectAt`). Phase/modal
+  transition hygiene lives in the existing `shell.onChange` handler: entering night re-dispatches from the
+  held Set (a key held across the day→night edge produces no new keydown/keyup); leaving night zeroes the
+  vector explicitly (Game already zeroes it too — defense in depth); closing the pause modal re-dispatches
+  so a key held through pause resumes movement.
+  **Renderer:** new `drawHero`/`drawHeroHpBar` (vector fallback only, no atlas entry this slice) in the
+  units region of `draw()` — body circle + accent visor stripe using `hero.json`'s colors, flips with
+  `facing`, drop-shadow, green HP bar when damaged (hidden at full HP and while parked/`deployed: false`),
+  and a grey X "downed marker" at the last position when `!alive` (only reachable mid-night — `parkHero`
+  always revives before the day begins).
+  **Verified** (dev server, `window.__game`/`window.__renderer` + real `KeyboardEvent`s — screenshots/DOM
+  reads time out on the game canvas per house note, so this was state-probe-driven with one confirming
+  screenshot): (1) `startNight()` → `snapshot.hero` exists at the HQ, `alive`/`deployed` true; day-phase
+  `hero` is present but parked (`deployed: false`). (2) Real `d` keydown moved the hero right across
+  `update()` ticks (780→825px over 0.5s at moveSpeed 90, i.e. exactly 45px), `keyup` stopped it; the
+  identical key at day instead changed `selectedSiteId` (`null`→`"s1"`) with zero hero movement. (3) A
+  raider spawned directly into `g.enemies` within hero range took sustained damage from the hero's
+  auto-attack. (4) A melee raider walked into contact range engaged (`engaged: true`) and damaged the hero
+  (200→197.5 HP over 0.5s at 5dmg/s, exact); a skimmer (flyer) at the same distance left the hero at full
+  HP and never engaged. (5) Forcing `hero.hp` low and letting the raider finish it produced `alive: false`,
+  `hp: 0`, exactly one `heroDied` event, the raider's `engaged` flipping back to `false` and it resuming
+  path movement next tick (x advanced toward its next waypoint); clearing the (isolated) wave afterward
+  restored the hero to full HP, alive, at the HQ, parked. (6) Determinism: two identical 1x scripted runs
+  (8 frames of varying/diagonal input, `keepalive` dummy enemy so no premature dawn) produced byte-identical
+  final hero position; a construction where every frame runs `update(dt)` twice with the same latched input
+  (which IS simultaneously "1x held across 2 frames" and "2x for 1 frame" — the same code either way) was
+  also byte-identical across two runs, demonstrating the sub-stepping invariant holds by construction, not
+  by luck. (7) Pause: a key released *during* an open pause modal was correctly NOT resumed after closing it
+  (Set removal during pause + re-latch on close honored the release); a key held *through* pause correctly
+  resumed movement after closing the modal. (8) A scripted greedy build-and-upgrade playthrough of Outpost
+  Alpha (buy-cheapest-affordable + upgrade-cheapest-affordable every day, hero given rotating movement input
+  through every night) reached **victory** with the HQ never dropping below 600/600 (ending at 708/600 after
+  a Plating pick) — the hero added margin without being required to win. (9) Zero console errors across the
+  session; `Math.random()` grep unchanged (only `burst()` + `AudioBus`/`sfx`, no new sim-path randomness).
+  `npx tsc --noEmit` clean throughout.
+  **QA focus for the next pass:** the hero's numbers (200hp/12dmg/1.5fireRate/100range/90speed) are
+  placeholder per the balance freeze and untested for "additive, not load-bearing" (design §9's C9 metric —
+  win-rate without the hero should still be positive; this session didn't run that comparison). Visual
+  polish is out of scope (vector fallback only, per §13); a real sprite is CD-32. `heroDied` has no SFX
+  binding yet (optional per the design, not wired). Worth a dedicated look: hero behavior when it dies while
+  standing inside a building's contact radius (should have no special interaction — buildings don't target
+  the hero at all, only enemies do) and multi-enemy contention for the hero as a blocker (only tested
+  one-blocker-at-a-time this session, `nearestLivingBlocker` returns a single winner by nearest-distance same
+  as the pre-existing unit version, so simultaneous multi-enemy engagement wasn't separately exercised).
 - [x] CD-8 (feature, P3) — Garrisons: units as a tower upgrade axis —
   superseded and shipped by CD-38's roster redesign (closed 2026-07-15,
   bookkeeping only, no new code). The garrison building

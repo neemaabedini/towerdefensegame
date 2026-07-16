@@ -1,0 +1,17 @@
+{
+  "commander": {
+    "id": "commander",
+    "name": "Commander",
+    "maxHp": 200,
+    "moveSpeed": 90,
+    "damage": 12,
+    "fireRate": 1.5,
+    "range": 100,
+    "targets": "ground",
+    "radius": 8,
+    "abilities": [],
+    "respawn": { "atDawn": true },
+    "color": "#263238",
+    "accent": "#ffca28"
+  }
+}

@@ -56,6 +56,27 @@ export interface GarrisonUnit {
   hitTimer: number;
 }
 
+/**
+ * The hero commander (docs/design-hero-commander.md, CD-29 Slice 1). Present
+ * every night: WASD-moved, auto-attacking, body-blocking, out until dawn on
+ * death. Parked (deployed: false) at the HQ during the day so the renderer
+ * can draw it idle — it does not move/attack/block outside `phase ===
+ * "night"`. Abilities (CD-40 Slice 2) add a `cooldowns` map; v1 has none.
+ */
+export interface HeroState {
+  defId: string;
+  x: number;
+  y: number;
+  hp: number;
+  maxHp: number;
+  alive: boolean;
+  /** True only during night combat — false at the day/victory HQ park. */
+  deployed: boolean;
+  facing: 1 | -1;
+  /** Seconds until the hero's auto-attack can fire again */
+  cooldown: number;
+}
+
 export interface EnemyUnit {
   id: string;
   defId: string;
@@ -101,6 +122,12 @@ export interface Projectile {
    *  fizzles if the unit is dead on impact. Resolved BEFORE targetBuildingId
    *  in resolveEnemyProjectileImpact. */
   targetUnitId?: string | null;
+  /** Enemy projectiles targeting the hero instead of a garrison unit (CD-29
+   *  Slice 1 extension of the same D6 contact-priority insert — the hero is
+   *  a blocker candidate exactly like a unit). Homes on the hero's live
+   *  position; fizzles if the hero died before impact. Mutually exclusive
+   *  with targetUnitId (nearestLivingBlocker returns at most one). */
+  targetHero?: boolean;
 }
 
 export interface FloatingText {
@@ -174,6 +201,12 @@ export interface GameSnapshot {
   dayTime: number;
   nightTime: number;
   hqId: string;
+  /** Live reference, not a clone — matches the shipped CD-15 pattern for
+   *  every other array/object field on this snapshot (see CD-15's ticket:
+   *  getSnapshot() doesn't deep-clone, so a held-onto snapshot mutates
+   *  after the fact). Never null after boot — parked (deployed: false) at
+   *  the HQ during the day, deployed during night. */
+  hero: HeroState | null;
 }
 
 export interface BuildingRuntime extends BuildingDef {
@@ -192,6 +225,7 @@ export type GameEvent =
   | { type: "enemyDied"; defId: string }
   | { type: "unitFired"; unitDefId: string }
   | { type: "unitDied"; unitDefId: string }
+  | { type: "heroDied" }
   | { type: "buildingDestroyed"; defId: string }
   | { type: "waveStarted"; waveIndex: number }
   | { type: "dawn" }
