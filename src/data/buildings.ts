@@ -10,6 +10,20 @@ export type BuildingCategory = "defense" | "production" | "support";
 export type TargetMode = "all" | "ground" | "air";
 
 /**
+ * Multipliers layered on top of level-scaled stats (see `scaledStats`) —
+ * e.g. `fireRate: 1.35` means "35% faster than this would otherwise be at
+ * this level", not an absolute value. `incomePerDay` is deliberately NOT a
+ * key here (D8, docs/design-wave-legibility.md §7c): no branch pick, local
+ * or global, may ever touch income — Thronefall's own economy-global
+ * ("Builder's Guild") is the community's textbook "too good NOT to take"
+ * dead/dominant option, and this union makes that class unrepresentable
+ * rather than merely undesirable.
+ */
+export type StatMods = Partial<
+  Record<"damage" | "range" | "fireRate" | "splashRadius" | "maxHp", number>
+>;
+
+/**
  * One branch choice offered at `BuildingDef.branch.atLevel`. `mods` are
  * MULTIPLIERS applied on top of the normal level-scaled stats (see
  * `scaledStats`) — e.g. `fireRate: 1.35` means "35% faster than this
@@ -21,10 +35,17 @@ export interface BranchOption {
   id: string;
   name: string;
   blurb: string;
-  mods?: Partial<
-    Record<"damage" | "range" | "fireRate" | "splashRadius" | "maxHp", number>
-  >;
+  mods?: StatMods;
   squad?: { unitId: string; countByLevel: number[] };
+  /** Non-numeric qualifier appended after the chip's DERIVED numeric text
+   *  (see `formatBranchBlurb`) — e.g. "all structures & squads". Kept
+   *  separate from `blurb` so the numeric portion is computed mechanically
+   *  from `mods` and can never drift from the data it describes (CD-37's
+   *  lesson, applied to chip text). Only options that set BOTH `mods` and
+   *  `scope` get the derived treatment; options without `scope` (e.g. a
+   *  squad-swap branch with no stat mods to derive from) fall back to
+   *  `blurb` verbatim, unchanged from before this field existed. */
+  scope?: string;
 }
 
 /** A mining-type building's placement gate + node math (docs/design-economy-
@@ -62,6 +83,14 @@ export interface BuildingDef {
   maxLevel: number;
   /** Cost multiplier per level: cost * level * upgradeCostMult */
   upgradeCostMult: number;
+  /** Per-level upgrade cost overrides, index = currentLevel - 1 (cost to go
+   *  FROM that level to the next). When present, `upgradeCost()` reads this
+   *  instead of the `cost * upgradeCostMult * level` formula — needed for
+   *  any def with `cost: 0` (the Command Center: it's placed automatically,
+   *  never bought, so the formula would make every upgrade free). A
+   *  validate.ts assert enforces that any def with `maxLevel > 1` has a
+   *  real upgrade cost one way or the other. */
+  upgradeCosts?: number[];
   /** Visual */
   color: string;
   accent: string;
@@ -81,8 +110,14 @@ export interface BuildingDef {
    *  when absent from JSON, so existing data keeps working unchanged. */
   targets: TargetMode;
   /** A one-time fork offered when upgrading to `atLevel` (see
-   *  docs/design-roster-redesign.md D4). Absent = building never branches. */
-  branch?: { atLevel: number; options: BranchOption[] };
+   *  docs/design-roster-redesign.md D4). Absent = building never branches.
+   *  `global: true` (docs/design-wave-legibility.md §7c) marks a branch
+   *  whose `mods` apply to EVERY building/squad via `Game.globalMods()`,
+   *  not just this building's own stats — `scaledStats` skips the normal
+   *  branchId-driven local-mods lookup for a global branch so the owning
+   *  building doesn't double-apply its own pick (once locally, once again
+   *  via the `mods` param every building receives). */
+  branch?: { atLevel: number; options: BranchOption[]; global?: boolean };
   /** Garrison squad (Batch 3): the unit fielded at each level, index = level-1.
    *  A branch option's own `squad` (if the building has branched) overrides
    *  this — see `Game.squadSpecFor`. Absent = building never fields units. */
@@ -94,14 +129,9 @@ export interface BuildingDef {
    *  the site has >= `min` of `resource` in range (D5) — this is what keeps
    *  a 1-node field from ever offering `mining_facility`. */
   requires?: { resource: ResourceKind; min: number };
-  /** At most one built per level (D9). Typed now; no def sets it until the
-   *  research facility ships — see TICKETS.md CD-7 (Step 4 is PARKED on
-   *  ROADMAP Open Question 1). */
+  /** At most one built per level (D9). Typed now; no def sets it yet — CD-31
+   *  is the first expected consumer. */
   unique?: boolean;
-  /** This building hosts the research tree (Step 4 — PARKED, see above).
-   *  Typed now so UpgradeChip's future early-return has a stable flag to
-   *  check, rather than a fragile id-string comparison. */
-  research?: boolean;
 }
 
 /** Shape of a buildings.json entry before the loader default is applied. */
@@ -160,22 +190,48 @@ export function deriveSiteResources(
 
 export function upgradeCost(def: BuildingDef, currentLevel: number): number {
   if (currentLevel >= def.maxLevel) return Infinity;
+  const override = def.upgradeCosts?.[currentLevel - 1];
+  if (override !== undefined) return override;
   return Math.round(def.cost * def.upgradeCostMult * currentLevel);
 }
 
 /** Sell (CD-24) refunds this fraction of a building's total invested credits */
 export const SELL_REFUND = 0.6;
 
+function applyMods(
+  stats: { maxHp: number; damage: number; range: number; fireRate: number; splashRadius: number },
+  mods: StatMods | null | undefined,
+): void {
+  if (!mods) return;
+  if (mods.maxHp) stats.maxHp *= mods.maxHp;
+  if (mods.damage) stats.damage *= mods.damage;
+  if (mods.range) stats.range *= mods.range;
+  if (mods.fireRate) stats.fireRate *= mods.fireRate;
+  if (mods.splashRadius) stats.splashRadius *= mods.splashRadius;
+}
+
 /**
  * Stats scale with level: +20% damage/income, +15% hp/range per level above
- * 1; a branch pick (if any) then multiplies its `mods` on top of that.
+ * 1; a branch pick (if any) then multiplies its `mods` on top of that; the
+ * optional `mods` param (Game.globalMods() — docs/design-wave-legibility.md
+ * §7c) layers a further multiplier on top of THAT, for every building, not
+ * just the one that earned the pick. A `def.branch.global` branch's own
+ * `branchId` mods are skipped here on purpose (see the `branch` field's
+ * doc comment) — they arrive through the `mods` param instead, applied
+ * uniformly like every other building's, so the picking building doesn't
+ * double-count its own choice.
  *
  * This is the single stats-resolution seam for the whole game — every call
- * site that needs a building's live stats goes through here. Phase 2
- * research buffs and CD-30 mutators are expected to layer in as further
- * multipliers on the same result, not as parallel ad-hoc math elsewhere.
+ * site that needs a building's live stats goes through here. CD-30 mutators
+ * are expected to layer in as further multipliers on the same result, not
+ * as parallel ad-hoc math elsewhere.
  */
-export function scaledStats(def: BuildingDef, level: number, branchId?: string | null) {
+export function scaledStats(
+  def: BuildingDef,
+  level: number,
+  branchId?: string | null,
+  mods?: StatMods,
+) {
   const l = Math.max(1, level);
   const dmgMul = 1 + (l - 1) * 0.22;
   const hpMul = 1 + (l - 1) * 0.18;
@@ -192,16 +248,12 @@ export function scaledStats(def: BuildingDef, level: number, branchId?: string |
     incomePerDay: def.incomePerDay * incomeMul,
   };
 
-  const mods = branchId
-    ? def.branch?.options.find((o) => o.id === branchId)?.mods
-    : null;
-  if (mods) {
-    if (mods.maxHp) stats.maxHp *= mods.maxHp;
-    if (mods.damage) stats.damage *= mods.damage;
-    if (mods.range) stats.range *= mods.range;
-    if (mods.fireRate) stats.fireRate *= mods.fireRate;
-    if (mods.splashRadius) stats.splashRadius *= mods.splashRadius;
-  }
+  const branchMods =
+    branchId && !def.branch?.global
+      ? def.branch?.options.find((o) => o.id === branchId)?.mods
+      : null;
+  applyMods(stats, branchMods);
+  applyMods(stats, mods);
 
   return {
     maxHp: Math.round(stats.maxHp),
@@ -211,4 +263,31 @@ export function scaledStats(def: BuildingDef, level: number, branchId?: string |
     splashRadius: stats.splashRadius,
     incomePerDay: stats.incomePerDay,
   };
+}
+
+const STAT_LABELS: Record<keyof StatMods, string> = {
+  damage: "damage",
+  fireRate: "fire rate",
+  range: "range",
+  splashRadius: "splash radius",
+  maxHp: "max HP",
+};
+const STAT_ORDER: (keyof StatMods)[] = ["damage", "fireRate", "range", "splashRadius", "maxHp"];
+
+/**
+ * Numbers-on-the-face chip text (UI_PLAN 6: no hover exists on
+ * controller/mobile). When an option sets BOTH `mods` and `scope`, the
+ * numeric portion is derived mechanically from `mods` here rather than
+ * hand-typed in JSON, so it cannot drift from the data the pick actually
+ * applies (docs/design-wave-legibility.md §7c, CD-37's lesson a third
+ * time). Options without both fall back to `blurb` verbatim — e.g.
+ * Garrison's Sniper Team, a squad swap with no `mods` to derive from.
+ */
+export function formatBranchBlurb(opt: BranchOption): string {
+  if (!opt.mods || !opt.scope) return opt.blurb;
+  const parts = STAT_ORDER.filter((k) => opt.mods![k] !== undefined).map(
+    (k) => `+${Math.round((opt.mods![k]! - 1) * 100)}% ${STAT_LABELS[k]}`,
+  );
+  const numeric = parts.length === 2 ? parts.join(" and ") : parts.join(", ");
+  return `${numeric} — ${opt.scope}`;
 }

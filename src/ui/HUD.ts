@@ -1,5 +1,5 @@
 import type { AppShell } from "../app/AppShell";
-import { getBuilding, scaledStats } from "../data/buildings";
+import { getBuilding } from "../data/buildings";
 import { getEnemy } from "../data/enemies";
 import { getUnit } from "../data/units";
 import type { Game } from "../game/Game";
@@ -252,11 +252,13 @@ export class HUD {
 
     this.selectedPanelEl.classList.remove("hidden");
     const def = getBuilding(b.defId);
-    const stats = scaledStats(def, b.level, b.branchId);
+    // game.statsFor (not scaledStats directly) so this reflects global picks
+    // (docs/design-wave-legibility.md §7c) — never a parallel copy of the math.
+    const stats = this.game.statsFor(b.id)!;
 
     const title = document.createElement("div");
     title.className = "title";
-    title.textContent = b.isHq ? def.name : `${def.name}  ·  Lv ${b.level}`;
+    title.textContent = def.maxLevel > 1 ? `${def.name}  ·  Lv ${b.level}` : def.name;
 
     const hpLine = document.createElement("div");
     hpLine.textContent = `HP ${Math.ceil(b.hp)} / ${b.maxHp}`;

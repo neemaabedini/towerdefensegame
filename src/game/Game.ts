@@ -6,11 +6,12 @@ import {
   upgradeCost,
   type BranchOption,
   type BuildingDef,
+  type StatMods,
   type TargetMode,
 } from "../data/buildings";
 import { getEnemy, type EnemyDef } from "../data/enemies";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
-import { getUnit } from "../data/units";
+import { getUnit, unitStats } from "../data/units";
 import type {
   BuildSiteState,
   EnemyUnit,
@@ -66,6 +67,13 @@ export class Game {
   /** Fraction of an enemy's own movement step that separation may consume in
    *  one tick (CD-45). Must stay below 1: see separateEnemies. */
   private static readonly SEPARATION_STEP_FRACTION = 0.5;
+  /** Multipliers from every GLOBAL branch pick (currently only the Command
+   *  Center — docs/design-wave-legibility.md §7c), merged together. Recomputed
+   *  ONLY at pick time (see computeGlobalMods/restatAll, called from
+   *  upgrade()) — never per tick. Read this field directly from hot per-tick
+   *  paths; call the public globalMods() getter only from outside the sim
+   *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
+  private globalStatMods: StatMods = {};
 
   constructor() {
     this.loadLevel(0);
@@ -111,6 +119,7 @@ export class Game {
     this.waveSpawnComplete = false;
     this.selectedSiteId = null;
     this.selectedBuildingId = null;
+    this.globalStatMods = {};
 
     this.sites = this.level.sites.map((s) => {
       const resources = deriveSiteResources(this.level, s.x, s.y);
@@ -126,7 +135,7 @@ export class Game {
     });
 
     const hqDef = getBuilding("command_center");
-    const hqStats = scaledStats(hqDef, 1);
+    const hqStats = scaledStats(hqDef, 1, null, this.globalStatMods);
     this.hqId = uid("hq");
     this.buildings = [
       {
@@ -284,8 +293,17 @@ export class Game {
       isBuilding: boolean;
     }
     const day = this.phase === "day";
+    // R10 (docs/design-wave-legibility.md): the HQ lives at siteId "__hq__",
+    // outside `this.sites`, so it was mouse-only via selectAt — unreachable
+    // by keyboard/gamepad during the day. Add it as a day candidate too (the
+    // night branch already covers it via the general `this.buildings` scan)
+    // so a CC branch pick is buyable without a mouse (UI_PLAN 2/3).
+    const hq = day ? this.buildings.find((b) => b.isHq && b.hp > 0) : undefined;
     const cands: Cand[] = day
-      ? this.sites.map((s) => ({ id: s.id, x: s.x, y: s.y, isBuilding: false }))
+      ? [
+          ...this.sites.map((s) => ({ id: s.id, x: s.x, y: s.y, isBuilding: false })),
+          ...(hq ? [{ id: hq.id, x: hq.x, y: hq.y, isBuilding: true }] : []),
+        ]
       : this.buildings
           .filter((b) => b.hp > 0)
           .map((b) => ({ id: b.id, x: b.x, y: b.y, isBuilding: true }));
@@ -363,6 +381,7 @@ export class Game {
     const def = getBuilding(buildingDefId);
     if (!def.mining) return 0;
     const nodes = site.resources[def.mining.resource];
+    // Income is never touched by a global pick (D8) — mods omitted on purpose.
     return Math.round(scaledStats(def, 1).incomePerDay * nodes);
   }
 
@@ -370,7 +389,7 @@ export class Game {
     if (!this.canBuild(siteId, buildingDefId)) return false;
     const site = this.sites.find((s) => s.id === siteId)!;
     const def = getBuilding(buildingDefId);
-    const stats = scaledStats(def, 1);
+    const stats = scaledStats(def, 1, null, this.globalStatMods);
 
     this.money -= def.cost;
     const id = uid("bld");
@@ -404,7 +423,12 @@ export class Game {
   canUpgrade(buildingId: string): boolean {
     if (this.phase !== "day") return false;
     const b = this.buildings.find((x) => x.id === buildingId);
-    if (!b || b.isHq) return false;
+    // R5c/D8 (docs/design-wave-legibility.md): the HQ CAN upgrade/branch now
+    // (that's the whole feature) — but getSellInfo/sellOrUndo below keep
+    // their isHq guard. That asymmetry is deliberate: the HQ staying
+    // unsellable is what makes CD-7's old sell-back exploit (buy the pick,
+    // sell the facility, keep the buff) impossible by construction.
+    if (!b) return false;
     const def = getBuilding(b.defId);
     if (b.level >= def.maxLevel) return false;
     return this.money >= upgradeCost(def, b.level);
@@ -417,7 +441,7 @@ export class Game {
    */
   pendingBranch(buildingId: string): { atLevel: number; options: BranchOption[] } | null {
     const b = this.buildings.find((x) => x.id === buildingId);
-    if (!b || b.isHq) return null;
+    if (!b) return null;
     const def = getBuilding(b.defId);
     if (!def.branch) return null;
     if (b.level + 1 !== def.branch.atLevel) return null;
@@ -444,7 +468,17 @@ export class Game {
     b.invested += cost;
     b.spentToday += cost;
     b.levelsToday += 1;
-    const stats = scaledStats(def, b.level, b.branchId);
+
+    // A global branch's pick just changed globalStatMods for every building
+    // and squad, not just this one — recompute it once, then re-derive every
+    // live maxHp from it (restatAll), BEFORE this building's own stats below
+    // are read, so it isn't restat'd against its own stale mods.
+    if (branch && def.branch?.global) {
+      this.globalStatMods = this.computeGlobalMods();
+      this.restatAll();
+    }
+
+    const stats = scaledStats(def, b.level, b.branchId, this.globalStatMods);
     const hpRatio = b.hp / b.maxHp;
     b.maxHp = stats.maxHp;
     b.hp = Math.min(stats.maxHp, Math.round(stats.maxHp * hpRatio) + 20);
@@ -453,6 +487,70 @@ export class Game {
     this.emit({ type: "upgraded" });
     this.notify();
     return true;
+  }
+
+  /**
+   * Live global stat multipliers from every GLOBAL branch pick, merged
+   * (docs/design-wave-legibility.md §7c). This is the memoized field, not a
+   * recomputation — safe to call anytime, including from QA/dev-hook spies
+   * expecting "at most once per pick, never per tick". Hot per-tick sim code
+   * reads `this.globalStatMods` directly instead of calling this, so this
+   * method itself is never invoked from inside update().
+   */
+  globalMods(): StatMods {
+    return this.globalStatMods;
+  }
+
+  /** Live stats for a placed building, INCLUDING global picks — HUD reads
+   *  this instead of calling scaledStats directly so displayed numbers never
+   *  drift from what combat/income actually use. Null for an unknown id. */
+  statsFor(buildingId: string): ReturnType<typeof scaledStats> | null {
+    const b = this.buildings.find((x) => x.id === buildingId);
+    if (!b) return null;
+    const def = getBuilding(b.defId);
+    return scaledStats(def, b.level, b.branchId, this.globalStatMods);
+  }
+
+  /** Re-derives globalStatMods from every building holding a global branch
+   *  pick (today: only the Command Center, merged for CD-49's future seam
+   *  of more than one). Multiplicative merge, not overwrite, so two global
+   *  picks on the same stat would compound rather than one winning. */
+  private computeGlobalMods(): StatMods {
+    const merged: StatMods = {};
+    for (const b of this.buildings) {
+      const def = getBuilding(b.defId);
+      if (!def.branch?.global || !b.branchId) continue;
+      const opt = def.branch.options.find((o) => o.id === b.branchId);
+      if (!opt?.mods) continue;
+      for (const key of Object.keys(opt.mods) as (keyof StatMods)[]) {
+        const v = opt.mods[key];
+        if (v === undefined) continue;
+        merged[key] = (merged[key] ?? 1) * v;
+      }
+    }
+    return merged;
+  }
+
+  /** Re-derives every LIVE building's and unit's maxHp against the current
+   *  globalStatMods and clamps current hp to it, so a Plating pick (or any
+   *  future global maxHp mod) takes effect on everything already on the
+   *  board, not just things built/spawned afterward. Called once per global
+   *  pick (from upgrade()) — never per tick. */
+  private restatAll(): void {
+    for (const b of this.buildings) {
+      const def = getBuilding(b.defId);
+      const stats = scaledStats(def, b.level, b.branchId, this.globalStatMods);
+      b.maxHp = stats.maxHp;
+      b.hp = Math.min(b.hp, b.maxHp);
+    }
+    for (const u of this.units) {
+      const building = this.buildings.find((b) => b.id === u.buildingId);
+      if (!building) continue;
+      const unitDef = getUnit(u.unitDefId);
+      const stats = unitStats(unitDef, this.globalStatMods);
+      u.maxHp = stats.maxHp;
+      u.hp = Math.min(u.hp, u.maxHp);
+    }
   }
 
   /**
@@ -501,7 +599,7 @@ export class Game {
       const def = getBuilding(b.defId);
       b.level -= b.levelsToday;
       if (def.branch && b.level < def.branch.atLevel) b.branchId = null;
-      const stats = scaledStats(def, b.level, b.branchId);
+      const stats = scaledStats(def, b.level, b.branchId, this.globalStatMods);
       b.maxHp = stats.maxHp;
       b.hp = Math.min(b.hp, stats.maxHp);
       b.invested -= b.spentToday;
@@ -917,7 +1015,7 @@ export class Game {
     for (const other of this.buildings) {
       if (other.hp <= 0 || other.defId !== "sensor_array") continue;
       const odef = getBuilding(other.defId);
-      const ostats = scaledStats(odef, other.level, other.branchId);
+      const ostats = scaledStats(odef, other.level, other.branchId, this.globalStatMods);
       if (dist(building.x, building.y, other.x, other.y) <= ostats.range) {
         rangeMul += 0.12 + other.level * 0.04;
         rateMul += 0.1 + other.level * 0.03;
@@ -933,7 +1031,7 @@ export class Game {
       if (def.damage <= 0 || def.fireRate <= 0) continue;
 
       const boost = this.sensorBoost(b);
-      const stats = scaledStats(def, b.level, b.branchId);
+      const stats = scaledStats(def, b.level, b.branchId, this.globalStatMods);
       const range = stats.range * boost.range;
       const fireRate = stats.fireRate * boost.rate;
 
@@ -1210,6 +1308,7 @@ export class Game {
 
     if (current.length < count) {
       const unitDef = getUnit(spec.unitId);
+      const stats = unitStats(unitDef, this.globalStatMods);
       const usedSlots = new Set(current.map((u) => u.slot));
       for (let slot = 0; slot < count && current.length < count; slot++) {
         if (usedSlots.has(slot)) continue;
@@ -1221,8 +1320,8 @@ export class Game {
           x: building.x + Math.cos(angle) * 22,
           y: building.y + Math.sin(angle) * 22,
           slot,
-          hp: unitDef.maxHp,
-          maxHp: unitDef.maxHp,
+          hp: stats.maxHp,
+          maxHp: stats.maxHp,
           cooldown: 0,
           hitTimer: 0,
         };
@@ -1451,6 +1550,7 @@ export class Game {
       const building = this.buildings.find((b) => b.id === u.buildingId);
       if (!building || building.hp <= 0) continue;
       const unitDef = getUnit(u.unitDefId);
+      const stats = unitStats(unitDef, this.globalStatMods);
 
       if (u.cooldown > 0) u.cooldown -= dt;
       if (u.hitTimer > 0) u.hitTimer -= dt;
@@ -1466,8 +1566,8 @@ export class Game {
         const d = dist(u.x, u.y, enemy.x, enemy.y);
         if (d <= unitDef.range) {
           if (u.cooldown <= 0) {
-            u.cooldown = 1 / unitDef.fireRate;
-            this.hurtEnemy(enemy, unitDef.damage);
+            u.cooldown = 1 / stats.fireRate;
+            this.hurtEnemy(enemy, stats.damage);
             this.emit({ type: "unitFired", unitDefId: u.unitDefId });
             this.particles.push({
               id: uid("pt"),
@@ -1531,7 +1631,7 @@ export class Game {
       const site = this.sites.find((s) => s.id === w.siteId);
       if (!site || site.buildingId) continue;
       const def = getBuilding(w.defId);
-      const stats = scaledStats(def, w.level, w.branchId);
+      const stats = scaledStats(def, w.level, w.branchId, this.globalStatMods);
       const id = uid("bld");
       this.buildings.push({
         id,

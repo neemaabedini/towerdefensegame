@@ -11,13 +11,34 @@
     "fireRate": 1.2,
     "splashRadius": 0,
     "incomePerDay": 0,
-    "maxLevel": 1,
+    "maxLevel": 2,
     "upgradeCostMult": 0,
+    "upgradeCosts": [120],
     "color": "#1e88e5",
     "accent": "#64b5f6",
     "size": 36,
     "shape": "hq",
-    "targets": "all"
+    "targets": "all",
+    "branch": {
+      "atLevel": 2,
+      "global": true,
+      "options": [
+        {
+          "id": "weapons",
+          "name": "Weapons",
+          "blurb": "+5% damage and +5% fire rate for every structure and squad, permanently.",
+          "mods": { "damage": 1.05, "fireRate": 1.05 },
+          "scope": "all structures & squads"
+        },
+        {
+          "id": "plating",
+          "name": "Plating",
+          "blurb": "+10% max HP for every structure and squad, including the Command Center itself.",
+          "mods": { "maxHp": 1.10 },
+          "scope": "all structures & squads, incl. the Command Center"
+        }
+      ]
+    }
   },
   "gun_tower": {
     "id": "gun_tower",

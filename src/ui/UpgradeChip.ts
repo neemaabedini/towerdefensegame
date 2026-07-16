@@ -1,4 +1,4 @@
-import { getBuilding, upgradeCost } from "../data/buildings";
+import { formatBranchBlurb, getBuilding, upgradeCost } from "../data/buildings";
 import type { Game } from "../game/Game";
 import type { GameSnapshot } from "../game/types";
 import { alignOverlayToCanvas, makeOverlayRoot } from "./worldOverlay";
@@ -30,7 +30,10 @@ export class UpgradeChip {
 
     if (state.phase !== "day" || !state.selectedBuildingId) return;
     const b = state.buildings.find((x) => x.id === state.selectedBuildingId);
-    if (!b || b.isHq) return;
+    // R5c (docs/design-wave-legibility.md): the HQ CAN upgrade/branch now —
+    // getSellInfo below still hard-returns null for it (isHq guard stays
+    // there), so the sell/undo chip simply never appears for the HQ.
+    if (!b) return;
 
     const def = getBuilding(b.defId);
     const scale = this.canvas.clientWidth / state.level.width;
@@ -56,7 +59,11 @@ export class UpgradeChip {
         label.className = "name";
         const key = document.createElement("kbd");
         key.textContent = String(i + 1);
-        label.append(key, ` ${opt.name} · ${opt.blurb}`);
+        // formatBranchBlurb (not opt.blurb raw): derives the numeric text
+        // from opt.mods when present so it can't drift from the data
+        // (docs/design-wave-legibility.md §7c) — falls back to opt.blurb
+        // verbatim for squad-swap options with no mods to derive from.
+        label.append(key, ` ${opt.name} · ${formatBranchBlurb(opt)}`);
 
         const costEl = document.createElement("span");
         costEl.className = "cost";
@@ -126,26 +133,44 @@ export class UpgradeChip {
       buttons.push(sellBtn);
     }
 
-    // Lay out as one measured-width row (BuildRing's pattern): create both
-    // buttons first so real widths can be measured, then place them side
-    // by side — this is what guarantees the two chips never overlap.
+    // Lay out as one or more measured-width rows (BuildRing's pattern):
+    // create all buttons first so real widths can be measured, then place
+    // them — this is what guarantees chips never overlap. >2 buttons (a
+    // 2-option branch pick + the sell chip is already 3 today; CD-49 widens
+    // branch counts further) wrap 2-per-row instead of one ever-widening row
+    // that could run off-canvas.
     const gap = 8;
+    const rowGap = 8;
     const pad = 6;
-    const widths = buttons.map((btn) => btn.offsetWidth);
-    const total = widths.reduce((a, w) => a + w, 0) + gap * (buttons.length - 1);
-
-    let x = cx - total / 2;
-    x = Math.max(pad, Math.min(x, this.canvas.clientWidth - total - pad));
-
     const flip = b.y < 170;
     const clearance = Math.max(62, 72 * scale);
-    const y = flip ? cy + clearance : cy - clearance;
 
-    buttons.forEach((btn) => {
-      const w = btn.offsetWidth;
-      btn.style.left = `${x + w / 2}px`;
-      btn.style.top = `${y}px`;
-      x += w + gap;
-    });
+    const placeRow = (row: HTMLButtonElement[], y: number): void => {
+      const widths = row.map((btn) => btn.offsetWidth);
+      const total = widths.reduce((a, w) => a + w, 0) + gap * (row.length - 1);
+      let x = cx - total / 2;
+      x = Math.max(pad, Math.min(x, this.canvas.clientWidth - total - pad));
+      for (const btn of row) {
+        const w = btn.offsetWidth;
+        btn.style.left = `${x + w / 2}px`;
+        btn.style.top = `${y}px`;
+        x += w + gap;
+      }
+    };
+
+    if (buttons.length > 2) {
+      const rowHeight = Math.max(...buttons.map((btn) => btn.offsetHeight));
+      for (let i = 0; i < buttons.length; i += 2) {
+        const ri = i / 2;
+        // Row 0 sits at the usual clearance from the building; each further
+        // row grows the block AWAY from the building (same direction as flip).
+        const y = flip
+          ? cy + clearance + ri * (rowHeight + rowGap)
+          : cy - clearance - ri * (rowHeight + rowGap);
+        placeRow(buttons.slice(i, i + 2), y);
+      }
+    } else {
+      placeRow(buttons, flip ? cy + clearance : cy - clearance);
+    }
   }
 }

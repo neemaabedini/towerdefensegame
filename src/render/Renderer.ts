@@ -589,8 +589,9 @@ export class Renderer {
       ctx.fillRect(bx, by, bw * pct, bh);
     }
 
-    // Level badge
-    if (!b.isHq && b.level > 1) {
+    // Level badge — the HQ can level now too (Command Center picks), so it
+    // gets the same badge once it's above L1.
+    if (b.level > 1) {
       ctx.fillStyle = "#1a2440";
       ctx.strokeStyle = "#4fc3f7";
       ctx.lineWidth = 1;

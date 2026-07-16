@@ -103,12 +103,16 @@ reviewer); Sonnet does (coder, QA).
   `refinery` are deleted (zero source refs remain, grep-verified); both
   levels run on the new `mining_facility`/`plasma_tap` economy; the DEV
   `validate.ts` contract check passes clean on boot for both levels.
-  **Step 4 (research facility + tree) remains PARKED** on ROADMAP Open
-  Question 1 (global tree vs roguelite draft) — user decision still
-  pending. `s1` (Outpost) and `s1` (Ridge) are authored with only
-  `["sensor_array"]`; `research_facility` joins that list the day Step 4
-  lands (no placeholder def was invented). `BuildingDef.unique`/`.research`
-  ship typed but unused, same rationale.
+  **Step 4 — DONE 2026-07-15, but NOT as a research tree.** See the
+  "Step 4 landed" update at the end of this entry: OQ1 was answered in
+  favor of `docs/design-wave-legibility.md` §7c (Command Center picks),
+  which supersedes the `research_facility`/tree plan referenced in the rest
+  of this paragraph and in `docs/design-economy-rework.md` §5/§2b/D10/R7.
+  `s1` (Outpost) and `s1` (Ridge) are authored with only `["sensor_array"]`
+  and stay that way — no `research_facility` id was ever added, and
+  `BuildingDef.research?` (typed-but-unused, referenced below) has been
+  deleted as dead per the new design. `BuildingDef.unique?` stays typed but
+  unused, reserved for CD-31.
   Verified this session: derived node counts match a hand-count of the
   authored `levels.json` crystal/plasma coordinates (Outpost m1=4, m2=5,
   a2(plasma)=1; Ridge m1=3, a1=5, d3(plasma)=1); best-case L1 income is
@@ -202,6 +206,72 @@ reviewer); Sonnet does (coder, QA).
   reconfirmed independently, matching CD-38's finding). Live DOM/keyboard regression spot-check (fresh
   reload, mouse through the level-select menu, `1` keydown to build) still builds `mining_facility` and
   shows `130₡` / `56₡/dawn` on the button face with no hover — the UI layer CD-7 touched is intact.
+  ---
+  **Update 2026-07-15 (Step 4 landed via Command Center picks, coder session) — CD-7 fully DONE.** Per
+  ROADMAP OQ1's answer and `docs/design-wave-legibility.md` §7c/§8/§10 Step 5: implemented **C1** (one
+  branch fork on `command_center` at level 2, 1-of-2, global effects), NOT the research tree. Deleted
+  nothing new-to-delete since the tree was never built (`research.json`/`research.ts`/`ResearchRing`/
+  `ResearchState` never existed); did delete the one piece of the old plan that WAS shipped-but-dead:
+  `BuildingDef.research?` (typed, zero consumers). Kept `BuildingDef.unique?` for CD-31.
+  **Data:** `src/data/buildings.json` — `command_center.maxLevel` 1→2, `+upgradeCosts: [120]`,
+  `+branch: { atLevel: 2, global: true, options: [weapons, plating] }`. Weapons: `+5% damage AND +5% fire
+  rate` (both, not just damage — design D6: %-damage alone is a provable no-op at our integer HP/armor
+  values). Plating: `+10% maxHp`, explicitly including the Command Center itself. Neither pick's `mods`
+  can include `incomePerDay` — enforced at the type level (`StatMods` in `src/data/buildings.ts` excludes
+  it), not just by convention (D8 — Thronefall's own economy-global, "Builder's Guild", is the community's
+  textbook dead/dominant pick; this makes that class unrepresentable).
+  **Engine (the doc's five flagged costs, all addressed):** (1) `Game.globalMods()` returns a memoized
+  field (`globalStatMods`), recomputed by `computeGlobalMods()`/`restatAll()` ONLY inside `upgrade()` when
+  a `def.branch.global` pick resolves — spied live over a pick + 420 ticks (120 day + 300 night, real
+  combat): `restatAll` called **exactly once**, `globalMods()` **never** called from inside the sim (hot
+  paths read the `globalStatMods` field directly, not the method). `scaledStats(def, level, branchId?,
+  mods?)` gained the optional 4th param; every pre-existing call site still compiles untouched.
+  `BuildingDef.branch.global?: boolean` skips the branchId-driven LOCAL mods lookup for a global branch so
+  the picking building doesn't double-apply its own choice (verified: HQ's own gun damage after Weapons
+  went 10→13, i.e. one ×1.05, not ×1.1025). `unitStats(def, mods?)` added to `src/data/units.ts`;
+  `syncSquad`/`updateUnits` read it so squads get both picks too (verified: a marine's maxHp went 50→55
+  after Plating; a pre-existing garrison built BEFORE the pick was retroactively restat'd, not just new
+  squads). (2) `command_center.cost` stays 0 (never paid — it's placed automatically) but
+  `upgradeCost()` now reads `BuildingDef.upgradeCosts?: number[]` when present, so the L1→L2 upgrade costs
+  **120₡** (verified: money 320→200 on pick), not free. Added a `validate.ts` assert: any def with
+  `maxLevel > 1` must have a real upgrade cost (formula or override) or boot throws. (3) `navigate()`'s day
+  branch now includes the HQ as a candidate (`~6` lines, `Game.ts`) — verified live with real `KeyboardEvent`s:
+  selecting site `d5` then pressing `d` (ArrowRight-equivalent) selects the HQ, previously unreachable
+  without a mouse. (4) Dropped the `isHq` guard in `canUpgrade`/`pendingBranch`/`UpgradeChip`'s early-return;
+  **kept it in `getSellInfo`/`sellOrUndo`** — verified the HQ stays unsellable post-pick (`getSellInfo` →
+  `null`, `sellOrUndo` → `false`, level stays 2), which is what makes CD-7's old sell-back exploit
+  impossible by construction rather than merely discouraged. (5) `UpgradeChip` wraps to a 2×2 block when
+  `buttons.length > 2` — verified live DOM: a `gun_tower` mid-branch-pick (2 branch chips + 1 undo chip = 3
+  buttons) now renders as two rows (top 62px / 136px) instead of one wide row; this pre-existing 3-button
+  case wasn't wrapped before, so CD-49 (which will make this common) inherits the fix for free.
+  **UI:** chip numbers are DERIVED from `opt.mods`, not hand-typed — `formatBranchBlurb()` in
+  `buildings.ts` builds "+5% damage and +5% fire rate — all structures & squads" mechanically from the
+  JSON `mods`/`scope` fields so prose can't drift from data (CD-37's lesson again); verified live DOM text
+  matches exactly, zero hover anywhere. `HUD.renderSelected` now reads `game.statsFor(b.id)` instead of
+  calling `scaledStats` directly, so displayed numbers include active picks. Minor additive nicety (not in
+  the doc's file list, low-risk): `Renderer.ts`'s level-number badge now also draws for the HQ once it's
+  above L1 (previously suppressed unconditionally since the HQ could never level).
+  **Verified:** `npx tsc --noEmit` clean; zero console errors across the whole session; zero new
+  `Math.random()` (grep-reconfirmed); Weapons pick confirmed live on both a `gun_tower` (damage 10→11,
+  fireRate 3.2→3.36 at L1) and the HQ's own gun (10→13, 1.2→1.386 at its new L2); Plating pick confirmed
+  live on a `gun_tower` (maxHp 120→132), a `garrison` building (240→264) AND its marine squad (50→55) AND
+  the HQ itself (600 base →779 at L2+Plating, i.e. level-scaling then the global mod, not squared); a
+  building/unit that existed BEFORE the pick has its `hp` clamped to the new (higher) `maxHp`, not healed —
+  matches the doc's literal "clamp" wording, not a heal (day phase has no combat, so this is invisible in
+  practice: everything is already at full HP when a pick can happen). Full DOM/keyboard end-to-end pass:
+  fresh load → `startLevel` → real `KeyboardEvent('d')` selects the HQ → real `KeyboardEvent('1')` picks
+  Weapons via the existing `option(n)` → `pendingBranch` route in `main.ts` — **`main.ts` needed zero
+  changes**, exactly as the design doc predicted.
+  **CD-40 is now unblocked** — its airstrike/nuke hook up as additional Command Center picks (a third
+  option, or a later `atLevel: 3` fork per the doc's C2 seam), not a research-facility unlock.
+  **QA focus:** this session did NOT run a balance sweep (BALANCE FREEZE) — the ticket asks only that the
+  feature *works*. Specifically un-verified and worth a QA pass: whether the all-gun-tower zero-AA control
+  still hard-defeats at W4 with the Weapons pick taken (design §12 item 10's requirement — picks must not
+  paper over the missing air lane); whether either pick reads as "too good not to take" in practice (D8
+  keeps income out of scope, but +5%/+10% stat picks could still be a soft-dominant choice at these
+  numbers — starting values are frozen, do not retune, just observe and file if so); CD-49's 2×2 wrap
+  reuse once that ticket lands real 3-4-option branches to stress it further than this session's one
+  `gun_tower` spot-check.
 - [x] CD-45 (bug, P2) — **CLOSED 2026-07-15 — user visually confirmed on screen that the "enemy healing"
   symptom no longer reproduces; code-review complete with findings applied (commits f381247 + 4468e66,
   both verified present in git log this session; `Game.separateEnemies` confirmed live at `Game.ts:1382`,

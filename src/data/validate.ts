@@ -59,6 +59,26 @@ function distToSegment(
 export function validateLevels(levels: LevelDef[] = LEVELS): void {
   const errors: string[] = [];
 
+  // R9 (docs/design-wave-legibility.md): a def with maxLevel > 1 but no real
+  // upgrade cost silently upgrades for free — the Command Center's cost: 0
+  // is exactly this trap (its own `upgradeCosts` override is what saves it).
+  // Level-independent, so this runs once, not once per level.
+  for (const def of Object.values(BUILDINGS)) {
+    if (def.maxLevel <= 1) continue;
+    const hasFormulaCost = def.cost > 0 && def.upgradeCostMult > 0;
+    const overrides = def.upgradeCosts;
+    const hasOverrideCost =
+      overrides !== undefined &&
+      overrides.length >= def.maxLevel - 1 &&
+      overrides.every((c) => c > 0);
+    if (!hasFormulaCost && !hasOverrideCost) {
+      errors.push(
+        `${def.id}: maxLevel ${def.maxLevel} but no real upgrade cost ` +
+          `(cost*upgradeCostMult formula is zero and upgradeCosts is absent/incomplete) — upgrades would be free`,
+      );
+    }
+  }
+
   for (const level of levels) {
     for (const site of level.sites) {
       if (!VALID_CATEGORIES.includes(site.category)) {
