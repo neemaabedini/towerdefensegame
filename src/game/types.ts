@@ -226,6 +226,7 @@ export type GameEvent =
   | { type: "unitFired"; unitDefId: string }
   | { type: "unitDied"; unitDefId: string }
   | { type: "heroDied" }
+  | { type: "heroRespawned" }
   | { type: "buildingDestroyed"; defId: string }
   | { type: "waveStarted"; waveIndex: number }
   | { type: "dawn" }

@@ -240,9 +240,10 @@ export class Game {
       dayTime: 0,
       nightTime: this.waveElapsed,
       hqId: this.hqId,
-      // Live reference, not a clone — CD-15's standing flag (see types.ts
-      // GameSnapshot.hero), matching every other array/object field here.
-      hero: this.hero,
+      // Shallow-cloned per the CD-15 rule for NEW snapshot fields (HeroState
+      // is flat primitives, so a spread is a complete clone). The legacy
+      // array fields above stay live-ref until the CD-15 cleanup.
+      hero: this.hero ? { ...this.hero } : null,
     };
   }
 
@@ -1828,7 +1829,11 @@ export class Game {
     // Hero dawn restoration (design §5): full HP, alive, back at the HQ,
     // parked until the next startNight() — applies identically whether the
     // hero survived the night or died mid-wave ("if dead, revived").
+    // heroRespawned fires only on a true revive (design §10) — not on the
+    // ordinary survived-the-night restore, and not on loadLevel's parkHero.
+    const wasDead = this.hero !== null && !this.hero.alive;
     this.parkHero();
+    if (wasDead) this.emit({ type: "heroRespawned" });
 
     this.waveIndex += 1;
     this.projectiles = [];
