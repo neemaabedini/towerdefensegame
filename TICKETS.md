@@ -897,7 +897,15 @@ reviewer); Sonnet does (coder, QA).
   since CD-41 (Outpost's Wave 4 cliff) means the economy can't currently afford to lose `a1`'s income
   repeatedly without compounding that problem.
 - [ ] CD-40 (feature, P2) — Commander abilities (ROADMAP Phase 3b; architect
-  first) — filed 2026-07-15 to close a tracker gap: Phase 3b was only ever
+  first). **Reframed 2026-07-16: abilities are the HERO's kit, not
+  building-cast — design with CD-29, not separately.** The user reversed the
+  hero's deferral (it's now the baseline night-phase avatar, CD-29), and abilities
+  belong to the commander you control, Thronefall-style. Sensor Pulse etc. are
+  cast BY the hero at a targeted location, not emitted by the Command Post. The
+  mechanism is unchanged (targeted active on cooldown, one new input verb on the
+  `GameAction` layer); only the caster/framing moves from a structure to the
+  hero. The marauder slow (`slowSeconds`, shipped CD-49) is the Sensor-Pulse
+  mechanism, already built. — original filing 2026-07-15 to close a tracker gap: Phase 3b was only ever
   referenced inside CD-8's body ("commander abilities follow as Phase 3b"),
   and CD-8 is now closed as shipped-by-CD-38, so this had no ticket of its
   own despite sitting on the roadmap's critical path. Targeted actives on
@@ -988,19 +996,34 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-29 (feature, P2, v1.0) — Hero commander (ROADMAP Phase 5): WASD
-  mobile anchor with escort garrison (reuses Phase 3a system), utility-
-  leaning kit, time-cost death penalty. Architect first. Its prerequisite
-  (the Phase 3a anchor/squad system, formerly CD-8) shipped with CD-38, so
-  the hero's escort should reuse that engine rather than add a second one.
-  **User decision 2026-07-15: BLOCKED on CD-41 + CD-48, then architect pass.**
-  ROADMAP's original deferral was conditional — "revisit after units ship" —
-  and that condition expired when CD-38 shipped the anchor/squad engine, so
-  this is no longer parked on a missing prerequisite. It is now parked on a
-  moving target: designing a hero's kit and death penalty against per-wave
-  balance numbers that CD-41 and CD-48 are actively changing would mean
-  re-doing it. **Unblock the moment those two close** — nothing else gates it,
-  and it does not touch the Godot port gate in either direction.
+- [ ] CD-29 (feature, P1) — **Hero commander — the baseline night-phase avatar
+  (promoted from Phase 5, user decision 2026-07-16). Architect first; this is
+  the active hero ticket.** Reverses the old "hero is deferred" framing (see
+  ROADMAP "Hero character"). The commander is on the map from the first second
+  of every night, WASD-controlled, auto-attacking, present from the start —
+  Thronefall's model. It is **the missing agency layer**: without it the night
+  is pure set-and-forget, which is the "nothing to do during a fight" gap that
+  has been flagged repeatedly. **CD-40's abilities are the hero's kit, not a
+  building's** — design the two together.
+  **Locked decisions (user, 2026-07-16):**
+  - **Lone fighter, NOT a rally commander.** Hero moves + auto-attacks; it does
+    **not** rally troops. Garrison squads still auto-anchor — no unit-command
+    verb. Thronefall's press-R-to-gather is their #1 complaint and our anchor
+    rule is our #1 differentiator; we keep rejecting it. (This also drops the
+    old "escort garrison" idea — the hero fights alone.)
+  - **Full night-phase avatar:** WASD movement, auto-attack, death penalty,
+    every night. Not a minimal stub.
+  - Single-screen 960×540 → **no camera work**; movement is one new
+    `GameAction` (a move vector / target), sim-side hero entity, render pass.
+  **Scope for the architect:** hero as a sim entity (movement via GameAction,
+  auto-attack reusing the unit/building combat path, death + penalty); how it
+  reads on keyboard AND the existing spatial-nav/controller/touch input model
+  (UI_PLAN); how abilities (CD-40) attach as its kit; and what the death
+  penalty is (Thronefall sends you back to base + a cost — pick our version).
+  **Balance-freeze interaction:** the hero adds combat power to every night, so
+  its *numbers* (hp, damage, cooldowns, penalty) join the end-of-project tuning
+  pass like everything else — but the *system* is feature work and is not
+  frozen. Build it; tune it later.
 - [ ] CD-30 (feature, P1, v1.0) — Meta progression: per-level stars
   (win / no-HQ-damage / mutator win), unlockable perks chosen pre-level,
   mutators as stat-modifier layers over the JSON defs (ROADMAP Phase 5;

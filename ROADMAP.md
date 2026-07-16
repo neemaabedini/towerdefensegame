@@ -9,13 +9,25 @@ Update it as decisions get made.
 - **Pathfinding: yes, eventually.** Enemies (and later friendly units) should
   route around terrain organically instead of following fixed waypoints.
   Obstacles become real collision, not set dressing.
-- **Hero character: deferred — condition met, re-parked (updated 2026-07-15).**
-  Originally deferred "until units ship" for complexity reasons (input, camera,
-  aggro, balance). That condition **expired** when CD-38 shipped the anchor/
-  squad engine — the hero's escort is now just a garrison whose anchor moves,
-  so the prerequisite is done. Re-parked on a different, explicit gate: **CD-41
-  and CD-48 must close first**, because a hero's kit and death penalty can't be
-  designed against per-wave numbers that are still moving. See CD-29.
+- **Hero character: NOT deferred — it is the baseline night-phase avatar
+  (reversed 2026-07-16, user decision).** Prior versions of this line deferred
+  the hero to Phase 5. That was the mistake behind the "no agency during a
+  fight" gap: without a hero, the night is pure set-and-forget with nothing for
+  the player to *do*. Adopting Thronefall's model — **the commander is on the
+  map from the first second of every night, WASD-controlled, auto-attacking,
+  present from the start, not built or unlocked.** The hero IS the agency layer,
+  and abilities (Phase 3b / CD-40) are its kit, not a building's.
+  Two decisions locked with the reversal:
+  1. **Lone fighter, NOT a rally commander.** The hero moves and fights, but it
+     does **not** rally troops — garrison squads still auto-anchor to their
+     buildings, no unit-command verb. This is the one Thronefall mechanic we
+     keep rejecting: press-R-to-gather is their #1 complaint (micromanagement),
+     and "no unit command" is our #1 differentiator. The hero is agency; the
+     army stays set-and-forget.
+  2. **Full night-phase avatar:** WASD movement, auto-attack, death penalty,
+     every night. Not a minimal stub. See CD-29 (now the active hero ticket)
+     and CD-40 (abilities, now the hero's kit). Single-screen 960×540, so no
+     camera work.
 - **Units are the next big gameplay feature — as anchored attachments, not
   free squads (revised 2026-07-14).** Units always belong to an anchor: a
   tower garrison (bought as an upgrade) or, later, the hero's escort. There
