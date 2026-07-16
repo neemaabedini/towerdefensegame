@@ -145,7 +145,24 @@
     "accent": "#ff8a65",
     "size": 24,
     "shape": "tank",
-    "targets": "ground"
+    "targets": "ground",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "saturation",
+          "name": "Saturation Shells",
+          "blurb": "+40% blast radius. Clears wider swarms.",
+          "mods": { "splashRadius": 1.4 }
+        },
+        {
+          "id": "siege_battery",
+          "name": "Siege Battery",
+          "blurb": "+25% range, +20% damage. Reaches and punches.",
+          "mods": { "range": 1.25, "damage": 1.2 }
+        }
+      ]
+    }
   },
   "missile_battery": {
     "id": "missile_battery",
@@ -165,7 +182,24 @@
     "accent": "#ef5350",
     "size": 22,
     "shape": "missile",
-    "targets": "air"
+    "targets": "air",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "flak_spread",
+          "name": "Flak Spread",
+          "blurb": "+80% blast. Shreds packed flyers.",
+          "mods": { "splashRadius": 1.8 }
+        },
+        {
+          "id": "lock_on",
+          "name": "Lock-On",
+          "blurb": "+20% range, +25% fire rate. Hunts lone flyers.",
+          "mods": { "range": 1.2, "fireRate": 1.25 }
+        }
+      ]
+    }
   },
   "sniper_tower": {
     "id": "sniper_tower",
@@ -185,7 +219,24 @@
     "accent": "#4dd0e1",
     "size": 22,
     "shape": "sniper",
-    "targets": "ground"
+    "targets": "ground",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "ap_rounds",
+          "name": "AP Rounds",
+          "blurb": "+30% damage. Cracks the heaviest armor.",
+          "mods": { "damage": 1.3 }
+        },
+        {
+          "id": "overwatch",
+          "name": "Overwatch",
+          "blurb": "+15% range, +40% fire rate. Covers the whole lane.",
+          "mods": { "range": 1.15, "fireRate": 1.4 }
+        }
+      ]
+    }
   },
   "mining_facility": {
     "id": "mining_facility",
