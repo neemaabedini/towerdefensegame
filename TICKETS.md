@@ -767,6 +767,40 @@ reviewer); Sonnet does (coder, QA).
   pass criterion is the standing one: **name the metric before shipping** (CD-37's lesson, fourth time),
   and check it doesn't re-open CD-35's idle-money snowball (≤70₡/dawn) or make economy-first dominant —
   it currently doesn't, since economy-first still dies at W3 at every multiplier down to free.
+- [x] CD-51 (tech-debt, P2) — **The game's RULES were magic numbers in TypeScript, not data — extracted to
+  `src/data/tuning.json`. DONE 2026-07-15.** The *defs* (buildings/enemies/units/levels) already honoured
+  "all data in `src/data/*.json` so Godot loads the same files unchanged" — the *rules* didn't. A port had
+  to read TypeScript and hand-transcribe ~17 numbers, and one transcription slip would make the ported
+  game *feel* different with nothing to catch it. Extracted: the level-scaling curve (damage 0.22 / maxHp
+  0.18 / range 0.12 / fireRate 0.1 / splash 0.08 / income 0.35 per level), `sellRefund` 0.6, the armor
+  floor (`max(1, raw − armor)`), splash falloff 0.55, hit-flash 0.09s, enemy projectile speed 180, slow
+  multiplier 0.55, waypoint arrival 2px, building/HQ contact pads 28/40px, separation step fraction 0.5,
+  the sensor-array aura (range 0.12 + 0.04×level, fireRate 0.1 + 0.03×level), and the sell lockout 350ms.
+  New `tuning.ts` types it with the same loader pattern as the other defs.
+  **Verified a TRUE no-op:** a full reference playthrough is **byte-identical to the pre-refactor trace**
+  (victory, HQ 597/551/35/420/600/325) and still deterministic across repeat runs. `npx tsc --noEmit`
+  clean. **BALANCE FREEZE respected — pure extract, zero values changed.**
+  Deliberately left alone: nav heuristics, hit-testing radii and UI offsets are host-side concerns, not
+  sim rules — Godot rewrites those anyway. Per-entity stats stay on their own defs.
+- [x] CD-52 (tech-debt, P2) — **`performance.now()` was the sim's only browser API — removed. DONE
+  2026-07-15.** `Game.sellOrUndo` called `performance.now()` directly (`Game.ts:586`), which Godot has no
+  equivalent for. The clock is now a constructor seam — `new Game(nowMs?: () => number)` — defaulting to
+  `Date.now` so headless/test callers need nothing, with `AppShell` passing `() => performance.now()` so
+  **browser behaviour is unchanged**. The port hands it `Time.get_ticks_msec()`. `src/game/` and
+  `src/data/` now contain **zero** browser APIs (grep-verified: no `performance`/`window`/`document`/
+  `localStorage`/`requestAnimationFrame`/`navigator`/`setTimeout`).
+- [x] CD-53 (tech-debt, P2) — **The validator covered ~half the data — extended to `enemies.json` and
+  `units.json`. DONE 2026-07-15.** `validate.ts` is called "the port's only data contract" in three design
+  docs (Godot has no TS types), but it validated levels + building upgrade costs and **zero** of
+  `enemies.json` or `units.json`. A wave naming a missing `enemyId`, or a garrison squad naming a missing
+  `unitId`, surfaced only as a mid-wave `getEnemy`/`getUnit` throw in TS — and as silence in a port.
+  Added: wave→enemy references; wave→spawn references; spawn↔path pairing both ways (a spawn with no path
+  can't move its enemies); building squad→unit references (including branch-option squads); empty
+  `countByLevel`; and `branch.atLevel > maxLevel` (an unreachable fork).
+  **Negative-tested — it has teeth.** All six deliberately-broken variants are caught (missing enemy,
+  missing spawn, orphan spawn, unknown building option, stale `"production"` category, a crystal parked on
+  a lane), and the unmutated real data passes clean — no false positives. Same standard CD-7's `requires`
+  filter was held to.
 - [ ] CD-49 (feature, P2) — **Widen branch coverage — the cheapest build-variety win available** — filed
   2026-07-15 against the user's stated goal ("different build options so things don't get stale over
   multiple playthroughs"). **Architect first** (new options are new balance surface), but zero engine work:

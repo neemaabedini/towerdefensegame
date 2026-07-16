@@ -1,5 +1,7 @@
 import { BUILDINGS, deriveSiteResources } from "./buildings";
+import { ENEMIES } from "./enemies";
 import { LEVELS, type LevelDef, type SiteCategory } from "./levels";
+import { UNITS } from "./units";
 
 const VALID_CATEGORIES: readonly SiteCategory[] = ["defense", "resource", "any"];
 const MIN_OBSTACLE_CLEARANCE = 20;
@@ -79,7 +81,59 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
   }
 
+  // CD-53: cross-file reference checks. `enemies.json` and `units.json` had no
+  // coverage at all, so a wave naming a missing enemy, or a garrison squad
+  // naming a missing unit, only surfaced as a mid-wave `getEnemy`/`getUnit`
+  // throw — and in a Godot port, which has no TS types and treats this
+  // validator as the whole data contract, as silence.
+  for (const def of Object.values(BUILDINGS)) {
+    const squads = [
+      def.squad,
+      ...(def.branch?.options ?? []).map((o) => o.squad),
+    ].filter((s): s is NonNullable<typeof s> => !!s);
+    for (const squad of squads) {
+      if (!UNITS[squad.unitId]) {
+        errors.push(`${def.id}: squad references unknown unit "${squad.unitId}"`);
+      }
+      if (squad.countByLevel.length === 0) {
+        errors.push(`${def.id}: squad.countByLevel is empty`);
+      }
+    }
+    for (const opt of def.branch?.options ?? []) {
+      if (!opt.id) errors.push(`${def.id}: a branch option has no id`);
+    }
+    if (def.branch && def.branch.atLevel > def.maxLevel) {
+      errors.push(
+        `${def.id}: branch.atLevel ${def.branch.atLevel} is beyond maxLevel ${def.maxLevel} — unreachable`,
+      );
+    }
+  }
+
   for (const level of levels) {
+    for (const wave of level.waves) {
+      for (const entry of wave.entries) {
+        if (!ENEMIES[entry.enemyId]) {
+          errors.push(`${level.id}: wave references unknown enemy "${entry.enemyId}"`);
+        }
+        if (entry.spawnId && !level.spawns.some((s) => s.id === entry.spawnId)) {
+          errors.push(
+            `${level.id}: wave entry "${entry.enemyId}" references unknown spawn "${entry.spawnId}"`,
+          );
+        }
+      }
+    }
+
+    for (const spawnId of Object.keys(level.paths)) {
+      if (!level.spawns.some((s) => s.id === spawnId)) {
+        errors.push(`${level.id}: path "${spawnId}" has no matching spawn`);
+      }
+    }
+    for (const spawn of level.spawns) {
+      if (!level.paths[spawn.id]) {
+        errors.push(`${level.id}: spawn "${spawn.id}" has no path — its enemies cannot move`);
+      }
+    }
+
     for (const site of level.sites) {
       if (!VALID_CATEGORIES.includes(site.category)) {
         errors.push(`${level.id}/${site.id}: unknown category "${site.category}"`);

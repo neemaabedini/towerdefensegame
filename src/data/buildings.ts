@@ -1,4 +1,5 @@
 import { countResourcesNear, type LevelDef, type ResourceKind } from "./levels";
+import { TUNING } from "./tuning";
 import rawBuildings from "./buildings.json";
 
 export type BuildingCategory = "defense" | "production" | "support";
@@ -195,8 +196,10 @@ export function upgradeCost(def: BuildingDef, currentLevel: number): number {
   return Math.round(def.cost * def.upgradeCostMult * currentLevel);
 }
 
-/** Sell (CD-24) refunds this fraction of a building's total invested credits */
-export const SELL_REFUND = 0.6;
+/** Sell (CD-24) refunds this fraction of a building's total invested credits.
+ *  Value lives in `tuning.json` so the Godot port loads it rather than
+ *  transcribing it (CD-51); re-exported here so existing call sites don't move. */
+export const SELL_REFUND = TUNING.economy.sellRefund;
 
 function applyMods(
   stats: { maxHp: number; damage: number; range: number; fireRate: number; splashRadius: number },
@@ -233,18 +236,19 @@ export function scaledStats(
   mods?: StatMods,
 ) {
   const l = Math.max(1, level);
-  const dmgMul = 1 + (l - 1) * 0.22;
-  const hpMul = 1 + (l - 1) * 0.18;
-  const rangeMul = 1 + (l - 1) * 0.12;
-  const rateMul = 1 + (l - 1) * 0.1;
-  const incomeMul = 1 + (l - 1) * 0.35;
+  const s = TUNING.levelScaling;
+  const dmgMul = 1 + (l - 1) * s.damagePerLevel;
+  const hpMul = 1 + (l - 1) * s.maxHpPerLevel;
+  const rangeMul = 1 + (l - 1) * s.rangePerLevel;
+  const rateMul = 1 + (l - 1) * s.fireRatePerLevel;
+  const incomeMul = 1 + (l - 1) * s.incomePerLevel;
 
   const stats = {
     maxHp: def.maxHp * hpMul,
     damage: def.damage * dmgMul,
     range: def.range * rangeMul,
     fireRate: def.fireRate * rateMul,
-    splashRadius: def.splashRadius * (1 + (l - 1) * 0.08),
+    splashRadius: def.splashRadius * (1 + (l - 1) * s.splashRadiusPerLevel),
     incomePerDay: def.incomePerDay * incomeMul,
   };
 

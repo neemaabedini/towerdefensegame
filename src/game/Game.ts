@@ -11,6 +11,7 @@ import {
 } from "../data/buildings";
 import { getEnemy, type EnemyDef } from "../data/enemies";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
+import { TUNING } from "../data/tuning";
 import { getUnit, unitStats } from "../data/units";
 import type {
   BuildSiteState,
@@ -60,13 +61,15 @@ export class Game {
   private waveSpawnComplete = false;
   private listeners = new Set<() => void>();
   private eventListeners = new Set<(e: GameEvent) => void>();
-  /** performance.now() timestamp of the last successful sell/undo — absorbs
-   *  double-fire (key repeat / click+key bounce) within sellLockoutMs. */
+  /** Host-clock timestamp (ms) of the last successful sell/undo — absorbs
+   *  double-fire (key repeat / click+key bounce) within input.sellLockoutMs. */
   private lastSellAt = 0;
-  private static readonly SELL_LOCKOUT_MS = 350;
-  /** Fraction of an enemy's own movement step that separation may consume in
-   *  one tick (CD-45). Must stay below 1: see separateEnemies. */
-  private static readonly SEPARATION_STEP_FRACTION = 0.5;
+  /** Monotonic millisecond clock, injected by the host (CD-52).
+   *  `performance.now()` was the sim's ONLY browser API; taking it as a
+   *  constructor seam keeps `Game` engine-agnostic, so the Godot port supplies
+   *  `Time.get_ticks_msec()` instead of needing a JS shim. Defaults to a
+   *  monotonic counter so tests/headless callers need no clock at all. */
+  private readonly nowMs: () => number;
   /** Multipliers from every GLOBAL branch pick (currently only the Command
    *  Center — docs/design-wave-legibility.md §7c), merged together. Recomputed
    *  ONLY at pick time (see computeGlobalMods/restatAll, called from
@@ -75,7 +78,8 @@ export class Game {
    *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
   private globalStatMods: StatMods = {};
 
-  constructor() {
+  constructor(nowMs: () => number = () => Date.now()) {
+    this.nowMs = nowMs;
     this.loadLevel(0);
   }
 
@@ -577,14 +581,14 @@ export class Game {
   /**
    * Sell or undo the given building (CD-24). Day-only, HQ excluded.
    * `sellLockout` absorbs key/click double-fire: a second call within
-   * SELL_LOCKOUT_MS of a successful one is a no-op, and after a removal
+   * TUNING.input.sellLockoutMs of a successful one is a no-op, and after a removal
    * the now-empty site becomes the selection so a repeat X has nothing
    * left to act on even once the lockout expires.
    */
   sellOrUndo(buildingId: string): boolean {
     if (this.phase !== "day") return false;
-    const now = performance.now();
-    if (now - this.lastSellAt < Game.SELL_LOCKOUT_MS) return false;
+    const now = this.nowMs();
+    if (now - this.lastSellAt < TUNING.input.sellLockoutMs) return false;
 
     const b = this.buildings.find((x) => x.id === buildingId);
     if (!b || b.isHq) return false;
@@ -804,7 +808,7 @@ export class Game {
    *  real step it is defined against (CD-45). */
   private enemyStep(e: EnemyUnit, dt: number): number {
     const def = getEnemy(e.defId);
-    return def.speed * (e.slowTimer > 0 ? 0.55 : 1) * dt;
+    return def.speed * (e.slowTimer > 0 ? TUNING.enemies.slowMultiplier : 1) * dt;
   }
 
   private moveEnemy(e: EnemyUnit, dt: number): void {
@@ -817,7 +821,7 @@ export class Game {
     const step = this.enemyStep(e, dt);
     if (e.slowTimer > 0) e.slowTimer -= dt;
 
-    if (d < 2) {
+    if (d < TUNING.enemies.waypointArrivalPx) {
       e.pathIndex++;
       return;
     }
@@ -865,14 +869,14 @@ export class Game {
       for (const b of this.buildings) {
         if (b.hp <= 0 || b.isHq) continue;
         const d = dist(e.x, e.y, b.x, b.y);
-        if (d < def.radius + 28 && d < best) {
+        if (d < def.radius + TUNING.enemies.buildingContactPadPx && d < best) {
           best = d;
           target = b;
         }
       }
 
       const hqDist = dist(e.x, e.y, hq.x, hq.y);
-      if (!target && hqDist < def.radius + 40) {
+      if (!target && hqDist < def.radius + TUNING.enemies.hqContactPadPx) {
         target = hq;
       }
 
@@ -920,7 +924,7 @@ export class Game {
             targetY: contactUnit.y,
             damage: def.damage,
             splash: 0,
-            speed: 180,
+            speed: TUNING.combat.enemyProjectileSpeed,
             color: def.accent,
             targetId: null,
             alive: true,
@@ -968,7 +972,7 @@ export class Game {
         targetY: target.y,
         damage: def.damage,
         splash: 0,
-        speed: 180,
+        speed: TUNING.combat.enemyProjectileSpeed,
         color: def.accent,
         targetId: null,
         alive: true,
@@ -1017,8 +1021,8 @@ export class Game {
       const odef = getBuilding(other.defId);
       const ostats = scaledStats(odef, other.level, other.branchId, this.globalStatMods);
       if (dist(building.x, building.y, other.x, other.y) <= ostats.range) {
-        rangeMul += 0.12 + other.level * 0.04;
-        rateMul += 0.1 + other.level * 0.03;
+        rangeMul += TUNING.sensorArray.rangeBonusBase + other.level * TUNING.sensorArray.rangeBonusPerLevel;
+        rateMul += TUNING.sensorArray.fireRateBonusBase + other.level * TUNING.sensorArray.fireRateBonusPerLevel;
       }
     }
     return { range: rangeMul, rate: rateMul };
@@ -1213,7 +1217,7 @@ export class Game {
   ): void {
     this.hurtEnemy(primary, damage);
     if (splash > 0) {
-      this.applySplash(primary.x, primary.y, damage * 0.55, splash, primary.id, targets);
+      this.applySplash(primary.x, primary.y, damage * TUNING.combat.splashFalloff, splash, primary.id, targets);
     }
     void ox;
     void oy;
@@ -1244,9 +1248,9 @@ export class Game {
   private hurtEnemy(e: EnemyUnit, rawDamage: number): void {
     if (e.hp <= 0) return;
     const def = getEnemy(e.defId);
-    const dmg = Math.max(1, rawDamage - def.armor);
+    const dmg = Math.max(TUNING.combat.minDamageAfterArmor, rawDamage - def.armor);
     e.hp -= dmg;
-    e.hitTimer = 0.09;
+    e.hitTimer = TUNING.combat.hitFlashSeconds;
     if (e.hp <= 0) {
       e.hp = 0;
       this.money += def.reward;
@@ -1376,7 +1380,7 @@ export class Game {
   private hurtUnit(u: GarrisonUnit, rawDamage: number): void {
     if (u.hp <= 0) return;
     u.hp -= rawDamage;
-    u.hitTimer = 0.09;
+    u.hitTimer = TUNING.combat.hitFlashSeconds;
     if (u.hp <= 0) {
       u.hp = 0;
       this.emit({ type: "unitDied", unitDefId: u.unitDefId });
@@ -1461,7 +1465,7 @@ export class Game {
    *
    *  Pair pushes are accumulated into a buffer and each enemy's TOTAL
    *  displacement is then clamped to a fraction of its own step
-   *  (SEPARATION_STEP_FRACTION), rather than resolving each overlap outright
+   *  (TUNING.enemies.separationStepFraction), rather than resolving each overlap outright
    *  the way separateUnits does. That clamp is load-bearing, not tuning.
    *  moveEnemy only advances a waypoint within 2px of it, so a push that can
    *  outrun the step shoves enemies past that window forever: two of them
@@ -1516,7 +1520,7 @@ export class Game {
       if (e.hp <= 0) continue;
       const mag = Math.hypot(pushX[i]!, pushY[i]!);
       if (mag < 1e-9) continue;
-      const cap = this.enemyStep(e, dt) * Game.SEPARATION_STEP_FRACTION;
+      const cap = this.enemyStep(e, dt) * TUNING.enemies.separationStepFraction;
       const scale = Math.min(mag, cap) / mag;
       e.x += pushX[i]! * scale;
       e.y += pushY[i]! * scale;

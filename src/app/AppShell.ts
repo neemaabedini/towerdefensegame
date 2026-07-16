@@ -52,7 +52,9 @@ export class AppShell {
     this.backend = backend;
     this.data = load(this.backend);
     this._nightSpeed = this.data.settings.nightSpeed;
-    this.game = new Game();
+    // The host supplies the clock (CD-52) — Game itself must stay free of
+    // browser APIs so the Godot port hands it Time.get_ticks_msec() instead.
+    this.game = new Game(() => performance.now());
     this.prevPhase = this.game.getSnapshot().phase;
     this.game.onChange(() => this.handleGameChange());
   }

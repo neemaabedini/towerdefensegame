@@ -1,0 +1,35 @@
+{
+  "levelScaling": {
+    "damagePerLevel": 0.22,
+    "maxHpPerLevel": 0.18,
+    "rangePerLevel": 0.12,
+    "fireRatePerLevel": 0.1,
+    "splashRadiusPerLevel": 0.08,
+    "incomePerLevel": 0.35
+  },
+  "economy": {
+    "sellRefund": 0.6
+  },
+  "combat": {
+    "minDamageAfterArmor": 1,
+    "splashFalloff": 0.55,
+    "hitFlashSeconds": 0.09,
+    "enemyProjectileSpeed": 180
+  },
+  "enemies": {
+    "slowMultiplier": 0.55,
+    "waypointArrivalPx": 2,
+    "buildingContactPadPx": 28,
+    "hqContactPadPx": 40,
+    "separationStepFraction": 0.5
+  },
+  "sensorArray": {
+    "rangeBonusBase": 0.12,
+    "rangeBonusPerLevel": 0.04,
+    "fireRateBonusBase": 0.1,
+    "fireRateBonusPerLevel": 0.03
+  },
+  "input": {
+    "sellLockoutMs": 350
+  }
+}
