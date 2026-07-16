@@ -107,16 +107,16 @@
           "squad": { "unitId": "marine", "countByLevel": [3, 5, 7] }
         },
         {
-          "id": "snipers",
-          "name": "Sniper Team",
-          "blurb": "Armor-piercing. Ground only.",
-          "squad": { "unitId": "sniper", "countByLevel": [3, 2, 3] }
+          "id": "firebats",
+          "name": "Firebats",
+          "blurb": "Splash. Melts ground swarms up close.",
+          "squad": { "unitId": "firebat", "countByLevel": [3, 4, 5] }
         },
         {
-          "id": "flak",
-          "name": "Flak Team",
-          "blurb": "Air only. Shreds flyers, ignores ground.",
-          "squad": { "unitId": "flak_trooper", "countByLevel": [3, 4, 5] }
+          "id": "marauders",
+          "name": "Marauders",
+          "blurb": "Anti-armor. Slows what it hits.",
+          "squad": { "unitId": "marauder", "countByLevel": [3, 3, 4] }
         },
         {
           "id": "bulwarks",

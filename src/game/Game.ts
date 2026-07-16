@@ -1555,7 +1555,24 @@ export class Game {
         if (d <= unitDef.range) {
           if (u.cooldown <= 0) {
             u.cooldown = 1 / stats.fireRate;
-            this.hurtEnemy(enemy, stats.damage);
+            // Firebats route through applyDamage for splash (respecting the
+            // squad's TargetMode); single-target squads hit directly. Marauder
+            // slow reuses the enemy slowTimer the movement code already reads.
+            if (unitDef.splashRadius && unitDef.splashRadius > 0) {
+              this.applyDamage(
+                enemy,
+                stats.damage,
+                unitDef.splashRadius,
+                enemy.x,
+                enemy.y,
+                unitDef.targets,
+              );
+            } else {
+              this.hurtEnemy(enemy, stats.damage);
+            }
+            if (unitDef.slowSeconds && unitDef.slowSeconds > 0) {
+              enemy.slowTimer = unitDef.slowSeconds;
+            }
             this.emit({ type: "unitFired", unitDefId: u.unitDefId });
             this.particles.push({
               id: uid("pt"),
