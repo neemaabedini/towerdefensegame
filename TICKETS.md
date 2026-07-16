@@ -996,7 +996,8 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-29 (feature, P1) — **Hero commander — the baseline night-phase avatar
+- [ ] CD-29 (feature, P1) — **DESIGNED 2026-07-16 — `docs/design-hero-commander.md`; ready for the coder
+  (Slice 1 closes CD-29, Slice 2 closes CD-40 v1).** Hero commander — the baseline night-phase avatar
   (promoted from Phase 5, user decision 2026-07-16). Architect first; this is
   the active hero ticket.** Reverses the old "hero is deferred" framing (see
   ROADMAP "Hero character"). The commander is on the map from the first second
