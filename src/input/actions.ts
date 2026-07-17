@@ -22,28 +22,23 @@ export type GameAction =
   | { kind: "toggleSpeed" }
   | { kind: "sell" };
 
-/** Keyboard bindings. WASD/arrows navigate, 1-4 build, U/E upgrade, X
- *  undo/sell, P pause, F night-speed toggle. */
+/** Keyboard bindings. ARROWS navigate sites/buildings, WASD moves the hero
+ *  (both phases — see main.ts's held-key adapter; the split is what lets
+ *  keyboard-only play keep site nav while the hero is drivable all day,
+ *  CD-29 day-positioning), 1-4 build, U/E upgrade, X undo/sell, P pause,
+ *  F night-speed toggle. */
 export function actionFromKey(ev: KeyboardEvent): GameAction | null {
   // Held-key repeat is fine for navigation, but must not repeat purchases
   // or wave starts.
   const key = ev.key;
 
   switch (key) {
-    case "w":
-    case "W":
     case "ArrowUp":
       return { kind: "nav", dx: 0, dy: -1 };
-    case "s":
-    case "S":
     case "ArrowDown":
       return { kind: "nav", dx: 0, dy: 1 };
-    case "a":
-    case "A":
     case "ArrowLeft":
       return { kind: "nav", dx: -1, dy: 0 };
-    case "d":
-    case "D":
     case "ArrowRight":
       return { kind: "nav", dx: 1, dy: 0 };
   }

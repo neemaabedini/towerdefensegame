@@ -1168,7 +1168,7 @@ export class Renderer {
 
   /** Hero draw pass (CD-29 Slice 1) — vector fallback only this slice, no
    *  atlas entry yet (design §13; a `hero:<weapon>:<frame>` key is reserved
-   *  for CD-32). Parked (deployed: false) during the day: same idle figure
+   *  for CD-32). Drivable day and night (CD-29 day-positioning): same figure
    *  at the HQ, just no HP bar and no combat happening behind it. */
   private drawHero(state: GameSnapshot): void {
     const hero = state.hero;

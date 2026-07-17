@@ -68,6 +68,13 @@ StarCraft cross-reference: the **Ghost/nuke designate→arm→confirm** flow is 
 
 ## 4. Day phase — where is the hero?
 
+> **SUPERSEDED 2026-07-16 (user decision):** the hero is **drivable during the day** — pre-positioning
+> before the next wave, like Thronefall/Orcs Must Die. Input split: WASD = hero in both phases, arrows =
+> site/building nav (night inspection nav restored). Dawn heals a living hero **in place**; only death
+> (or a fresh level) returns it to the HQ. §6's Sensor Pulse is also **cancelled** (the Breakers squad
+> covers the slow role); hero power growth comes from weapon unlocks via CD-30. Original text below
+> retained for the record.
+
 **Parked at the Command Post during the day, rendered idle beside it, not controllable.** Day input stays 100% `nav` site-selection. At `startNight()` the hero **deploys** (controllable, positioned at the HQ, full HP). At dawn/victory it returns and is restored — parity with dawn restoration of buildings and squads.
 
 Cheapest coherent answer, and it dissolves the WASD collision (§9): day WASD = `nav`, night WASD = hero.

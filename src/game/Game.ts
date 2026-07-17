@@ -80,8 +80,8 @@ export class Game {
    *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
   private globalStatMods: StatMods = {};
   /** The hero commander (docs/design-hero-commander.md, CD-29 Slice 1).
-   *  Never null after loadLevel — parked at the HQ (deployed: false) during
-   *  the day, deployed during night. */
+   *  Never null after loadLevel — drivable in both day (pre-positioning)
+   *  and night; `deployed` stays true for the whole level (CD-29 revision). */
   private hero: HeroState | null = null;
   /** Latched, normalized move-vector — the ONLY input seam for hero
    *  movement (C4/§8). Mutated only by setHeroMove, which is called only
@@ -172,6 +172,10 @@ export class Game {
       },
     ];
     this.lastSellAt = 0;
+    // Null first: parkHero's heal-in-place preserves a LIVING hero's
+    // position, which must never leak across loadLevel/restart — a fresh
+    // level always starts the hero at its own HQ.
+    this.hero = null;
     this.parkHero();
 
     this.notify();
@@ -657,41 +661,30 @@ export class Game {
    *  main.ts's own re-latch/zero on the same edges. */
   private parkHero(): void {
     const def = getHero("commander");
+    // Day-positioning (CD-29 revision, 2026-07-16): a LIVING hero heals in
+    // place at dawn and stays where the player left it — pre-positioning for
+    // the next wave is the point. Only death (out-until-dawn penalty) or a
+    // fresh level sends it back to the HQ.
+    const surviving = this.hero && this.hero.alive ? this.hero : null;
     this.hero = {
       defId: def.id,
-      x: this.level.hq.x,
-      y: this.level.hq.y,
+      x: surviving ? surviving.x : this.level.hq.x,
+      y: surviving ? surviving.y : this.level.hq.y,
       hp: def.maxHp,
       maxHp: def.maxHp,
       alive: true,
-      deployed: false,
-      facing: 1,
+      deployed: true,
+      facing: surviving ? surviving.facing : 1,
       cooldown: 0,
     };
     this.heroMoveDir = { x: 0, y: 0 };
   }
 
-  /** Deploys the hero for the night: full HP, alive, at the HQ, controllable. */
-  private deployHero(): void {
-    const def = getHero("commander");
-    this.hero = {
-      defId: def.id,
-      x: this.level.hq.x,
-      y: this.level.hq.y,
-      hp: def.maxHp,
-      maxHp: def.maxHp,
-      alive: true,
-      deployed: true,
-      facing: 1,
-      cooldown: 0,
-    };
-  }
-
-  /** Latches a normalized hero move-vector (§8). No-op outside night — both
-   *  because the hero isn't on the map any other phase, and as defense in
-   *  depth per §9.5 even if a caller forgets to gate on phase itself. */
+  /** Latches a normalized hero move-vector (§8). The hero is drivable in
+   *  BOTH day and night (day-positioning, CD-29 revision) — the gate only
+   *  excludes victory/defeat, where there is nothing to drive. */
   setHeroMove(dx: number, dy: number): void {
-    if (this.phase !== "night") return;
+    if (this.phase !== "day" && this.phase !== "night") return;
     const len = Math.hypot(dx, dy);
     this.heroMoveDir = len > 0 ? { x: dx / len, y: dy / len } : { x: 0, y: 0 };
   }
@@ -706,7 +699,8 @@ export class Game {
     this.waveSpawnComplete = false;
     this.pendingSpawns = [];
     this.projectiles = [];
-    this.deployHero();
+    // Hero carries its day position into the night (day-positioning) — no
+    // reset here; parkHero handled heal/revive at the previous dawn.
 
     // Per-day undo/sell ledger only covers today's spend — clear it as the
     // day ends (see design-demo-milestone.md Problem 3).
@@ -785,8 +779,11 @@ export class Game {
   }
 
   private updateDay(dt: number): void {
-    // Day is untimed planning time; income is paid at dawn (see onWaveCleared)
-    void dt;
+    // Day is untimed planning time; income is paid at dawn (see onWaveCleared).
+    // The hero IS drivable by day (pre-positioning before the next wave,
+    // CD-29 revision) — updateHero's combat half is inert with no enemies,
+    // so this is movement-only in practice.
+    this.updateHero(dt);
   }
 
   /** Lump-sum income from surviving production buildings, paid at dawn.

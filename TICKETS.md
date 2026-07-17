@@ -896,8 +896,13 @@ reviewer); Sonnet does (coder, QA).
   off-lane. Recommend applying the first knob pre-emptively rather than waiting for a sharper complaint,
   since CD-41 (Outpost's Wave 4 cliff) means the economy can't currently afford to lose `a1`'s income
   repeatedly without compounding that problem.
-- [ ] CD-40 (feature, P2) — Commander abilities (ROADMAP Phase 3b; architect
-  first). **Update 2026-07-16 (coder session): CD-29 Slice 1 (the fighting avatar this ticket's kit
+- [ ] CD-40 (feature, P3) — Commander abilities. **RESCOPED 2026-07-16 (user): Sensor Pulse is
+  CANCELLED — the Breakers garrison squad already provides the area-slow role (`slowSeconds` on hit),
+  so a hero-cast slow is redundant. Do NOT build Slice 2 as described below.** What remains parked:
+  airstrike + nuke (the `targeting: "point"` seam, design §6) — and per the user, hero power growth
+  comes from **weapon unlocks via progression (CD-30)**, so future actives likely arrive as weapon
+  actives (Thronefall's weapon = passive + active model), not a standalone ability system. Nothing
+  builds here until CD-30's weapon design exists. Prior text for the record: **Update 2026-07-16 (coder session): CD-29 Slice 1 (the fighting avatar this ticket's kit
   attaches to) shipped and closed — see the Done section.** The hero now exists in the sim every night
   (`src/data/hero.json`/`hero.ts`, `Game.hero`/`updateHero`/`setHeroMove`), so this ticket (Slice 2,
   Sensor Pulse) is next and unblocked: `abilities.json` + loader, `AbilityEffect` registry (`slow` first,
@@ -1005,7 +1010,11 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-30 (feature, P1, v1.0) — Meta progression: per-level stars
+- [ ] CD-30 (feature, P1, v1.0) — **+ hero weapon unlocks (user, 2026-07-16): the commander's default
+  rifle is the baseline; clearing stages unlocks alternative weapons with real tradeoffs (extra
+  mobility, extra damage, etc. — Thronefall's model: each weapon = passive auto-attack + possibly an
+  active). `hero.json` is keyed by id for exactly this (design-hero-commander.md §12.3); a weapon is a
+  hero def variant selected pre-level.** Meta progression: per-level stars
   (win / no-HQ-damage / mutator win), unlockable perks chosen pre-level,
   mutators as stat-modifier layers over the JSON defs (ROADMAP Phase 5;
   the retention driver every studied community ranks top).
@@ -1023,6 +1032,15 @@ reviewer); Sonnet does (coder, QA).
 ## Done
 
 - [x] CD-29 (feature, P1) — **Slice 1 (the fighting avatar) shipped and closed 2026-07-16 — coder session.**
+  **Revision shipped same day (user): day-positioning.** The hero is drivable in BOTH phases — day
+  movement is pre-positioning before the next wave (Thronefall/OMD-style). Input split: **WASD = hero
+  (both phases), arrows = site/building nav**, which also restored night building-inspection nav.
+  Dawn heals a LIVING hero in place (no teleport — position is the point); death stays out-until-dawn
+  with revive at the HQ; `loadLevel` nulls the hero first so position never leaks across levels.
+  Code-review findings applied: snapshot `hero` ships shallow-cloned (CD-15 rule for new fields);
+  `heroRespawned` fires only on a true revive. Verified live: day movement 90px/s; position persists
+  day→night; dawn heal-in-place at same x; death→HQ revive; fresh level starts at own HQ; real-keyboard
+  latch confirmed (automation tab rAF-starvation explains frame-driven test noise, not the listener).
   Design: `docs/design-hero-commander.md`. Hero commander is now on the map every night from `startNight()`:
   WASD-moved, auto-attacking, body-blocking, dies → out until dawn, restored full-HP at dawn/victory. Slice 2
   (Sensor Pulse, abilities) stays open under **CD-40** — `hero.json` ships `abilities: []` on purpose this

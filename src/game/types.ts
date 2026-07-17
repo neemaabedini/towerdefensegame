@@ -57,11 +57,11 @@ export interface GarrisonUnit {
 }
 
 /**
- * The hero commander (docs/design-hero-commander.md, CD-29 Slice 1). Present
- * every night: WASD-moved, auto-attacking, body-blocking, out until dawn on
- * death. Parked (deployed: false) at the HQ during the day so the renderer
- * can draw it idle — it does not move/attack/block outside `phase ===
- * "night"`. Abilities (CD-40 Slice 2) add a `cooldowns` map; v1 has none.
+ * The hero commander (docs/design-hero-commander.md, CD-29). WASD-driven in
+ * BOTH phases — day movement is pre-positioning before the next wave
+ * (2026-07-16 revision); combat/body-block only matter at night since
+ * enemies only exist then. Dies → out until dawn; a living hero heals in
+ * place at dawn and keeps its position.
  */
 export interface HeroState {
   defId: string;
@@ -70,7 +70,8 @@ export interface HeroState {
   hp: number;
   maxHp: number;
   alive: boolean;
-  /** True only during night combat — false at the day/victory HQ park. */
+  /** Always true while a level is active (kept for the snapshot contract;
+   *  pre-day-positioning it distinguished the day park). */
   deployed: boolean;
   facing: 1 | -1;
   /** Seconds until the hero's auto-attack can fire again */
@@ -201,11 +202,9 @@ export interface GameSnapshot {
   dayTime: number;
   nightTime: number;
   hqId: string;
-  /** Live reference, not a clone — matches the shipped CD-15 pattern for
-   *  every other array/object field on this snapshot (see CD-15's ticket:
-   *  getSnapshot() doesn't deep-clone, so a held-onto snapshot mutates
-   *  after the fact). Never null after boot — parked (deployed: false) at
-   *  the HQ during the day, deployed during night. */
+  /** Shallow-cloned per snapshot (the CD-15 rule for NEW fields — the
+   *  legacy arrays above stay live-ref until that cleanup). Never null
+   *  after boot — drivable day and night; starts each level at the HQ. */
   hero: HeroState | null;
 }
 

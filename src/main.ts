@@ -96,22 +96,21 @@ canvas.addEventListener("click", (ev) => {
 const heldDirs = new Set<"up" | "down" | "left" | "right">();
 
 function dirFromKey(key: string): "up" | "down" | "left" | "right" | null {
+  // WASD only — arrows stay pure `nav` (site/building selection). The split
+  // is what lets the hero be drivable during the DAY (CD-29 day-positioning)
+  // without stealing keyboard site navigation.
   switch (key) {
     case "w":
     case "W":
-    case "ArrowUp":
       return "up";
     case "s":
     case "S":
-    case "ArrowDown":
       return "down";
     case "a":
     case "A":
-    case "ArrowLeft":
       return "left";
     case "d":
     case "D":
-    case "ArrowRight":
       return "right";
     default:
       return null;
@@ -184,9 +183,10 @@ window.addEventListener("keydown", (ev) => {
   switch (action.kind) {
     case "nav":
       ev.preventDefault();
-      // Night building-inspection nav is demoted to mouse/touch (selectAt
-      // already works) — at night WASD now drives the hero instead (§9.3).
-      if (state.phase === "day") game.navigate(action.dx, action.dy);
+      // Arrows navigate in BOTH phases again — the WASD/arrow split (CD-29
+      // day-positioning) freed the arrows, restoring night building
+      // inspection that §9.3 had demoted to mouse-only.
+      game.navigate(action.dx, action.dy);
       break;
     case "option": {
       // If a building is selected and a branch choice is pending, 1/2 pick
@@ -279,8 +279,11 @@ shell.onChange(() => {
 
   const phase = inGame ? game.getSnapshot().phase : null;
   if (phase !== lastHeroPhase) {
-    if (phase === "night") dispatchHeroMove();
-    else if (lastHeroPhase === "night") game.setHeroMove(0, 0);
+    // Hero is drivable in BOTH day and night now — re-latch the held vector
+    // on any transition into a playable phase, zero it on leaving them
+    // (victory/defeat/off-screen).
+    if (phase === "day" || phase === "night") dispatchHeroMove();
+    else game.setHeroMove(0, 0);
     lastHeroPhase = phase;
   }
   if (shell.modal !== lastModal) {
