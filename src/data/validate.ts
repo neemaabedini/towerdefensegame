@@ -1,12 +1,39 @@
-import { BUILDINGS, deriveSiteResources, type TargetMode } from "./buildings";
+import { BUILDINGS, deriveSiteResources, type StatMods, type TargetMode } from "./buildings";
 import { ENEMIES } from "./enemies";
 import { HEROES, type HeroDef } from "./hero";
 import { LEVELS, type LevelDef, type SiteCategory } from "./levels";
+import { MUTATORS } from "./mutators";
+import { PERKS } from "./perks";
 import { UNITS } from "./units";
 
 const VALID_CATEGORIES: readonly SiteCategory[] = ["defense", "resource", "any"];
 const VALID_TARGET_MODES: readonly TargetMode[] = ["all", "ground", "air"];
 const MIN_OBSTACLE_CLEARANCE = 20;
+/** The complete StatMods field set — kept as a runtime whitelist (not just
+ *  the TS type) because perks.json/mutators.json load through an `as
+ *  unknown as` cast (same pattern as buildings.json/levels.json) that
+ *  erases compile-time checking of the JSON's actual keys. This is what
+ *  makes D8 ("income is unrepresentable") a CONTRACT enforced at boot,
+ *  not just a type that a raw JSON edit could quietly violate. */
+const VALID_STAT_MOD_KEYS: readonly (keyof StatMods)[] = [
+  "damage",
+  "range",
+  "fireRate",
+  "splashRadius",
+  "maxHp",
+];
+
+function checkStatMods(mods: StatMods | undefined, label: string, errors: string[]): void {
+  if (!mods) return;
+  for (const key of Object.keys(mods)) {
+    if (!(VALID_STAT_MOD_KEYS as readonly string[]).includes(key)) {
+      errors.push(
+        `${label}: mods has key "${key}", not a valid StatMods field ` +
+          `(income is deliberately unrepresentable — design-meta-progression.md D8)`,
+      );
+    }
+  }
+}
 
 function dist(ax: number, ay: number, bx: number, by: number): number {
   return Math.hypot(ax - bx, ay - by);
@@ -99,6 +126,9 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     if (def.splashRadius !== undefined && !(def.splashRadius > 0)) {
       errors.push(`hero ${def.id}: splashRadius must be > 0 when present`);
     }
+    if (def.unlockStars !== undefined && !(def.unlockStars >= 0)) {
+      errors.push(`hero ${def.id}: unlockStars must be >= 0 when present (got ${def.unlockStars})`);
+    }
     for (const field of HERO_POSITIVE_FIELDS) {
       const v = def[field];
       if (typeof v !== "number" || !(v > 0)) {
@@ -110,6 +140,33 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
     if (typeof def.respawn?.atDawn !== "boolean") {
       errors.push(`${def.id}: respawn.atDawn must be a boolean`);
+    }
+  }
+
+  // CD-30 Slice 0: perk/mutator data contract (docs/design-meta-progression.md
+  // §5). Level-independent, runs once. `checkStatMods` is the D8 enforcement
+  // point — see its own comment.
+  for (const def of Object.values(PERKS)) {
+    checkStatMods(def.mods, `perk ${def.id}`, errors);
+    checkStatMods(def.heroMods, `perk ${def.id} (heroMods)`, errors);
+    if (!(def.unlockStars >= 0)) {
+      errors.push(`perk ${def.id}: unlockStars must be >= 0 (got ${def.unlockStars})`);
+    }
+  }
+  for (const def of Object.values(MUTATORS)) {
+    checkStatMods(def.mods, `mutator ${def.id}`, errors);
+    if (!(def.unlockStars >= 0)) {
+      errors.push(`mutator ${def.id}: unlockStars must be >= 0 (got ${def.unlockStars})`);
+    }
+    if (def.wave) {
+      for (const [key, v] of Object.entries(def.wave)) {
+        if (v !== undefined && !(v > 0)) {
+          errors.push(`mutator ${def.id}: wave.${key} must be > 0 (got ${v})`);
+        }
+      }
+    }
+    if (def.enemyMods?.maxHp !== undefined && !(def.enemyMods.maxHp > 0)) {
+      errors.push(`mutator ${def.id}: enemyMods.maxHp must be > 0 (got ${def.enemyMods.maxHp})`);
     }
   }
 

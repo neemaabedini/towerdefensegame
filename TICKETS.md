@@ -1036,6 +1036,91 @@ reviewer); Sonnet does (coder, QA).
   (win / no-HQ-damage / mutator win), unlockable perks chosen pre-level,
   mutators as stat-modifier layers over the JSON defs (ROADMAP Phase 5;
   the retention driver every studied community ranks top).
+  ---
+  **Update 2026-07-17 (coder session) — Slices 0-3 of `docs/design-meta-progression.md` SHIPPED.**
+  Slice 4 (unlock gating) is explicitly OUT of scope per the coder ticket — everything below ships
+  all-unlocked; no `unlockStars` gating logic was added to AppShell/UI, only the data+validator shape
+  Slice 4 needs later.
+  **New data:** `src/data/perks.json`/`perks.ts` (5 defs: Standing Orders +8%dmg/+8%fireRate, Reinforced
+  Plating +12%maxHp, Long Guns +12%range, Rapid Response +12%fireRate — all four "all structures &
+  squads" except Long Guns "all structures"; War Chest +90₡ one-time `startingCredits`) and
+  `src/data/mutators.json`/`mutators.ts` (4 defs: Swarm `wave.countMul` 1.3, Blitz `wave.intervalMul`
+  0.75 + `delayMul` 0.6, Fragile Command `mods.maxHp` 0.85, **Hardened Foe `enemyMods.maxHp` 1.2 shipped**
+  — it landed as the clean one-line multiply the ticket allowed, so all 4 v1 mutators shipped, not 3).
+  Every `name` is a design-doc placeholder pending user sign-off (flagged in both files' doc comments,
+  not in the JSON) — none are final. All perk/mutator `unlockStars: 0` (everything unlocked, matching
+  Slice 4 being out of scope). Chip text (`formatPerkBlurb`/`formatMutatorBlurb`) is derived
+  mechanically from `mods`/`wave`/`enemyMods`/`startingCredits`, never hand-typed (M8) — reused
+  `buildings.ts`'s `describeStatMods`, extracted from the existing `formatBranchBlurb` so all three
+  chip-text sources share one primitive.
+  **`validate.ts`:** new perk/mutator block — every `mods` key must be a valid `StatMods` field
+  (income stays unrepresentable, D8), wave multipliers `> 0`, `unlockStars >= 0` (added to `hero.json`
+  defs too, typed-but-unused ahead of Slice 4). **Negative-test proof it has teeth:** a live probe
+  (dynamic-imported `perks.ts`+`validate.ts` at runtime) injected `incomePerDay` into a real perk's
+  `mods`, confirmed `validateLevels()` throws `perk standing_orders: mods has key "incomePerDay", not a
+  valid StatMods field...`, then restored the original and reconfirmed clean — the sanity control (real
+  data, untouched) passed before and after.
+  **`Game.ts`:** `setLoadout({perks, mutators})` (mirrors `setHeroLoadout`, unknown ids dropped).
+  `computeGlobalMods()` now merges perk+mutator `mods` (`computeLoadoutMods`) with live branch picks in
+  one channel — seeded ONCE per `loadLevel` (buildings reset to `[]` first so a stale previous-level
+  branch pick can't leak in) and re-merged once per branch pick (`upgrade()`), exactly as before.
+  `loadLevel` deep-copies `level.waves` (`buildRunWaves`) and applies active mutators'
+  `countMul`/`intervalMul`/`delayMul` per entry (counts round up); adds equipped perks'
+  `startingCredits` to `startingMoney`; seeds `enemyHpMul` for Hardened Foe, read once per `spawnEnemy`
+  (event-driven, not per tick).
+  **`AppShell.ts`:** `starsFor(i)`→`[star1,star2,star3]` (Star1 `cleared`, Star2 `bestHqHpPct===100`,
+  Star3 `mutatorWin`, zero new writes for 1+2); `totalStars()`; `perkSlots()` (1 slot at 0 stars, 2 at
+  `PERK_SLOT_THRESHOLD_STARS = 3` — single named constant, **USER-PENDING pacing number**, same
+  balance-freeze status as everything else); `selectedPerks` getter trims unknown/over-cap ids from
+  `settings.perks` at READ time (write-time array stays untouched); `togglePerk`/`toggleMutator`;
+  `selectedMutators` is a private in-memory field (SESSION-ONLY per the doc's §11 recommendation —
+  perks persist, mutators reset on reload); `startLevel` calls `game.setLoadout(...)` before
+  `loadLevel`; `recordVictory` writes `mutatorWin` (sticky — a later mutator-free win never un-lights
+  Star 3).
+  **`save.ts`:** `levels[id].mutatorWin?: boolean`, `settings.perks?: string[]`, both optional (no
+  version bump, `heroWeapon` precedent); one new `isValidSave` array-of-strings check for `perks`.
+  **UI (`LevelSelect.ts` + `main.css`):** Perks row ("n/m" counter, unselected chips grey+disable at
+  cap via `.at-cap`) and Mutators row (multi-select, "+3rd star" baked into every chip face) above the
+  level cards, plus 3 star glyphs per card. Fixed a **pre-existing cosmetic bug found while building
+  this**: `.weapon-row` (and now `.perk-row`/`.mutator-row`) are direct children of the CSS-grid
+  `#level-cards`, so without `grid-column: 1 / -1` each row was squeezed into a single ~220-260px grid
+  cell instead of spanning full width above the cards — fixed for all three rows at once (one CSS rule).
+  **Verified live** (`npx tsc --noEmit` clean; zero console/server errors; dev server + real DOM
+  clicks, not just JS calls): fresh save → clicking Standing Orders + Swarm chips → clicking "Outpost
+  Alpha" → HUD shows `13× Raider` for Wave 1 (base is 9, ⌈9×1.3⌉=12 per-entry-rounded... actual 13 from
+  two summed entries each individually ceil'd) and money stays 320 (no War Chest selected) — the full
+  pre-level-UI-click → `startLevel` → `loadLevel` pipeline exercised end-to-end, not just scripted.
+  Also scripted via `window.__shell`/`window.__game`: War Chest → money exactly 320+90=410; Standing
+  Orders → a built `gun_tower`'s `statsFor` damage 10→11 AND fireRate 3.2→3.456 (both move, income
+  stays 0); Fragile Command → `gun_tower` maxHp 120→102 (exactly ×0.85); Hardened Foe → a spawned
+  raider's `maxHp` 40→48 (exactly ×1.2); Swarm → wave entry-count sums +36-44% across all 6 Outpost
+  waves (per-entry ceil rounding varies the exact %, always ≥30% intent); Blitz → W1 interval 1→0.75,
+  delay 5→3; no-mutator run's `level.waves` is **byte-identical** (`JSON.stringify` equal) to the raw
+  `LEVELS[0].waves` import, both before AND after a Swarm run on the same level (deep-copy doesn't leak
+  into the shared module — reloaded and re-diffed against the untouched import to confirm); no-perk
+  gun_tower stats (`10/3.2/120/130`) match the pre-CD-30 numbers exactly, proving the empty-loadout path
+  is unchanged. **Call-count spy** (wrapped `game['computeGlobalMods']`/`game['restatAll']`): 1 call
+  each on `loadLevel`, 0 over 100 ticks of `update(0.05)`; a subsequent branch pick (`command_center`
+  Weapons) added exactly 1 more of each, still 0 over 300 more ticks. **Stars**: scripted
+  `recordVictory` calls (bracket-notation access, private-at-compile-time-only) confirmed damaged clear
+  → `[true,false,false]`, flawless clear → `[true,true,false]`, mutator win (damaged) →
+  `[true,false,true]`, mutator win (flawless) → `[true,true,true]` (3 glyphs), Star 3 sticky across a
+  later mutator-free win, `totalStars`/`perkSlots` grow 1→2 at the 3-star threshold. **Persistence**:
+  `selectedPerks` round-trips a real page reload; an injected stale save (`unknown_perk_xyz` + 3 ids
+  against a reset-to-1 slot cap) reads back trimmed to `["standing_orders"]` while the raw stored array
+  is untouched; `selectedMutators` correctly resets to `[]` on reload (session-only, unlike perks).
+  **Not independently re-verified this session (pre-existing, documented, BALANCE-FROZEN):** a
+  no-perk/no-mutator scripted defense-first build (garrison/gun_tower/siege_tank/missile_battery/
+  sniper_tower/gun_tower(s1)/mining_facility) still hard-defeats Outpost at Wave 4 — this matches
+  CD-41/CD-48's open, frozen finding (Outpost's W3-4 cliff predates and is unrelated to CD-30; the
+  no-loadout path was independently proven byte-identical to pre-CD-30 behavior above, so this
+  ticket's changes provably did not cause or change that outcome). Do not re-tune balance to "fix" this
+  under the standing balance freeze.
+  **Follow-ups for the user/next session:** (1) sign off on all placeholder names (perks, mutators,
+  the doc's currency name) per design doc §11; (2) set the real `PERK_SLOT_THRESHOLD_STARS` and any
+  `unlockStars` pacing numbers before Slice 4; (3) Slice 4 itself (weapon + perk unlock gating against
+  `totalStars`, locked-chip visuals, sanitize-to-rifle/trim-to-slots on a stars regression) is fully
+  unbuilt and next in line per the design doc's slice order.
 - [ ] CD-31 (feature, P1, v1.0) — Campaign content: grow 2 levels to 8–12
   with a difficulty/mechanic introduction curve (new enemy or building
   unlock every 1-2 levels), integrated tutorial level 0. Build after the

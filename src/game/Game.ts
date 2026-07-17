@@ -12,6 +12,8 @@ import {
 import { getEnemy, type EnemyDef } from "../data/enemies";
 import { getHero, HEROES } from "../data/hero";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
+import { MUTATORS } from "../data/mutators";
+import { PERKS } from "../data/perks";
 import { TUNING } from "../data/tuning";
 import { getUnit, unitStats } from "../data/units";
 import type {
@@ -79,6 +81,19 @@ export class Game {
    *  paths; call the public globalMods() getter only from outside the sim
    *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
   private globalStatMods: StatMods = {};
+  /** CD-30 meta-progression loadout — equipped perk ids (persisted,
+   *  `AppShell.selectedPerks`) and active mutator ids (session-only,
+   *  `AppShell.selectedMutators`). Set via `setLoadout`, called from
+   *  `AppShell.startLevel` BEFORE `loadLevel`, mirroring `setHeroLoadout`.
+   *  Unknown ids are dropped here so a stale/corrupt save can never brick
+   *  `loadLevel` (same discipline as `setHeroLoadout`). */
+  private loadoutPerks: string[] = [];
+  private loadoutMutators: string[] = [];
+  /** Merged enemy-stat mutator factor (Hardened Foe's +HP seam, design doc
+   *  §5 "enemyMods") — recomputed once per `loadLevel`, read directly by
+   *  `spawnEnemy` (event-driven, not per tick). 1 = no active mutator
+   *  touches enemy stats. */
+  private enemyHpMul = 1;
   /** The hero commander (docs/design-hero-commander.md, CD-29 Slice 1).
    *  Never null after loadLevel — drivable in both day (pre-positioning)
    *  and night; `deployed` stays true for the whole level (CD-29 revision). */
@@ -119,9 +134,13 @@ export class Game {
 
   loadLevel(index: number): void {
     this.levelIndex = index;
-    this.level = getLevel(index);
+    // Deep-copy the wave table (CD-30) — `getLevel` returns the shared
+    // LEVELS[] entry directly, and `buildRunWaves` mutating it in place
+    // would contaminate every future load of this level for the rest of
+    // the session. See `buildRunWaves`'s own comment.
+    const rawLevel = getLevel(index);
+    this.level = { ...rawLevel, waves: this.buildRunWaves(rawLevel) };
     this.phase = "day";
-    this.money = this.level.startingMoney;
     this.waveIndex = 0;
     this.enemies = [];
     this.units = [];
@@ -134,7 +153,18 @@ export class Game {
     this.waveSpawnComplete = false;
     this.selectedSiteId = null;
     this.selectedBuildingId = null;
-    this.globalStatMods = {};
+    // Buildings must be empty before computeGlobalMods() — it loops
+    // `this.buildings` for live branch picks, and a fresh level has none
+    // yet; leaving the PREVIOUS level's buildings in place here would leak
+    // their branch mods into this level's starting globalStatMods.
+    this.buildings = [];
+    // ONE recompute here (never per tick — see the call-count spy note on
+    // `globalStatMods`'s own doc comment): seeds equipped perks' and active
+    // mutators' StatMods (Slice 2/3) so the HQ itself is built against them
+    // below, same as any other structure ("all structures & squads").
+    this.globalStatMods = this.computeGlobalMods();
+    this.enemyHpMul = this.computeEnemyHpMul();
+    this.money = rawLevel.startingMoney + this.loadoutStartingCredits();
 
     this.sites = this.level.sites.map((s) => {
       const resources = deriveSiteResources(this.level, s.x, s.y);
@@ -535,24 +565,102 @@ export class Game {
     return scaledStats(def, b.level, b.branchId, this.globalStatMods);
   }
 
-  /** Re-derives globalStatMods from every building holding a global branch
-   *  pick (today: only the Command Post, merged for CD-49's future seam
-   *  of more than one). Multiplicative merge, not overwrite, so two global
-   *  picks on the same stat would compound rather than one winning. */
+  /** Re-derives globalStatMods from CD-30's loadout (equipped perks + active
+   *  mutators, seeded once at `loadLevel`) merged with every building
+   *  holding a global branch pick (today: only the Command Post, merged for
+   *  CD-49's future seam of more than one). Multiplicative merge, not
+   *  overwrite, so two global sources touching the same stat compound
+   *  rather than one winning — this is the ONE channel B2 (design doc §3)
+   *  calls for; nothing applies StatMods anywhere else. */
   private computeGlobalMods(): StatMods {
-    const merged: StatMods = {};
+    const merged: StatMods = this.mergeStatMods({}, this.computeLoadoutMods());
     for (const b of this.buildings) {
       const def = getBuilding(b.defId);
       if (!def.branch?.global || !b.branchId) continue;
       const opt = def.branch.options.find((o) => o.id === b.branchId);
       if (!opt?.mods) continue;
-      for (const key of Object.keys(opt.mods) as (keyof StatMods)[]) {
-        const v = opt.mods[key];
-        if (v === undefined) continue;
-        merged[key] = (merged[key] ?? 1) * v;
-      }
+      this.mergeStatMods(merged, opt.mods);
     }
     return merged;
+  }
+
+  /** Merges every equipped perk's and active mutator's `mods` (Slice 2's
+   *  perk buffs, Slice 3's Fragile Command player-debuff — same channel,
+   *  design doc §5/§7c) into one multiplier set. Pure, called only from
+   *  `computeGlobalMods` (loadLevel + branch-pick time), never per tick. */
+  private computeLoadoutMods(): StatMods {
+    let merged: StatMods = {};
+    for (const id of this.loadoutPerks) {
+      const mods = PERKS[id]?.mods;
+      if (mods) merged = this.mergeStatMods(merged, mods);
+    }
+    for (const id of this.loadoutMutators) {
+      const mods = MUTATORS[id]?.mods;
+      if (mods) merged = this.mergeStatMods(merged, mods);
+    }
+    return merged;
+  }
+
+  /** Multiplicative merge helper shared by every StatMods source (branch
+   *  picks, perks, mutators) — mutates and returns `target`. */
+  private mergeStatMods(target: StatMods, source: StatMods): StatMods {
+    for (const key of Object.keys(source) as (keyof StatMods)[]) {
+      const v = source[key];
+      if (v === undefined) continue;
+      target[key] = (target[key] ?? 1) * v;
+    }
+    return target;
+  }
+
+  /** Sum of equipped perks' one-time `startingCredits` (War Chest) —
+   *  D8-safe: a flat one-time grant added to `startingMoney` at `loadLevel`,
+   *  not a per-day multiplier, so it can't compound like an income mod. */
+  private loadoutStartingCredits(): number {
+    let total = 0;
+    for (const id of this.loadoutPerks) total += PERKS[id]?.startingCredits ?? 0;
+    return total;
+  }
+
+  /** Merged enemy-stat mutator factor (Hardened Foe's `enemyMods.maxHp`
+   *  seam) — 1 when no active mutator touches enemy stats. */
+  private computeEnemyHpMul(): number {
+    let mul = 1;
+    for (const id of this.loadoutMutators) {
+      const v = MUTATORS[id]?.enemyMods?.maxHp;
+      if (v !== undefined) mul *= v;
+    }
+    return mul;
+  }
+
+  /** Deep-copies `level.waves` and applies every active mutator's
+   *  count/interval/delay multipliers (design doc §5/§7c "wave-table
+   *  transform"). MUST deep-copy: `getLevel` returns the shared LEVELS[]
+   *  entry, so mutating its waves in place would contaminate every future
+   *  load of this level for the rest of the session — the same class of
+   *  bug TICKETS.md CD-48 flags for probe hygiene. Counts round UP so a
+   *  fractional Swarm bump never rounds away to zero extra enemies. With no
+   *  mutator active every multiplier is 1 and the copy is value-identical
+   *  to the source (verified by QA byte-for-byte). */
+  private buildRunWaves(level: LevelDef): WaveDef[] {
+    let countMul = 1;
+    let intervalMul = 1;
+    let delayMul = 1;
+    for (const id of this.loadoutMutators) {
+      const wave = MUTATORS[id]?.wave;
+      if (!wave) continue;
+      if (wave.countMul !== undefined) countMul *= wave.countMul;
+      if (wave.intervalMul !== undefined) intervalMul *= wave.intervalMul;
+      if (wave.delayMul !== undefined) delayMul *= wave.delayMul;
+    }
+    return level.waves.map((w) => ({
+      ...w,
+      entries: w.entries.map((e) => ({
+        ...e,
+        count: Math.ceil(e.count * countMul),
+        interval: e.interval * intervalMul,
+        delay: e.delay * delayMul,
+      })),
+    }));
   }
 
   /** Re-derives every LIVE building's and unit's maxHp against the current
@@ -691,6 +799,18 @@ export class Game {
     this.heroDefId = HEROES[defId] ? defId : "rifle";
   }
 
+  /** CD-30 meta-progression loadout — equipped perk ids + active mutator
+   *  ids. Mirrors `setHeroLoadout`: called from `AppShell.startLevel`
+   *  BEFORE `loadLevel` (design doc §3 option D), which is where the ids
+   *  actually take effect (globalStatMods seed, wave-table transform,
+   *  startingCredits). Unknown ids are dropped here, never carried into
+   *  loadLevel's mod computation — the same "never brick loadLevel on a
+   *  stale id" discipline as `setHeroLoadout`. */
+  setLoadout(loadout: { perks: string[]; mutators: string[] }): void {
+    this.loadoutPerks = loadout.perks.filter((id) => !!PERKS[id]);
+    this.loadoutMutators = loadout.mutators.filter((id) => !!MUTATORS[id]);
+  }
+
   /** Latches a normalized hero move-vector (§8). The hero is drivable in
    *  BOTH day and night (day-positioning, CD-29 revision) — the gate only
    *  excludes victory/defeat, where there is nothing to drive. */
@@ -758,11 +878,14 @@ export class Game {
       { x: this.level.hq.x, y: this.level.hq.y },
     ];
 
+    // Hardened Foe seam (design doc §5 "enemyMods") — one multiply, merged
+    // once at loadLevel, never per tick.
+    const maxHp = Math.round(def.maxHp * this.enemyHpMul);
     this.enemies.push({
       id: uid("en"),
       defId: enemyId,
-      hp: def.maxHp,
-      maxHp: def.maxHp,
+      hp: maxHp,
+      maxHp,
       x: start.x,
       y: start.y,
       path: fullPath,

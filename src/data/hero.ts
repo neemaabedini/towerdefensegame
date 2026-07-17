@@ -35,6 +35,11 @@ export interface HeroDef {
   respawn: { atDawn: boolean; midWaveSeconds?: number };
   color: string;
   accent: string;
+  /** Total-star gate for CD-30 Slice 4 (unlock gating), still out of scope
+   *  — see docs/design-meta-progression.md §5. Absent/0 = unlocked from a
+   *  fresh save; the rifle is always 0. Typed now so Slice 4 is data+UI
+   *  only, same as `PerkDef.unlockStars`/`MutatorDef.unlockStars`. */
+  unlockStars?: number;
 }
 
 export const HEROES = rawHero as unknown as Record<string, HeroDef>;

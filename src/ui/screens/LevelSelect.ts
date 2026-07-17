@@ -1,6 +1,8 @@
 import type { AppShell } from "../../app/AppShell";
 import { HEROES } from "../../data/hero";
 import { LEVELS } from "../../data/levels";
+import { formatMutatorBlurb, MUTATORS } from "../../data/mutators";
+import { formatPerkBlurb, PERKS } from "../../data/perks";
 
 /**
  * DOM screen (#screen-level-select) — a card per LEVELS entry: name,
@@ -56,6 +58,66 @@ export class LevelSelect {
     }
     this.cardsEl.appendChild(weaponRow);
 
+    // CD-30 Slice 2: perk row — selectable up to shell.perkSlots(), "n/m"
+    // counter, chip text derived from `mods` (formatPerkBlurb, M8). Gating
+    // by unlockStars is Slice 4 (out of scope) — every v1 perk is unlocked,
+    // the only cap here is the slot count.
+    const perkSlots = this.shell.perkSlots();
+    const selectedPerks = this.shell.selectedPerks;
+    const perkRow = document.createElement("div");
+    perkRow.className = "perk-row";
+    const perkLabel = document.createElement("div");
+    perkLabel.className = "perk-row-label";
+    perkLabel.textContent = `Perks (${selectedPerks.length}/${perkSlots})`;
+    perkRow.appendChild(perkLabel);
+    for (const def of Object.values(PERKS)) {
+      const selected = selectedPerks.includes(def.id);
+      const atCap = !selected && selectedPerks.length >= perkSlots;
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "perk-chip";
+      if (selected) chip.classList.add("selected");
+      if (atCap) chip.classList.add("at-cap");
+      const name = document.createElement("div");
+      name.className = "perk-chip-name";
+      name.textContent = def.name;
+      const blurb = document.createElement("div");
+      blurb.className = "perk-chip-blurb";
+      blurb.textContent = formatPerkBlurb(def);
+      chip.append(name, blurb);
+      chip.addEventListener("click", () => this.shell.togglePerk(def.id));
+      perkRow.appendChild(chip);
+    }
+    this.cardsEl.appendChild(perkRow);
+
+    // CD-30 Slice 3: mutator row — multi-select toggles, no slot cap. Each
+    // chip's face carries its effect + "+3rd star" (formatMutatorBlurb,
+    // design doc §4 Q5/M8). Session-only selection (shell.selectedMutators
+    // resets on reload, unlike perks).
+    const selectedMutators = this.shell.selectedMutators;
+    const mutatorRow = document.createElement("div");
+    mutatorRow.className = "mutator-row";
+    const mutatorLabel = document.createElement("div");
+    mutatorLabel.className = "mutator-row-label";
+    mutatorLabel.textContent = "Mutators";
+    mutatorRow.appendChild(mutatorLabel);
+    for (const def of Object.values(MUTATORS)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "mutator-chip";
+      if (selectedMutators.includes(def.id)) chip.classList.add("selected");
+      const name = document.createElement("div");
+      name.className = "mutator-chip-name";
+      name.textContent = def.name;
+      const blurb = document.createElement("div");
+      blurb.className = "mutator-chip-blurb";
+      blurb.textContent = formatMutatorBlurb(def);
+      chip.append(name, blurb);
+      chip.addEventListener("click", () => this.shell.toggleMutator(def.id));
+      mutatorRow.appendChild(chip);
+    }
+    this.cardsEl.appendChild(mutatorRow);
+
     LEVELS.forEach((level, index) => {
       const unlocked = this.shell.isUnlocked(index);
       const result = this.shell.bestResult(index);
@@ -74,6 +136,19 @@ export class LevelSelect {
       desc.className = "level-card-desc";
       desc.textContent = level.description;
 
+      // CD-30 Slice 1: 3 star glyphs (Clear / Flawless / Hardened) — numbers-
+      // on-face, no hover (UI_PLAN 6). Empty (unearned) on a locked or
+      // never-cleared card, same as bestResult's own "Not cleared" fallback.
+      const stars = document.createElement("div");
+      stars.className = "level-card-stars";
+      const [star1, star2, star3] = unlocked ? this.shell.starsFor(index) : [false, false, false];
+      for (const earned of [star1, star2, star3]) {
+        const glyph = document.createElement("span");
+        glyph.className = "star-glyph" + (earned ? " earned" : "");
+        glyph.textContent = "★";
+        stars.appendChild(glyph);
+      }
+
       const status = document.createElement("div");
       status.className = "level-card-status";
       if (!unlocked) {
@@ -84,7 +159,7 @@ export class LevelSelect {
         status.textContent = "Not cleared";
       }
 
-      card.append(name, desc, status);
+      card.append(name, desc, stars, status);
       if (unlocked) {
         card.addEventListener("click", () => this.shell.startLevel(index));
       }

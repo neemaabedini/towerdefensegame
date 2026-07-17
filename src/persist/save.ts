@@ -36,7 +36,18 @@ export interface SaveDataV1 {
   v: 1;
   /** Count of unlocked levels; LEVELS[0..unlockedLevels-1] are playable. */
   unlockedLevels: number;
-  levels: Record<string, { cleared: boolean; bestHqHpPct: number }>;
+  levels: Record<
+    string,
+    {
+      cleared: boolean;
+      bestHqHpPct: number;
+      /** Written by `AppShell.recordVictory` when >=1 mutator was active on
+       *  a winning run (CD-30 Slice 3) — Star 3 ("Hardened"). Optional so
+       *  pre-Slice-3 saves stay valid; absent reads as false (no new
+       *  migration, same optional-field-first pattern as `heroWeapon`). */
+      mutatorWin?: boolean;
+    }
+  >;
   settings: {
     volume: number;
     muted: boolean;
@@ -44,6 +55,13 @@ export interface SaveDataV1 {
     /** Selected hero weapon (hero.json def id). Optional so pre-CD-30 saves
      *  stay valid; readers fall back to "rifle" (see AppShell.heroWeapon). */
     heroWeapon?: string;
+    /** Equipped perk ids (CD-30 Slice 2, perks.json). Optional so pre-Slice-2
+     *  saves stay valid; unknown ids and anything past the current slot
+     *  count are trimmed at READ time (see AppShell.selectedPerks), not
+     *  here — mirrors `heroWeapon`'s stale-id sanitization. Mutators are
+     *  deliberately NOT here: they're session-only (design doc §11), kept
+     *  in an AppShell in-memory field instead. */
+    perks?: string[];
   };
   hintsSeen: string[];
 }
@@ -91,6 +109,15 @@ function isValidSave(data: unknown): data is SaveDataV1 {
   // heroWeapon is optional (added post-v1 without a schema bump); when
   // present it must be a string — unknown ids are sanitized at read time.
   if (settings.heroWeapon !== undefined && typeof settings.heroWeapon !== "string") return false;
+  // perks is optional (added post-v1 without a schema bump, CD-30) — when
+  // present it must be a string array; unknown/over-slot ids are trimmed
+  // at read time (AppShell.selectedPerks), not here.
+  if (
+    settings.perks !== undefined &&
+    (!Array.isArray(settings.perks) || !settings.perks.every((p) => typeof p === "string"))
+  ) {
+    return false;
+  }
   if (!Array.isArray(d.hintsSeen)) return false;
   return true;
 }

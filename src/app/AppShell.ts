@@ -1,4 +1,6 @@
 import { LEVELS } from "../data/levels";
+import { MUTATORS } from "../data/mutators";
+import { PERKS } from "../data/perks";
 import { validateLevels } from "../data/validate";
 import { Game } from "../game/Game";
 import type { GameSnapshot, Phase } from "../game/types";
@@ -14,6 +16,14 @@ import {
 
 export type AppScreen = "title" | "levelSelect" | "game";
 export type AppModal = "none" | "pause";
+
+/** Total-star threshold where perk slots grow 1 -> 2 (design doc §4 Q2,
+ *  §11 "USER-set data"). A single named constant so the real pacing number
+ *  is a one-line edit, not a design change — v1 max is 2 slots per the
+ *  design doc's own conservative cap. USER-PENDING: this number (3) is
+ *  plausible-but-untuned, same balance-freeze status as every other CD-30
+ *  number. */
+const PERK_SLOT_THRESHOLD_STARS = 3;
 
 /**
  * App state machine ABOVE the sim (see design-demo-milestone.md Problem 1).
@@ -43,6 +53,15 @@ export class AppShell {
   private listeners = new Set<() => void>();
   private settingsListeners = new Set<() => void>();
   private persistDebounced = debounce(() => this.persistNow(), 200);
+  /** CD-30 mutator selection — SESSION-ONLY (design doc §11's
+   *  recommendation): kept in memory, never written to `settings`, so it
+   *  resets on reload while `settings.perks` persists. */
+  private _selectedMutators: string[] = [];
+  /** Snapshot of `selectedMutators.length` taken at `startLevel` — read by
+   *  `recordVictory` to decide `mutatorWin`. The chip row is only
+   *  interactable on the level-select screen, never during "game", so this
+   *  can't drift from what was actually active for the run in progress. */
+  private activeMutatorCount = 0;
 
   constructor(backend: StorageBackend = new LocalStorageBackend(SAVE_KEY)) {
     // DEV-only data contract check (docs/design-economy-rework.md R4) —
@@ -110,7 +129,7 @@ export class AppShell {
     return levelIndex < this.data.unlockedLevels;
   }
 
-  bestResult(levelIndex: number): { cleared: boolean; bestHqHpPct: number } | null {
+  bestResult(levelIndex: number): SaveDataV1["levels"][string] | null {
     const level = LEVELS[levelIndex];
     if (!level) return null;
     return this.data.levels[level.id] ?? null;
@@ -142,12 +161,82 @@ export class AppShell {
     this.notify();
   }
 
+  /** Star 1 (Clear) = cleared; Star 2 (Flawless) = bestHqHpPct === 100
+   *  (derived, zero new writes — design doc §3 caveat: a ~99.6% round-up
+   *  could grant Flawless on a scratch; shipped as the doc's proxy, revisit
+   *  only if QA flags it lenient); Star 3 (Hardened) = mutatorWin. */
+  starsFor(levelIndex: number): [boolean, boolean, boolean] {
+    const result = this.bestResult(levelIndex);
+    if (!result?.cleared) return [false, false, false];
+    return [true, result.bestHqHpPct === 100, !!result.mutatorWin];
+  }
+
+  /** Sum of every level's stars — the single progression currency (design
+   *  doc §3 A2) gating perk slots (Slice 1/2) and, later, unlock gating
+   *  (Slice 4, out of scope here). */
+  totalStars(): number {
+    let total = 0;
+    for (let i = 0; i < LEVELS.length; i++) {
+      total += this.starsFor(i).filter(Boolean).length;
+    }
+    return total;
+  }
+
+  /** 1 slot at 0 stars, 2 at PERK_SLOT_THRESHOLD_STARS (design doc §4 Q2). */
+  perkSlots(): number {
+    return this.totalStars() >= PERK_SLOT_THRESHOLD_STARS ? 2 : 1;
+  }
+
+  /** Equipped perk ids (CD-30 Slice 2). Trims unknown ids and anything past
+   *  the current slot count at READ time — mirrors `heroWeapon`'s stale-id
+   *  sanitization, so slots shrinking (e.g. a future reset) never needs a
+   *  write-time migration, just a shorter read. */
+  get selectedPerks(): string[] {
+    const raw = this.data.settings.perks ?? [];
+    return raw.filter((id) => !!PERKS[id]).slice(0, this.perkSlots());
+  }
+
+  /** Toggles a perk on/off; no-ops if the id is unknown or (when adding)
+   *  the slot cap is already full. Persists immediately, same as
+   *  `setHeroWeapon` — this is a deliberate pre-level click, not a drag. */
+  togglePerk(id: string): void {
+    if (!PERKS[id]) return;
+    const current = this.selectedPerks;
+    let next: string[];
+    if (current.includes(id)) {
+      next = current.filter((p) => p !== id);
+    } else {
+      if (current.length >= this.perkSlots()) return;
+      next = [...current, id];
+    }
+    this.data.settings.perks = next;
+    this.persistNow();
+    this.notify();
+  }
+
+  /** Active mutator ids (CD-30 Slice 3) — SESSION-ONLY, see the field's own
+   *  doc comment. Multi-select, no slot cap (design doc §4 Q5). */
+  get selectedMutators(): string[] {
+    return this._selectedMutators;
+  }
+
+  toggleMutator(id: string): void {
+    if (!MUTATORS[id]) return;
+    this._selectedMutators = this._selectedMutators.includes(id)
+      ? this._selectedMutators.filter((m) => m !== id)
+      : [...this._selectedMutators, id];
+    this.notify();
+  }
+
   /** Always starts the level fresh at day 1 (loadLevel resets sim state). */
   startLevel(index: number): void {
     if (index < 0 || index >= LEVELS.length) return;
     if (!this.isUnlocked(index)) return;
-    // Weapon loadout must land before loadLevel — parkHero reads it there.
+    // Weapon + perk/mutator loadout must land before loadLevel — parkHero
+    // and the wave-table transform/globalStatMods seed both read it there.
     this.game.setHeroLoadout(this.heroWeapon);
+    this.game.setLoadout({ perks: this.selectedPerks, mutators: this.selectedMutators });
+    this.activeMutatorCount = this.selectedMutators.length;
     this.game.loadLevel(index);
     this.prevPhase = this.game.getSnapshot().phase;
     this.setScreen("game");
@@ -273,7 +362,10 @@ export class AppShell {
     const pct = hq && hq.maxHp > 0 ? Math.round((hq.hp / hq.maxHp) * 100) : 0;
     const existing = this.data.levels[level.id];
     const bestHqHpPct = existing ? Math.max(existing.bestHqHpPct, pct) : pct;
-    this.data.levels[level.id] = { cleared: true, bestHqHpPct };
+    // Star 3 (Hardened): >=1 mutator active on a winning run. Sticky once
+    // earned — a later mutator-free clear must not un-light it.
+    const mutatorWin = !!existing?.mutatorWin || this.activeMutatorCount > 0;
+    this.data.levels[level.id] = { cleared: true, bestHqHpPct, mutatorWin };
 
     const unlockIndex = state.levelIndex + 1;
     if (unlockIndex < LEVELS.length) {

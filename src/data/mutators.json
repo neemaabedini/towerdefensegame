@@ -1,0 +1,31 @@
+{
+  "swarm": {
+    "id": "swarm",
+    "name": "Swarm",
+    "blurb": "Every wave sends more bodies down the lane.",
+    "wave": { "countMul": 1.3 },
+    "unlockStars": 0
+  },
+  "blitz": {
+    "id": "blitz",
+    "name": "Blitz",
+    "blurb": "Waves spawn tighter and arrive sooner.",
+    "wave": { "intervalMul": 0.75, "delayMul": 0.6 },
+    "unlockStars": 0
+  },
+  "fragile_command": {
+    "id": "fragile_command",
+    "name": "Fragile Command",
+    "blurb": "Command cuts corners on structural integrity.",
+    "mods": { "maxHp": 0.85 },
+    "scope": "all structures & squads",
+    "unlockStars": 0
+  },
+  "hardened_foe": {
+    "id": "hardened_foe",
+    "name": "Hardened Foe",
+    "blurb": "The enemy fields tougher hulls tonight.",
+    "enemyMods": { "maxHp": 1.2 },
+    "unlockStars": 0
+  }
+}

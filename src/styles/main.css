@@ -251,12 +251,19 @@ body {
   margin-bottom: 1.5rem;
 }
 
-.weapon-row {
+.weapon-row,
+.perk-row,
+.mutator-row {
   display: flex;
   align-items: stretch;
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 14px;
+  /* #level-cards is a grid; without this a row is placed as ONE grid item
+     (squeezed to a single ~220-260px column) instead of spanning above the
+     level cards as the design intends. Pre-existing quirk on .weapon-row
+     (CD-30 hero weapons), fixed here for all three rows at once. */
+  grid-column: 1 / -1;
 }
 
 .weapon-row-label {
@@ -298,6 +305,82 @@ body {
   font-size: 11px;
   color: #90a4ae;
   margin-top: 2px;
+}
+
+/* CD-30: perk/mutator rows share the weapon-row layout rhythm (flex-wrap
+   chips, uppercase label, full grid-column span — see the shared rule
+   above). Chips get a dedicated class (not a weapon-chip reuse) since
+   perks/mutators carry extra selection states (at-cap, multi-select). */
+.perk-row-label,
+.mutator-row-label {
+  flex-basis: 100%;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #90a4ae;
+}
+
+.perk-chip,
+.mutator-chip {
+  flex: 1 1 140px;
+  min-width: 140px;
+  padding: 8px 10px;
+  background: rgba(13, 27, 42, 0.85);
+  border: 1px solid #37474f;
+  border-radius: 6px;
+  color: #eceff1;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.perk-chip:hover,
+.mutator-chip:hover {
+  border-color: #64b5f6;
+}
+
+.perk-chip.selected {
+  border-color: #ffca28;
+  box-shadow: 0 0 0 1px #ffca28 inset;
+}
+
+.mutator-chip.selected {
+  border-color: #ef5350;
+  box-shadow: 0 0 0 1px #ef5350 inset;
+}
+
+.perk-chip.at-cap {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.perk-chip-name,
+.mutator-chip-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.perk-chip-blurb,
+.mutator-chip-blurb {
+  font-size: 11px;
+  color: #90a4ae;
+  margin-top: 2px;
+}
+
+.level-card-stars {
+  display: flex;
+  gap: 3px;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.star-glyph {
+  color: #37474f;
+}
+
+.star-glyph.earned {
+  color: #ffca28;
+  text-shadow: 0 0 6px rgba(255, 202, 40, 0.6);
 }
 
 .level-card {

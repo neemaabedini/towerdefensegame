@@ -280,6 +280,23 @@ const STAT_LABELS: Record<keyof StatMods, string> = {
 const STAT_ORDER: (keyof StatMods)[] = ["damage", "fireRate", "range", "splashRadius", "maxHp"];
 
 /**
+ * Mechanical "+8% damage" / "-15% max HP" strings derived from a StatMods
+ * multiplier set — the shared primitive behind `formatBranchBlurb` and
+ * CD-30's perk/mutator chip text (`formatPerkBlurb`/`formatMutatorBlurb` in
+ * `perks.ts`/`mutators.ts`). Numbers on the chip face can never drift from
+ * the data they describe (UI_PLAN 6, CD-37's lesson) because nothing hand-
+ * types a percentage anywhere. Handles both buffs (>1) and debuffs (<1,
+ * e.g. Fragile Command's 0.85) — the sign falls out of the multiplier.
+ */
+export function describeStatMods(mods: StatMods | undefined): string[] {
+  if (!mods) return [];
+  return STAT_ORDER.filter((k) => mods[k] !== undefined).map((k) => {
+    const pct = Math.round((mods[k]! - 1) * 100);
+    return `${pct >= 0 ? "+" : ""}${pct}% ${STAT_LABELS[k]}`;
+  });
+}
+
+/**
  * Numbers-on-the-face chip text (UI_PLAN 6: no hover exists on
  * controller/mobile). When an option sets BOTH `mods` and `scope`, the
  * numeric portion is derived mechanically from `mods` here rather than
@@ -290,9 +307,7 @@ const STAT_ORDER: (keyof StatMods)[] = ["damage", "fireRate", "range", "splashRa
  */
 export function formatBranchBlurb(opt: BranchOption): string {
   if (!opt.mods || !opt.scope) return opt.blurb;
-  const parts = STAT_ORDER.filter((k) => opt.mods![k] !== undefined).map(
-    (k) => `+${Math.round((opt.mods![k]! - 1) * 100)}% ${STAT_LABELS[k]}`,
-  );
+  const parts = describeStatMods(opt.mods);
   const numeric = parts.length === 2 ? parts.join(" and ") : parts.join(", ");
   return `${numeric} — ${opt.scope}`;
 }

@@ -1,0 +1,41 @@
+{
+  "standing_orders": {
+    "id": "standing_orders",
+    "name": "Standing Orders",
+    "blurb": "Sharper drills for the whole garrison.",
+    "mods": { "damage": 1.08, "fireRate": 1.08 },
+    "scope": "all structures & squads",
+    "unlockStars": 0
+  },
+  "reinforced_plating": {
+    "id": "reinforced_plating",
+    "name": "Reinforced Plating",
+    "blurb": "Heavier armor plate on every structure and unit.",
+    "mods": { "maxHp": 1.12 },
+    "scope": "all structures & squads",
+    "unlockStars": 0
+  },
+  "long_guns": {
+    "id": "long_guns",
+    "name": "Long Guns",
+    "blurb": "Extended barrels reach further down the lane.",
+    "mods": { "range": 1.12 },
+    "scope": "all structures",
+    "unlockStars": 0
+  },
+  "rapid_response": {
+    "id": "rapid_response",
+    "name": "Rapid Response",
+    "blurb": "Faster reloads across the board.",
+    "mods": { "fireRate": 1.12 },
+    "scope": "all structures & squads",
+    "unlockStars": 0
+  },
+  "war_chest": {
+    "id": "war_chest",
+    "name": "War Chest",
+    "blurb": "A one-time supply drop on landing.",
+    "startingCredits": 90,
+    "unlockStars": 0
+  }
+}
