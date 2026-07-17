@@ -981,7 +981,10 @@ reviewer); Sonnet does (coder, QA).
   snapshots (replay, analytics, undo). Suggested fix: shallow-clone the
   array fields (and their element objects) in `getSnapshot()`.
 
-- [ ] CD-16 (feature, P2) — Naming & lore pass (IP differentiation) — invent
+- [ ] CD-16 (feature, P2) — **Raised stakes (2026-07-17): StarCraft: Cartooned exists (official
+  Blizzard × Carbot re-skin), so "re-flavored StarCraft" is a product space Blizzard actively occupies —
+  the creative session below is what moves us from 'StarCraft with the serial numbers filed off' to an
+  ownable identity. Renames shipped; fiction/title still pending.** Naming & lore pass (IP differentiation) — invent
   original identities per ROADMAP "IP differentiation" rules: defender
   faction name, enemy species name, rename in-game "Siege Tank" (only
   shipped Blizzard-specific name; display name only, keep the `siege_tank`
@@ -1037,7 +1040,12 @@ reviewer); Sonnet does (coder, QA).
   with a difficulty/mechanic introduction curve (new enemy or building
   unlock every 1-2 levels), integrated tutorial level 0. Build after the
   Godot port gate decision (content belongs in the shipping engine).
-- [ ] CD-32 (feature, P2, v1.0) — Final art pass: replace the procedural
+- [ ] CD-32 (feature, P2, v1.0) — **Art-direction constraint (2026-07-17): do NOT drift toward a
+  cute-cartoon StarCraft look.** StarCraft: Cartooned (2019, Blizzard × Carbot Animations) is an
+  OFFICIAL Blizzard product — that art style is effectively their trade dress now, and a cartoon
+  take on Terran-like units would read as imitating a specific Blizzard product rather than a genre
+  riff. The current pixel style is distinct; keep the final art in that lane (or any lane that isn't
+  Carbot's). Final art pass: replace the procedural
   pixel builders in sprites.ts with hand-made (or commissioned) sprite
   sheets via the same atlas API; per-entity swap, enemies first.
 - [ ] CD-33 (feature, P2, v1.0) — Audio pass 2: music (day/night themes,
