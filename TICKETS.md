@@ -1130,7 +1130,13 @@ reviewer); Sonnet does (coder, QA).
   OFFICIAL Blizzard product — that art style is effectively their trade dress now, and a cartoon
   take on Terran-like units would read as imitating a specific Blizzard product rather than a genre
   riff. The current pixel style is distinct; keep the final art in that lane (or any lane that isn't
-  Carbot's). Final art pass: replace the procedural
+  Carbot's). **Start with a one-entity art spike (2026-07-17):** pick ONE enemy (the raider), produce
+  2-3 style candidates — polished-pixel, AI-generated sprite sheet, and/or a commissioned sample — drop
+  each into the atlas (per-entity swap + vector fallback make this zero-risk), judge them IN the running
+  game side by side, then choose the direction before commissioning/generating the full set. Roster is
+  small: ~9 enemies, 7 buildings, 5 units, 1 hero. Benchmark note: Thronefall's most-praised trait is
+  minimalist atmosphere — coherence, readability and juice beat fidelity; parity with Cartooned is
+  neither achievable solo nor desirable (trade dress, above). Final art pass: replace the procedural
   pixel builders in sprites.ts with hand-made (or commissioned) sprite
   sheets via the same atlas API; per-entity swap, enemies first.
 - [ ] CD-33 (feature, P2, v1.0) — Audio pass 2: music (day/night themes,
