@@ -1,3 +1,5 @@
+import { HERO_SHEET_FRAMES } from "./heroSheet.generated";
+
 /**
  * Pixel-sprite engine + enemy sprite atlas.
  *
@@ -749,6 +751,23 @@ export function buildAtlas(): SpriteAtlas {
   }
   for (const [key, build] of Object.entries(TERRAIN_BUILDERS)) {
     baked.push({ key: `${key}:0`, grid: build(0), flash: false });
+  }
+
+  // Imported hero sprite sheet (CD-32 art pipeline) — frames come from
+  // tools/import-hero-sheet.mjs as ready-made pixel grids. Zero frames =
+  // no hero:* keys = the renderer's vector fallback keeps drawing, per the
+  // standing per-entity-swap rule. If only one frame was imported it doubles
+  // as both idle frames.
+  HERO_SHEET_FRAMES.forEach((frame, i) => {
+    const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
+    baked.push({ key: `hero:${i}`, grid, flash: false });
+    baked.push({ key: `hero:${i}:flash`, grid, flash: true });
+  });
+  if (HERO_SHEET_FRAMES.length === 1) {
+    const frame = HERO_SHEET_FRAMES[0]!;
+    const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
+    baked.push({ key: "hero:1", grid, flash: false });
+    baked.push({ key: "hero:1:flash", grid, flash: true });
   }
 
   // Simple row packing

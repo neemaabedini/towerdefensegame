@@ -1199,6 +1199,13 @@ export class Renderer {
     ctx.ellipse(hero.x, hero.y + r * 0.6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
 
+    // Imported sprite first (CD-32 pipeline: hero:<frame> baked from
+    // tools/import-hero-sheet.mjs); vector figure below stays the fallback.
+    if (this.drawHeroSprite(hero)) {
+      if (hero.deployed) this.drawHeroHpBar(hero, r);
+      return;
+    }
+
     // Distinct commander figure: body circle + a visor/accent stripe that
     // flips with facing so movement direction reads without an atlas sprite.
     ctx.save();
@@ -1213,6 +1220,24 @@ export class Renderer {
     ctx.restore();
 
     if (hero.deployed) this.drawHeroHpBar(hero, r);
+  }
+
+  /** Draw the hero from the imported sprite sheet (atlas keys hero:0/1).
+   *  Returns false when no sheet has been imported — the vector fallback
+   *  in drawHero keeps working, per the per-entity-swap rule. Two-frame
+   *  idle cycle like units; flips with facing; anchored at center like
+   *  every other atlas sprite. */
+  private drawHeroSprite(hero: HeroState): boolean {
+    const frame = Math.floor(this.time * 4) % 2;
+    const f = this.atlas.get(`hero:${frame}`);
+    if (!f) return false;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(Math.round(hero.x), Math.round(hero.y));
+    if (hero.facing < 0) ctx.scale(-1, 1);
+    ctx.drawImage(this.atlas.canvas, f.sx, f.sy, f.sw, f.sh, -f.ax, -f.ay, f.sw, f.sh);
+    ctx.restore();
+    return true;
   }
 
   private drawHeroHpBar(hero: HeroState, r: number): void {
