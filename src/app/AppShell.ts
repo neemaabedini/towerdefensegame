@@ -129,10 +129,25 @@ export class AppShell {
     this.setScreen("levelSelect");
   }
 
+  /** Selected hero weapon (CD-30) — falls back to the rifle for pre-CD-30
+   *  saves and stale/unknown ids (Game.setHeroLoadout re-sanitizes too). */
+  get heroWeapon(): string {
+    return this.data.settings.heroWeapon ?? "rifle";
+  }
+
+  setHeroWeapon(id: string): void {
+    if (this.data.settings.heroWeapon === id) return;
+    this.data.settings.heroWeapon = id;
+    this.persistNow();
+    this.notify();
+  }
+
   /** Always starts the level fresh at day 1 (loadLevel resets sim state). */
   startLevel(index: number): void {
     if (index < 0 || index >= LEVELS.length) return;
     if (!this.isUnlocked(index)) return;
+    // Weapon loadout must land before loadLevel — parkHero reads it there.
+    this.game.setHeroLoadout(this.heroWeapon);
     this.game.loadLevel(index);
     this.prevPhase = this.game.getSnapshot().phase;
     this.setScreen("game");

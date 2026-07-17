@@ -96,6 +96,9 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     "radius",
   ];
   for (const def of Object.values(HEROES)) {
+    if (def.splashRadius !== undefined && !(def.splashRadius > 0)) {
+      errors.push(`hero ${def.id}: splashRadius must be > 0 when present`);
+    }
     for (const field of HERO_POSITIVE_FIELDS) {
       const v = def[field];
       if (typeof v !== "number" || !(v > 0)) {

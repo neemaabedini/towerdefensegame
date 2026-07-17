@@ -1,4 +1,5 @@
 import type { AppShell } from "../../app/AppShell";
+import { HEROES } from "../../data/hero";
 import { LEVELS } from "../../data/levels";
 
 /**
@@ -27,6 +28,34 @@ export class LevelSelect {
     if (!active) return;
 
     this.cardsEl.innerHTML = "";
+
+    // CD-30 hero weapons: pre-level loadout picker. All unlocked for now
+    // (user decision 2026-07-16) — unlock gating arrives with CD-30 proper.
+    // Blurb + name on the face, no hover (UI_PLAN 6); selection persists via
+    // shell.setHeroWeapon and lands in Game at startLevel.
+    const weaponRow = document.createElement("div");
+    weaponRow.className = "weapon-row";
+    const weaponLabel = document.createElement("div");
+    weaponLabel.className = "weapon-row-label";
+    weaponLabel.textContent = "Commander weapon";
+    weaponRow.appendChild(weaponLabel);
+    for (const def of Object.values(HEROES)) {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "weapon-chip";
+      if (def.id === this.shell.heroWeapon) chip.classList.add("selected");
+      const name = document.createElement("div");
+      name.className = "weapon-chip-name";
+      name.textContent = def.name;
+      const blurb = document.createElement("div");
+      blurb.className = "weapon-chip-blurb";
+      blurb.textContent = def.blurb;
+      chip.append(name, blurb);
+      chip.addEventListener("click", () => this.shell.setHeroWeapon(def.id));
+      weaponRow.appendChild(chip);
+    }
+    this.cardsEl.appendChild(weaponRow);
+
     LEVELS.forEach((level, index) => {
       const unlocked = this.shell.isUnlocked(index);
       const result = this.shell.bestResult(index);

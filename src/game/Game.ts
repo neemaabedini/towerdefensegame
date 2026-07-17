@@ -10,7 +10,7 @@ import {
   type TargetMode,
 } from "../data/buildings";
 import { getEnemy, type EnemyDef } from "../data/enemies";
-import { getHero } from "../data/hero";
+import { getHero, HEROES } from "../data/hero";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
 import { TUNING } from "../data/tuning";
 import { getUnit, unitStats } from "../data/units";
@@ -660,7 +660,7 @@ export class Game {
    *  transition-hygiene half of C4/§9.5 that belongs to the sim, not just
    *  main.ts's own re-latch/zero on the same edges. */
   private parkHero(): void {
-    const def = getHero("commander");
+    const def = getHero(this.heroDefId);
     // Day-positioning (CD-29 revision, 2026-07-16): a LIVING hero heals in
     // place at dawn and stays where the player left it — pre-positioning for
     // the next wave is the point. Only death (out-until-dawn penalty) or a
@@ -678,6 +678,17 @@ export class Game {
       cooldown: 0,
     };
     this.heroMoveDir = { x: 0, y: 0 };
+  }
+
+  /** Selected weapon loadout (CD-30 hero weapons) — a hero.json def id.
+   *  Takes effect at the next parkHero (loadLevel/dawn); set from AppShell
+   *  before startLevel, never mid-night. All weapons unlocked for now. */
+  private heroDefId = "rifle";
+
+  /** Pre-level weapon selection seam (design §12.3). Unknown ids fall back
+   *  to the rifle so a stale save value can never brick loadLevel. */
+  setHeroLoadout(defId: string): void {
+    this.heroDefId = HEROES[defId] ? defId : "rifle";
   }
 
   /** Latches a normalized hero move-vector (§8). The hero is drivable in
@@ -929,7 +940,14 @@ export class Game {
       const target = this.findTarget(hero.x, hero.y, def.range, def.targets);
       if (target) {
         hero.cooldown = 1 / def.fireRate;
-        this.hurtEnemy(target, def.damage);
+        // Scattergun-style weapons splash through the same applyDamage path
+        // units/buildings use (respects the weapon's TargetMode); single-
+        // target weapons hit directly — mirrors the unit attack loop.
+        if (def.splashRadius && def.splashRadius > 0) {
+          this.applyDamage(target, def.damage, def.splashRadius, hero.x, hero.y, def.targets);
+        } else {
+          this.hurtEnemy(target, def.damage);
+        }
         // Reuses unitFired (audio hookup optional per design §13) — bindings.ts
         // maps every unitFired to one shot sound regardless of unitDefId.
         this.emit({ type: "unitFired", unitDefId: hero.defId });

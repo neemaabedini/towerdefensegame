@@ -1010,7 +1010,21 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-30 (feature, P1, v1.0) — **+ hero weapon unlocks (user, 2026-07-16): the commander's default
+- [ ] CD-30 (feature, P1, v1.0) — **Hero weapons SHIPPED 2026-07-16 (all unlocked from the start, per
+  user — unlock gating is the part that waits for CD-30 proper).** Roster (user-approved, each mapping
+  to one enemy archetype; Thronefall's dead weapons — stat-starved concepts and movement-punishing
+  gimmicks — deliberately avoided): **Rifle** (default, balanced) / **Scattergun** (short-range splash,
+  anti-swarm) / **Railgun** (60 dmg @ 0.35/s, range 170, moveSpeed 80 — anti-armor) / **Machine
+  Pistols** (fast light shots, targets air+ground, moveSpeed 120). A weapon = a `hero.json` def
+  (`splashRadius?` added; hero attack routes through applyDamage when present, mirroring the unit
+  path). Selected pre-level via a picker row on the level-select screen (name + tradeoff blurb on the
+  face); selection persists in `save.settings.heroWeapon` (optional field — pre-existing saves stay
+  valid, unknown ids fall back to rifle in both AppShell and Game.setHeroLoadout). Verified live:
+  4 chips render with correct selection state; railgun moveSpeed exactly 80; scattergun splash hits
+  4/4 clustered swarmlings; machine pistols damage a skimmer (air); startLevel applies the saved
+  weapon. Numbers untuned per the freeze — QA metric per weapon: each must beat the rifle on its own
+  archetype's wave and lose to it elsewhere (no strict dominance in either direction).
+  **Still open here (CD-30 proper): unlock gating for the weapons + (user, 2026-07-16): the commander's default
   rifle is the baseline; clearing stages unlocks alternative weapons with real tradeoffs (extra
   mobility, extra damage, etc. — Thronefall's model: each weapon = passive auto-attack + possibly an
   active). `hero.json` is keyed by id for exactly this (design-hero-commander.md §12.3); a weapon is a

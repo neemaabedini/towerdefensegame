@@ -37,7 +37,14 @@ export interface SaveDataV1 {
   /** Count of unlocked levels; LEVELS[0..unlockedLevels-1] are playable. */
   unlockedLevels: number;
   levels: Record<string, { cleared: boolean; bestHqHpPct: number }>;
-  settings: { volume: number; muted: boolean; nightSpeed: 1 | 2 };
+  settings: {
+    volume: number;
+    muted: boolean;
+    nightSpeed: 1 | 2;
+    /** Selected hero weapon (hero.json def id). Optional so pre-CD-30 saves
+     *  stay valid; readers fall back to "rifle" (see AppShell.heroWeapon). */
+    heroWeapon?: string;
+  };
   hintsSeen: string[];
 }
 
@@ -53,7 +60,7 @@ export function defaultSave(): SaveDataV1 {
     v: 1,
     unlockedLevels: 1,
     levels: {},
-    settings: { volume: 0.8, muted: false, nightSpeed: 1 },
+    settings: { volume: 0.8, muted: false, nightSpeed: 1, heroWeapon: "rifle" },
     hintsSeen: [],
   };
 }
@@ -81,6 +88,9 @@ function isValidSave(data: unknown): data is SaveDataV1 {
   if (typeof settings.volume !== "number") return false;
   if (typeof settings.muted !== "boolean") return false;
   if (settings.nightSpeed !== 1 && settings.nightSpeed !== 2) return false;
+  // heroWeapon is optional (added post-v1 without a schema bump); when
+  // present it must be a string — unknown ids are sanitized at read time.
+  if (settings.heroWeapon !== undefined && typeof settings.heroWeapon !== "string") return false;
   if (!Array.isArray(d.hintsSeen)) return false;
   return true;
 }
