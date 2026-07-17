@@ -1228,6 +1228,22 @@ export class Renderer {
    *  idle cycle like units; flips with facing; anchored at center like
    *  every other atlas sprite. */
   private drawHeroSprite(hero: HeroState): boolean {
+    // 8-direction standing set first (hero:d<octant>, true per-direction art
+    // — no mirroring, so asymmetric details like the gun hand stay correct).
+    const dirFrame = this.atlas.get(`hero:d${hero.dir}`);
+    if (dirFrame) {
+      const ctx = this.ctx;
+      ctx.save();
+      ctx.translate(Math.round(hero.x), Math.round(hero.y));
+      ctx.drawImage(
+        this.atlas.canvas,
+        dirFrame.sx, dirFrame.sy, dirFrame.sw, dirFrame.sh,
+        -dirFrame.ax, -dirFrame.ay, dirFrame.sw, dirFrame.sh,
+      );
+      ctx.restore();
+      return true;
+    }
+    // 2-frame idle set (hero:0/1) with facing flip.
     const frame = Math.floor(this.time * 4) % 2;
     const f = this.atlas.get(`hero:${frame}`);
     if (!f) return false;

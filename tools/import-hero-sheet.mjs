@@ -31,9 +31,19 @@ if (args.length === 0) {
   process.exit(1);
 }
 const srcPath = args[0];
-const frameArg = (args.includes("--frames") ? args[args.indexOf("--frames") + 1] : "0,1")
+const framesFlag = args.includes("--frames");
+const frameArg = (framesFlag ? args[args.indexOf("--frames") + 1] : "0,1")
   .split(",").map((n) => parseInt(n, 10));
 const targetH = parseInt(args.includes("--height") ? args[args.indexOf("--height") + 1] : "16", 10);
+// 8-direction mode: cell i faces dirsArg[i]. Default layout guess for a
+// 3+3+2 sheet: row 1 = back views (NW N NE), row 2 = front views (SW S SE),
+// row 3 = profiles (W E). Override with --dirs NW,N,NE,SW,S,SE,W,E order.
+const DIR_INDEX = { E: 0, SE: 1, S: 2, SW: 3, W: 4, NW: 5, N: 6, NE: 7 };
+const dirsFlag = args.includes("--dirs");
+const dirsArg = (dirsFlag && !args[args.indexOf("--dirs") + 1]?.startsWith("--")
+  ? args[args.indexOf("--dirs") + 1]
+  : "NW,N,NE,SW,S,SE,W,E"
+).split(",").map((d) => d.trim().toUpperCase());
 
 // ---------- PNG decode ----------
 function decodePng(buf) {
@@ -167,11 +177,31 @@ const img = decodePng(readFileSync(srcPath));
 const cells = sliceSheet(img);
 if (cells.length === 0) throw new Error("no opaque cells found in the sheet");
 console.log(`sheet ${img.w}x${img.h}: ${cells.length} cells → ${cells.map((c) => `${c.w}x${c.h}`).join(", ")}`);
-const frames = frameArg.map((i) => {
-  const cell = cells[i];
-  if (!cell) throw new Error(`frame index ${i} out of range (0..${cells.length - 1})`);
-  return cellToGrid(img, cell, targetH);
-});
+
+// Directional mode auto-engages on an 8-cell sheet unless --frames was
+// given explicitly; --dirs forces it.
+const directional = dirsFlag || (!framesFlag && cells.length === 8);
+let frames = [];
+let dirs = [];
+if (directional) {
+  if (cells.length !== dirsArg.length) {
+    throw new Error(`directional mode: sheet has ${cells.length} cells but --dirs names ${dirsArg.length}`);
+  }
+  dirs = new Array(8).fill(null);
+  cells.forEach((cell, i) => {
+    const d = DIR_INDEX[dirsArg[i]];
+    if (d === undefined) throw new Error(`unknown direction "${dirsArg[i]}" (use E,SE,S,SW,W,NW,N,NE)`);
+    dirs[d] = cellToGrid(img, cell, targetH);
+  });
+  if (dirs.some((d) => d === null)) throw new Error("directional mode: not all 8 directions covered");
+  console.log(`directional mode: cells mapped as [${dirsArg.join(",")}]`);
+} else {
+  frames = frameArg.map((i) => {
+    const cell = cells[i];
+    if (!cell) throw new Error(`frame index ${i} out of range (0..${cells.length - 1})`);
+    return cellToGrid(img, cell, targetH);
+  });
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outPath = join(here, "..", "src", "render", "heroSheet.generated.ts");
@@ -186,6 +216,15 @@ export interface HeroSheetFrame {
   data: (string | null)[];
 }
 export const HERO_SHEET_FRAMES: HeroSheetFrame[] = ${JSON.stringify(frames)};
+// 8-direction standing set, indexed by the canonical octant
+// (0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE — matches Game's dir derivation).
+export const HERO_SHEET_DIRS: HeroSheetFrame[] = ${JSON.stringify(dirs)};
 `,
 );
-console.log(`wrote ${outPath} (${frames.length} frame(s), ${frames.map((f) => `${f.w}x${f.h}`).join(", ")})`);
+console.log(
+  `wrote ${outPath} (` +
+    (directional
+      ? `8 directional frames, ${dirs[0].w}x${dirs[0].h}`
+      : `${frames.length} frame(s), ${frames.map((f) => `${f.w}x${f.h}`).join(", ")}`) +
+    ")",
+);

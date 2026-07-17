@@ -783,6 +783,7 @@ export class Game {
       alive: true,
       deployed: true,
       facing: surviving ? surviving.facing : 1,
+      dir: surviving ? surviving.dir : 2,
       cooldown: 0,
     };
     this.heroMoveDir = { x: 0, y: 0 };
@@ -1056,6 +1057,11 @@ export class Game {
       hero.y = Math.max(def.radius, Math.min(this.level.height - def.radius, hero.y));
       if (this.heroMoveDir.x > 0) hero.facing = 1;
       else if (this.heroMoveDir.x < 0) hero.facing = -1;
+      // 8-way facing octant for the directional sprite set (screen-y down):
+      // 0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE. Pure function of the latched
+      // vector — deterministic, no wall-clock, C4-safe.
+      hero.dir =
+        ((Math.round(Math.atan2(this.heroMoveDir.y, this.heroMoveDir.x) / (Math.PI / 4)) % 8) + 8) % 8;
     }
 
     if (hero.cooldown > 0) hero.cooldown -= dt;

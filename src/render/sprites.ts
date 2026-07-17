@@ -1,4 +1,4 @@
-import { HERO_SHEET_FRAMES } from "./heroSheet.generated";
+import { HERO_SHEET_DIRS, HERO_SHEET_FRAMES } from "./heroSheet.generated";
 
 /**
  * Pixel-sprite engine + enemy sprite atlas.
@@ -769,6 +769,13 @@ export function buildAtlas(): SpriteAtlas {
     baked.push({ key: "hero:1", grid, flash: false });
     baked.push({ key: "hero:1:flash", grid, flash: true });
   }
+  // 8-direction standing set (hero:d<octant>) — takes precedence over the
+  // 2-frame idle keys in Renderer.drawHeroSprite when present.
+  HERO_SHEET_DIRS.forEach((frame, d) => {
+    const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
+    baked.push({ key: `hero:d${d}`, grid, flash: false });
+    baked.push({ key: `hero:d${d}:flash`, grid, flash: true });
+  });
 
   // Simple row packing
   const pad = 2;

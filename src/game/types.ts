@@ -74,6 +74,10 @@ export interface HeroState {
    *  pre-day-positioning it distinguished the day park). */
   deployed: boolean;
   facing: 1 | -1;
+  /** 8-way facing octant (0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE, screen-y
+   *  down) — derived from the last nonzero move vector, drives the
+   *  8-direction sprite set. Starts at 2 (facing the camera). */
+  dir: number;
   /** Seconds until the hero's auto-attack can fire again */
   cooldown: number;
 }

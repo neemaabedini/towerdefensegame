@@ -8,3 +8,6 @@ export interface HeroSheetFrame {
   data: (string | null)[];
 }
 export const HERO_SHEET_FRAMES: HeroSheetFrame[] = [];
+// 8-direction standing set, indexed by the canonical octant
+// (0=E,1=SE,2=S,3=SW,4=W,5=NW,6=N,7=NE — matches Game's dir derivation).
+export const HERO_SHEET_DIRS: HeroSheetFrame[] = [];
