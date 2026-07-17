@@ -1010,7 +1010,8 @@ reviewer); Sonnet does (coder, QA).
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
 
-- [ ] CD-30 (feature, P1, v1.0) — **Hero weapons SHIPPED 2026-07-16 (all unlocked from the start, per
+- [ ] CD-30 (feature, P1, v1.0) — **DESIGNED 2026-07-17 — `docs/design-meta-progression.md`; 5 slices,
+  ready for the coder after user sign-off on naming + unlock pacing (doc §11).** **Hero weapons SHIPPED 2026-07-16 (all unlocked from the start, per
   user — unlock gating is the part that waits for CD-30 proper).** Roster (user-approved, each mapping
   to one enemy archetype; Thronefall's dead weapons — stat-starved concepts and movement-punishing
   gimmicks — deliberately avoided): **Rifle** (default, balanced) / **Scattergun** (short-range splash,
