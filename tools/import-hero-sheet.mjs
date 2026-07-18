@@ -150,6 +150,35 @@ function sliceSheet(img) {
       cells.push({ x: tx0, y: ty0, w: tx1 - tx0 + 1, h: ty1 - ty0 + 1 });
     }
   }
+  // Merge tiny fragments (a gun tip, antenna, etc. separated from its sprite
+  // by a fully transparent gutter) into the nearest real cell — otherwise a
+  // stray 3x3 becomes its own "frame" and breaks 8-cell auto-detection.
+  const median = [...cells].map((c) => c.w * c.h).sort((a, b) => a - b)[Math.floor(cells.length / 2)];
+  const isTiny = (c) => c.w * c.h < median * 0.15;
+  const gap = (a, b) => {
+    const dx = Math.max(0, Math.max(a.x, b.x) - Math.min(a.x + a.w, b.x + b.w));
+    const dy = Math.max(0, Math.max(a.y, b.y) - Math.min(a.y + a.h, b.y + b.h));
+    return Math.hypot(dx, dy);
+  };
+  for (let i = cells.length - 1; i >= 0; i--) {
+    if (!isTiny(cells[i])) continue;
+    let best = -1, bestGap = Infinity;
+    for (let j = 0; j < cells.length; j++) {
+      if (j === i || isTiny(cells[j])) continue;
+      const d = gap(cells[i], cells[j]);
+      if (d < bestGap) { bestGap = d; best = j; }
+    }
+    const frag = cells.splice(i, 1)[0];
+    if (best === -1 || bestGap > 16) {
+      console.warn(`dropped stray ${frag.w}x${frag.h} fragment at (${frag.x},${frag.y}) — nothing within 16px`);
+      continue;
+    }
+    const t = cells[best > i ? best - 1 : best];
+    const nx0 = Math.min(t.x, frag.x), ny0 = Math.min(t.y, frag.y);
+    const nx1 = Math.max(t.x + t.w, frag.x + frag.w), ny1 = Math.max(t.y + t.h, frag.y + frag.h);
+    t.x = nx0; t.y = ny0; t.w = nx1 - nx0; t.h = ny1 - ny0;
+    console.log(`merged ${frag.w}x${frag.h} fragment into neighbor (gap ${bestGap.toFixed(1)}px)`);
+  }
   return cells;
 }
 
