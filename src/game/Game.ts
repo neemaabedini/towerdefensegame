@@ -464,15 +464,22 @@ export class Game {
 
   /** L1 dawn income `buildingDefId` would pay if built at `siteId` right
    *  now — the number BuildRing shows on the button face before purchase
-   *  (C2/C7: no trap picks, no hover-only info). 0 for non-mining defs. */
+   *  (C2/C7: no trap picks, no hover-only info). Mining defs scale by
+   *  crystal nodes; flat-income defs (CD-47 rear_depot) pay incomePerDay
+   *  as-is. 0 when the def earns nothing at dawn. */
   previewIncome(siteId: string, buildingDefId: string): number {
     const site = this.sites.find((s) => s.id === siteId);
     if (!site) return 0;
     const def = getBuilding(buildingDefId);
-    if (!def.mining) return 0;
-    const nodes = site.resources[def.mining.resource];
     // Income is never touched by a global pick (D8) — mods omitted on purpose.
-    return Math.round(scaledStats(def, 1).incomePerDay * nodes);
+    if (def.mining) {
+      const nodes = site.resources[def.mining.resource];
+      return Math.round(scaledStats(def, 1).incomePerDay * nodes);
+    }
+    if (def.incomePerDay > 0) {
+      return Math.round(scaledStats(def, 1).incomePerDay);
+    }
+    return 0;
   }
 
   build(siteId: string, buildingDefId: string): boolean {

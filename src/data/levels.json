@@ -17,7 +17,9 @@
       { "id": "s1", "x": 868, "y": 372, "category": "any", "options": ["gun_tower", "missile_battery", "garrison"] },
       { "id": "m2", "x": 440, "y": 498, "category": "resource", "options": ["mining_facility", "garrison"] },
       { "id": "a1", "x": 130, "y": 200, "category": "any", "options": ["gun_tower", "garrison", "sniper_tower"] },
-      { "id": "a2", "x": 540, "y": 255, "category": "any", "options": ["gun_tower", "missile_battery", "artillery_platform"] }
+      { "id": "a2", "x": 540, "y": 255, "category": "any", "options": ["gun_tower", "missile_battery", "artillery_platform"] },
+      { "id": "e1", "x": 800, "y": 500, "category": "resource", "options": ["rear_depot"] },
+      { "id": "e2", "x": 860, "y": 420, "category": "resource", "options": ["rear_depot"] }
     ],
     "spawns": [
       { "id": "west", "x": 40, "y": 100 },
@@ -136,7 +138,9 @@
       { "id": "m1", "x": 900, "y": 170, "category": "resource", "options": ["mining_facility"] },
       { "id": "s1", "x": 770, "y": 50, "category": "any", "options": ["gun_tower", "missile_battery", "garrison"] },
       { "id": "a1", "x": 176, "y": 392, "category": "resource", "options": ["mining_facility", "garrison"] },
-      { "id": "a2", "x": 420, "y": 180, "category": "any", "options": ["artillery_platform", "gun_tower", "missile_battery"] }
+      { "id": "a2", "x": 420, "y": 180, "category": "any", "options": ["artillery_platform", "gun_tower", "missile_battery"] },
+      { "id": "e1", "x": 880, "y": 50, "category": "resource", "options": ["rear_depot"] },
+      { "id": "e2", "x": 940, "y": 120, "category": "resource", "options": ["rear_depot"] }
     ],
     "spawns": [
       { "id": "west", "x": 40, "y": 240 },

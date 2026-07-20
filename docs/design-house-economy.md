@@ -1,6 +1,6 @@
 # CD-47 — Safe-floor economy ("Rear Depot")
 
-Architect design doc, 2026-07-18. Coordinates with CD-41 (safe income after mining rework) and CD-7 (`docs/design-economy-rework.md`). **Status: designed → waiting on two user decisions before code.**
+Architect design doc, 2026-07-18. Coordinates with CD-41 (safe income after mining rework) and CD-7 (`docs/design-economy-rework.md`). **Status: U1/U2 accepted (user 2026-07-19) → implemented (rear_depot + e1/e2 both levels).**
 
 Player-sayable rule (if approved):
 **"Rich ground is still dangerous ground. Near the keep you can still scrape a little — never enough to ignore the map."**
@@ -244,7 +244,7 @@ Record measured safe-floor and best-case numbers on CD-47 / CD-41; no wave retun
 | **U3** | Starting numbers (55₡ / 18₡/dawn / 2 sites / maxLevel 1) acceptable as freeze-untuned? | **Yes** |
 | **U4** | Display name: keep placeholder "Rear Depot" until CD-16, or supply a final name now? | Placeholder until CD-16 |
 
-**No code ships until U1–U2 are answered.** U3–U4 can default to recommendations if silent.
+**U1–U2 answered 2026-07-19 (accept architect recommendations).** U3–U4 defaulted to recommendations (freeze-untuned numbers; placeholder name until CD-16).
 
 ---
 

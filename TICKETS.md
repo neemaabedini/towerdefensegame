@@ -84,7 +84,7 @@ spatial economy design → earned meta / demo identity / juice → content volum
 | **P0 Close** | **CD-54**, **CD-56**, **CD-57**, **CD-58**, **CD-59**, **CD-55** | Trustworthy playtests; readable buy/dawn feedback | **CLOSED 2026-07-18** (tsc + validate + harness; see tickets) |
 | **P1 Agency** | **CD-40** (weapon/commander actives) | Night power fantasy — passive + one active per weapon | **Coder shipped 2026-07-18** — QA sign-off next |
 | **P1 Variety** | **CD-49** (branch coverage) | Soft answer to rigid nodes without free placement | **CLOSED 2026-07-18** — combat towers 1-of-3 |
-| **P1 Economy design** | **CD-47** — designed (`docs/design-house-economy.md`); **user U1/U2 then code** | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
+| **P1 Economy design** | **CD-47** — **shipped 2026-07-19** (`rear_depot` + `e1`/`e2`) | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
 | **P2 Retention** | **CD-30** Slice 4 (unlock gating; user pacing numbers) | Kits feel earned | Pre-run loadouts drive replay when scarce |
 | **P2 Demo** | **CD-16** (naming/lore; **user session**) | Ownable identity before public showings | Demo gate (ours), not a peer complaint |
 | **P2 Juice** | **CD-6**, **CD-33** | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
@@ -95,8 +95,8 @@ spatial economy design → earned meta / demo identity / juice → content volum
 **Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
 perks; boss fights designed as free first losses.
 
-**Single next move (default):** user answers **CD-47 U1/U2** (then implement `rear_depot`), or **CD-30 Slice 4** /
-**CD-16** if economy waits.
+**Single next move (default):** **CD-30 Slice 4** (unlock gating; needs user pacing numbers) or **CD-16**
+(naming/lore user session). CD-47 U1/U2 accepted and shipped 2026-07-19.
 
 **SDLC role template** (on each pack ticket):
 
@@ -1145,7 +1145,7 @@ perks; boss fights designed as free first losses.
   (Q1–Q5 above; coordinate CD-41); Eng — implement only after user decisions; QA — safe floor reachable,
   house not dominant, income band / idle-money rules named in design; name is **CD-16**. Freeze-adjacent:
   do not ship pure balance retunes of mining rates under this ticket alone.
-  **DESIGNED 2026-07-18 — `docs/design-house-economy.md`.** Ready for user decisions; **do not code yet.**
+  **DESIGNED 2026-07-18 — `docs/design-house-economy.md`.**
   Architect recommendations (full rationale in the doc):
   - **U1 Thesis:** accept constrained safe floor (reading b), not a full return of barracks.
   - **U2 Placement:** dedicated rear sites `e1`/`e2` on both levels (not free placement; not bolted onto
@@ -1155,7 +1155,16 @@ perks; boss fights designed as free first losses.
   - **Invariants:** I1 best-case still 190–230; **I2 safe floor** 80–100 Outpost; I3 depots must not
     dominate tower or contested mine.
   - **U4 Name:** placeholder "Rear Depot" until CD-16; id is the contract.
-  **Blocking user calls:** U1 (accept/reject thesis), U2 (placement model). Then Slice 1 Outpost → Slice 2 Ridge.
+  **USER ACCEPTED U1+U2 2026-07-19** (architect recommendations). U3/U4 defaulted.
+  **SHIPPED 2026-07-19 (coder):**
+  1. `buildings.json`: `rear_depot` — cost 55, flat 18₡/dawn, maxLevel 1, silo shape, no mining block.
+  2. `levels.json`: Outpost + Ridge `e1`/`e2` resource sites, options `["rear_depot"]` only
+     (Outpost SE pocket near HQ; Ridge NE high ground near HQ).
+  3. `Game.previewIncome` + BuildRing: flat `incomePerDay > 0` shows ₡/dawn face (not mining-only).
+  4. `validate.ts`: ≤2 sites may offer `rear_depot` per level; positive income assert.
+  `collectDawnIncome` already pays non-mining flat ×1 — no new income math.
+  **QA focus:** build both depots day 1; confirm +18₡ each at dawn; safe floor ~m1+36; mines still
+  jackpot; `npm run validate` + tsc clean; no rock/path clearance errors.
 - [ ] CD-42 (balance, P3) — **Ridge Pass `a1` (the far/contested mineral mine) has a 60% per-wave wreck
   rate** even in a build that goes on to win — found 2026-07-15 alongside CD-7's item-3 re-verification.
   Scripted 5/5-wave victory (build order: `d5` gun_tower, `a1` mining_facility, `d1` gun_tower, `d2`

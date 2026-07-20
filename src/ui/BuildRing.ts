@@ -59,9 +59,9 @@ export class BuildRing {
 
       btn.append(name, cost);
 
-      // Income-on-button (C2/C7: no trap picks, no hover-only info) — shown
-      // for mining options only, using the site's already-derived nodes.
-      if (def.mining) {
+      // Income-on-button (C2/C7: no trap picks, no hover-only info) — mining
+      // (crystal-scaled) and flat-income defs (CD-47 rear_depot).
+      if (def.mining || def.incomePerDay > 0) {
         const income = document.createElement("span");
         income.className = "income";
         income.textContent = `${this.game.previewIncome(site.id, optId)}₡/dawn`;

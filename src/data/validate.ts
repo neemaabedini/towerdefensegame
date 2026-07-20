@@ -111,6 +111,20 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
   }
 
+  // CD-47: flat safe-floor income must stay positive (no mining node scale).
+  const rearDepot = BUILDINGS.rear_depot;
+  if (rearDepot) {
+    if (!(rearDepot.incomePerDay > 0)) {
+      errors.push(`rear_depot: incomePerDay must be > 0 (flat safe-floor income)`);
+    }
+    if (rearDepot.mining) {
+      errors.push(`rear_depot: must not use mining{} — income is flat, not crystal-scaled`);
+    }
+    if (rearDepot.maxLevel !== 1) {
+      errors.push(`rear_depot: maxLevel must be 1 (no upgrade ladder; see CD-50)`);
+    }
+  }
+
   // CD-40: ability data contract.
   const ABILITY_EFFECT_KINDS = new Set([
     "slow",
@@ -293,6 +307,17 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
           }
         }
       }
+    }
+
+    // CD-47: rear_depot hard cap is authored sites only (not BuildingDef.unique,
+    // which would block the second dedicated site). Soft assert ≤2 offerings.
+    const rearDepotSites = level.sites.filter((s) => s.options.includes("rear_depot"));
+    if (rearDepotSites.length > 2) {
+      errors.push(
+        `${level.id}: rear_depot offered on ${rearDepotSites.length} sites ` +
+          `(${rearDepotSites.map((s) => s.id).join(", ")}) — design cap is 2 ` +
+          `(docs/design-house-economy.md §3)`,
+      );
     }
 
     for (const o of level.obstacles) {
