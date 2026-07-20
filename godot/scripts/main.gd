@@ -1,7 +1,7 @@
 extends Control
 ## App shell for the Godot port: title → play level 0, day/night loop.
 
-@onready var world: Node2D = $WorldHost/World
+@onready var world: WorldDraw = $WorldHost/World as WorldDraw
 @onready var world_host: Control = $WorldHost
 @onready var hud_label: Label = $HUD/TopBar/Status
 @onready var hint_label: Label = $HUD/Hint
@@ -66,8 +66,8 @@ func _unhandled_input(event: InputEvent) -> void:
 	if screen != "game":
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		var local := world_host.get_local_mouse_position()
-		var world_pos := world.screen_to_world(local)
+		var local: Vector2 = world_host.get_local_mouse_position()
+		var world_pos: Vector2 = world.screen_to_world(local)
 		sim.select_at(world_pos)
 		_refresh_hud()
 		get_viewport().set_input_as_handled()

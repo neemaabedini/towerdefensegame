@@ -1,4 +1,5 @@
 extends Node2D
+class_name WorldDraw
 ## Draws the 960×540 world into a scaled viewport area.
 
 var sim: GameSim
