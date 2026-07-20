@@ -44,8 +44,262 @@ reviewer); Sonnet does (coder, QA).
 >
 > **Unfrozen work is the feature set:** CD-7 Step 4 → CD-40 → CD-49 → CD-30, plus CD-16 (demo gate) and
 > CD-17 (Godot spike). See [[citydefense-balance-timing]] in memory.
+>
+> **Also unfrozen (2026-07-18 dual-review pack — correctness / feature / tech-debt, not balance knobs):**
+> sequencing table below (re-ordered after genre-peer lessons). Do **not** treat CD-50 / level-length /
+> CD-41 retunes as unfrozen by this pack.
+
+## Review backlog pack (2026-07-18)
+
+Filed from a dual code review (eng **B+**) + game-design review (fun **B−**). Ten concern areas
+remain the inventory; **execution order was re-sequenced 2026-07-18** after genre-peer review
+feedback (Steam/community consensus on day/night commander base-defense peers — see ROADMAP
+**Genre peer lessons**). **SDLC handoff for every ticket:** Product Designer → Software Architect →
+Software Engineer (`coder` + `code-reviewer`) → QA (`qa-engineer`). Map to house agents in
+`.claude/agents/`. Prefer reusing open tickets; new gaps are **CD-54…CD-61**.
+
+### Concern inventory (by original impact rank)
+
+| # | Concern area | Tickets | Freeze / note |
+|---|--------------|---------|----------------|
+| 1 | End-condition victory/defeat race | **CD-54** | Coder shipped — **QA close next** |
+| 2 | Level length & pacing | `docs/design-level-length.md` Steps 1–3 (parked); **CD-31** later | **FROZEN** same-map lengthening |
+| 3 | Economy identity (safe floor + gamble) | **CD-47**, **CD-50**; context **CD-41** / **CD-42** | CD-50 frozen; CD-47 architect-first |
+| 4 | Hero night power fantasy | **CD-40** (actives; couples to **CD-30** weapons) | Unfrozen — **top feature after trust** |
+| 5 | Site options & counterplay teaching | **CD-55** (shipped coder); **CD-49** (branches) | CD-49 next variety lever |
+| 6 | Data contract, CI, tests | **CD-56**, **CD-57**; **CD-53** done | Coder shipped — **QA close** |
+| 7 | Feedback, readability, juice | **CD-58**, **CD-59** (coder shipped); **CD-6**, **CD-33** | QA close 58/59; juice later |
+| 8 | Meta progression & content volume | **CD-30** Slice 4; **CD-31** | Gating + campaign |
+| 9 | Identity & first 5 minutes | **CD-16** | **User sign-off required** (demo gate) |
+| 10 | Sim architecture & determinism | **CD-15**, **CD-20**, **CD-60**, **CD-61**; **CD-10** | After fun levers |
+
+### Sequencing (execution order — peer-validated 2026-07-18)
+
+Does **not** unfreeze balance knobs or level-length Steps 1–3. Closes already-coded trust/UI before
+new systems. Peer mapping: avoid false wins & cliffs → commander agency → soft rigid-node fix →
+spatial economy design → earned meta / demo identity / juice → content volume → eng scale.
+
+| Phase | Tickets | Goal | Peer lesson |
+|-------|---------|------|-------------|
+| **P0 Close** | **CD-54**, **CD-56**, **CD-57**, **CD-58**, **CD-59**, **CD-55** | Trustworthy playtests; readable buy/dawn feedback | **CLOSED 2026-07-18** (tsc + validate + harness; see tickets) |
+| **P1 Agency** | **CD-40** (weapon/commander actives) | Night power fantasy — passive + one active per weapon | **Coder shipped 2026-07-18** — QA sign-off next |
+| **P1 Variety** | **CD-49** (branch coverage) | Soft answer to rigid nodes without free placement | **CLOSED 2026-07-18** — combat towers 1-of-3 |
+| **P1 Economy design** | **CD-47** — designed (`docs/design-house-economy.md`); **user U1/U2 then code** | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
+| **P2 Retention** | **CD-30** Slice 4 (unlock gating; user pacing numbers) | Kits feel earned | Pre-run loadouts drive replay when scarce |
+| **P2 Demo** | **CD-16** (naming/lore; **user session**) | Ownable identity before public showings | Demo gate (ours), not a peer complaint |
+| **P2 Juice** | **CD-6**, **CD-33** | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
+| **P3 Content** | **CD-31** (after port-gate decision) | Campaign length / less repetition | Content ceiling / same-loop fatigue |
+| **P3 Scale** | **CD-60** → **CD-15** → **CD-20** → **CD-61** (**CD-10** with units) | Data-driven combat, determinism, maintainability | Port / co-op / harness quality |
+| **Hold** | **CD-50**, level-length Steps 1–3, **CD-41** retunes; **CD-9** post-port | File cliffs & dead options; don't ladder-tune under freeze | Avoid "lose first by design"; free geometry waits for Godot |
+
+**Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
+perks; boss fights designed as free first losses.
+
+**Single next move (default):** user answers **CD-47 U1/U2** (then implement `rear_depot`), or **CD-30 Slice 4** /
+**CD-16** if economy waits.
+
+**SDLC role template** (on each pack ticket):
+
+- **Product Designer** — player problem, success metric, UX copy/flow
+- **Software Architect** — design doc Y/N + path; data model; seams; risks
+- **Software Engineer** — primary files; out of scope; house rules
+- **QA** — measurable acceptance criteria; regressions; evidence on close
 
 ## Open
+
+- [x] CD-54 (bug, P1) — **HQ death and last-enemy clear can thrash victory → defeat and still unlock
+  the next level** — filed 2026-07-18 (code-review dual-pass Finding #1). In `Game.updateNight`
+  (`src/game/Game.ts`), wave-clear ran *before* the HQ death check. If the HQ is at ≤0 HP and the last
+  enemy dies in the same frame (common when the final pack is chewing the HQ while towers clean up),
+  `onWaveCleared()` could set `phase = "victory"`, emit `victory`, and notify — then the HQ check
+  immediately set `phase = "defeat"`. `AppShell.handleGameChange` / `recordVictory`
+  (`src/app/AppShell.ts`) permanently records a clear + unlocks the next level on the victory
+  transition, so progression can advance on a lost run while the player sees Defeat.
+  **Acceptance:** last enemy dies with HQ at 0 same frame → **defeat only**, no `levels[id].cleared`
+  write, no next-level unlock; clean last-wave clear with HQ alive still victory + unlock as today.
+  **SDLC**
+  - Product Designer: Player must never be told they won a lost run; save progression matches the final
+    outcome screen.
+  - Software Architect: No full design doc required. Specify single source of truth for terminal phase
+    (prefer: gate wave-clear victory on living HQ, or HQ death check before wave-clear with early-return);
+    confirm `recordVictory` only runs on a settled victory (not a same-frame thrash).
+  - Software Engineer: `src/game/Game.ts` (`updateNight` wave-clear vs HQ); `src/app/AppShell.ts`
+    (`handleGameChange` / `recordVictory`). Out of scope: balance, wave composition.
+  - QA: Force / instrument same-frame HQ-dead + last-enemy-dead → defeat only, no unlock; clean clear
+    still victory; no console errors; keyboard Level Select path still works.
+  - Dependencies / freeze: **Unfrozen** (correctness). Blocks trustworthy playtests. Pair regression
+    with **CD-57** once the harness exists.
+  - Review pack area: **#1**.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  1. `Game.updateNight`: HQ death check runs *before* wave-clear and **early-returns** on defeat so
+     `onWaveCleared` never runs with a dead HQ (no clear bonus, no victory event, no intermediate notify).
+  2. `onWaveCleared` final-wave branch: defense-in-depth — if HQ missing or `hp <= 0`, emit **defeat**
+     not victory.
+  3. `AppShell.handleGameChange` / `recordVictory`: only persist clear + unlock when HQ exists and
+     `hp > 0` (shell belt if a transient victory ever reappears).
+  `npx tsc --noEmit` clean. **QA focus:** (a) instrument via `window.__game` — set HQ `hp = 0`, clear
+  last enemy / force wave-clear conditions on final wave → `phase === "defeat"`, save has no new
+  `cleared`/unlock; (b) normal full clear still victory + unlock; (c) mid-run dawn still works when HQ
+  survived. Permanent harness case belongs on **CD-57**.
+  **CLOSED 2026-07-18** — harness asserts defeat-only + no victory event; living HQ → victory; live code
+  path matches (HQ check before wave-clear).
+
+- [x] CD-55 (feature, P2) — **Thin site option lists: every site presents a real tradeoff** — filed
+  2026-07-18 (design dual-pass). After support/plasma cuts, some sites are near-monoculture (e.g. gun-only
+  slots on Outpost), so the player never chooses between roles at that node. Complements **CD-49**
+  (per-building branches): CD-49 deepens a building; this ticket ensures the *site* offers 2–3 meaningful
+  options.
+  **Acceptance:** every placeable site on Outpost and Ridge has ≥2 build options **or** an explicit
+  architect-documented exception (e.g. unique HQ-adjacent); combined-arms (chaff / armor / air / garrison)
+  remains reachable on both maps; `validateLevels()` clean; no dead building ids in option arrays.
+  **SDLC**
+  - Product Designer: Each site answers “what am I choosing between?” in ≤3 options; no no-brainer single
+    button where a fork was intended.
+  - Software Architect: Audit `src/data/levels.json` sites; name which roles must remain reachable; respect
+    ≤4 options / keys 1–4 (UI_PLAN); short note in design or ticket body listing exceptions.
+  - Software Engineer: Prefer data-only (`levels.json` option arrays); touch `validate.ts` only if new
+    invariants; out of scope: retuning enemy waves (freeze).
+  - QA: Site-by-site option count check both maps; BuildRing 1–N keys match; smoke clear both levels with
+    mixed builds; no console errors.
+  - Dependencies / freeze: **Unfrozen** feature. Complements **CD-49**; do not block on frozen CD-41.
+  - Review pack area: **#5**.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  Outpost: `s1` → gun/missile/garrison; `a2` → gun/missile/siege. Ridge: `s1` → gun/missile/garrison;
+  `a2` gains missile. **Exceptions (documented):** pure `resource` + `mining_facility`-only `m1` on both
+  maps (crystal-field economy slots — not combat monoculture). Combined-arms still reachable.
+  `validateLevels` clean. No balance wave retune.
+
+- [x] CD-56 (tech-debt, P1) — **Run data validator on production build, not only DEV** — filed 2026-07-18
+  (code-review Finding #2). `validateLevels()` ran only when `import.meta.env.DEV` is true
+  (`src/app/AppShell.ts` / boot path). Production `npm run build` never executed the data contract, while
+  JSON is cast with `as unknown as` in loaders. Complements closed **CD-53**
+  (enemy/unit validation breadth).
+  **Acceptance:** `npm run build` fails if `validateLevels()` would throw; clean tree builds; documented
+  how a broken JSON is caught (script or always-on path).
+  **SDLC**
+  - Product Designer: Shipped content cannot be “valid only in DEV.”
+  - Software Architect: Prefer build-time script (or non-DEV boot that fails loud) over silent skip; keep
+    feedback fast; no sim behavior change.
+  - Software Engineer: Wire `validateLevels()` into build (`package.json` script and/or import path);
+    primary files: `src/data/validate.ts`, `package.json`, boot entry if needed.
+  - QA: Clean tree builds; negative case (or documented probe) proves broken data fails the gate;
+    `npx tsc --noEmit` clean.
+  - Dependencies / freeze: **Unfrozen**. Complements **CD-53**; enables safer content work for CD-55/49.
+  - Review pack area: **#6**.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  1. `AppShell` constructor always calls `validateLevels()` (not DEV-only).
+  2. `tools/validate-data.mjs` loads `src/data/validate.ts` via Vite SSR and runs the same check.
+  3. `package.json`: `"validate": "node tools/validate-data.mjs"`;
+     `"build": "tsc && node tools/validate-data.mjs && vite build"`.
+  Verified: `node tools/validate-data.mjs` → `validateLevels: ok`; `npx tsc --noEmit` clean.
+  **QA focus:** clean `npm run build`; optional negative — temporarily break a levels.json ref and confirm
+  `npm run validate` exits non-zero (restore after).
+
+- [x] CD-57 (tech-debt, P2) — **Headless Game sim harness for critical rules** — filed 2026-07-18
+  (code-review Finding #9). No automated unit/sim tests despite complex end-conditions, sell lockout, and
+  mutator wave transforms. Enables permanent regression for **CD-54**.
+  **Acceptance:** runnable without a browser (injected clock — CD-52 pattern); at least three cases:
+  (1) CD-54 end-condition, (2) sell/undo day lockout, (3) one mutator wave transform; `npm test` or
+  documented script green on clean tree.
+  **SDLC**
+  - Product Designer: Critical rules get automated proof, not only live play.
+  - Software Architect: Action driver over `Game` + injectable clock; assert phase/money/HQ; no DOM;
+    name runner (node script vs vitest) and CI hook expectation.
+  - Software Engineer: Minimal harness under e.g. `tools/` or `src/game/__tests__/`; first cases as above;
+    out of scope: full balance suite (freeze).
+  - QA: List cases covered; green on clean tree; CD-54 case fails on pre-fix code if reintroduced.
+  - Dependencies / freeze: **Unfrozen**. Best after or with **CD-54**; improves **CD-20** QA story later.
+  - Review pack area: **#6**.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  1. `Game.harnessSetNightEndState({ hqHp, waveIndex? })` — test-only night-end setup (not player input).
+  2. `tools/sim-harness.mjs` via Vite SSR; `package.json` `"test": "node tools/sim-harness.mjs"`.
+  3. Cases green (10 asserts): CD-54 dead HQ → defeat + never victory; living HQ → victory; sell lockout
+     350ms window; Swarm mutator W0 counts = ceil(base × 1.3) per entry.
+  Verified: `npm test` → 10 passed, 0 failed; `npx tsc --noEmit` clean.
+  **QA focus:** re-run `npm test` on clean tree; confirm CD-54 live probe still matches harness.
+
+- [x] CD-58 (feature, P2) — **Pre-buy range ghost + post-wave summary line** — filed 2026-07-18 (ROADMAP
+  Phase 1 HUD items never ticketed; design dual-pass readability). (1) Hovering/focusing a build option
+  shows the range circle at the selected site *before* buying. (2) After a night, a one-line summary:
+  income earned, HQ %, wrecks rebuilt / key causality (e.g. air cleared late) — numbers from sim, not
+  hand-waved adjectives.
+  **Acceptance:** range ghost visible on keyboard focus and pointer hover; ghost radius matches post-build
+  combat range when **CD-59** is fixed (ship ghost first with best-known stats if CD-59 lags, then align);
+  post-wave line matches sim (money delta, HQ hp pct, wreck count); keyboard-only play intact.
+  **SDLC**
+  - Product Designer: Informed buy; after-night “why that went well/badly” in one line; copy in
+    `strings.json` where possible.
+  - Software Architect: Snapshot/UI only — no balance knobs; reuse range draw path; define summary fields
+    on snapshot or derive in shell from events.
+  - Software Engineer: `src/render/Renderer.ts`, `src/ui/BuildRing.ts`, `src/ui/HUD.ts`,
+    `src/data/strings.json` as needed; coordinate with **CD-59** for shared stats resolution.
+  - QA: Ghost matches post-build range (with Long Guns / range branch if CD-59 landed); summary numbers
+    equal instrumented sim; day→night→dawn loop + keyboard-only smoke.
+  - Dependencies / freeze: **Unfrozen**. Prefer after **CD-59** for ghost accuracy; links **CD-6** / **CD-33** for juice, not required.
+  - Review pack area: **#7**.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  1. Pre-buy ghost: `Game.setBuildPreview` + snapshot `rangePreview`; BuildRing hover/focus; default first
+     option on site select (keyboard). Dashed ring in `Renderer.drawRanges`.
+  2. Post-wave summary float under clear bonus: `+total₡ · HQ n% · k rebuilt` (wreck count pre-rebuild;
+     income + clearBonus in total). Uses combat-accurate mods via CD-59 `globalStatMods` on preview.
+
+- [x] CD-59 (bug, P2) — **Range rings ignore global stat mods (UI understates real range)** — filed
+  2026-07-18 (code-review Finding #4). `Renderer.drawRanges` calls `scaledStats(def, level, branchId)`
+  without `globalStatMods` / perks / CC global picks; combat and HUD use the full `statsFor` path.
+  With Long Guns or a global range pick, the drawn ring is a lie.
+  **Acceptance:** with Long Guns (or any global range mod) equipped, drawn ring radius equals combat
+  engagement range for that building; no-mod case unchanged; render stays free of direct `Game` imports
+  if snapshot carries resolved range (preferred).
+  **SDLC**
+  - Product Designer: Drawn range = real range always.
+  - Software Architect: Prefer resolved range (or small stats map) on `GameSnapshot` so render stays
+    sim-free; one resolution path shared with combat.
+  **FIX SHIPPED 2026-07-18 (coder) — pending qa-engineer sign-off.**
+  Snapshot carries cloned `globalStatMods`; `drawRanges` uses
+  `scaledStats(def, level, branchId, state.globalStatMods)` — same path as combat `statsFor`.
+
+  - Software Engineer: `src/render/Renderer.ts`, `src/game/Game.ts` `getSnapshot` / types; out of scope:
+    changing range balance numbers.
+  - QA: Equip Long Guns + range branch → ring vs live fire distance; no console errors; selection still
+    shows ring only for selected buildings as today.
+  - Dependencies / freeze: **Unfrozen**. Unblocks accurate **CD-58** ghosts.
+  - Review pack area: **#7**.
+
+- [ ] CD-60 (tech-debt, P2) — **Projectile delivery and speed live in building data, not TypeScript
+  hardcodes** — filed 2026-07-18 (code-review Finding #3). `Game.fireAt` hardcodes projectile behavior
+  for `siege_tank` / `missile_battery` and speeds `320` / `260`. House rule: balance/delivery data in
+  `src/data/*.json` for the Godot port.
+  **Acceptance:** no building-id hardcodes for projectile delivery/speed in `fireAt`; fields on
+  `BuildingDef` / `buildings.json` (and defaults in `tuning.json` if shared); existing projectile
+  buildings feel unchanged in play; validator covers new required/optional fields.
+  **SDLC**
+  - Product Designer: New projectile weapons are content edits, not code drops.
+  - Software Architect: Schema for `projectileSpeed?` / `delivery: "hitscan" | "projectile"` (or
+    equivalent); defaults; port note for Godot.
+  - Software Engineer: `src/data/buildings.json` + `buildings.ts`, `src/game/Game.ts` `fireAt`,
+    `validate.ts`; remove id switches.
+  - QA: Siege / missile (and any other projectile) fire paths unchanged feel; hitscan towers unchanged;
+    `validateLevels` clean; tsc clean.
+  - Dependencies / freeze: **Unfrozen**. Related juice: **CD-6**. No balance retune.
+  - Review pack area: **#10**.
+
+- [ ] CD-61 (tech-debt, P3) — **Split `Game.ts` along system boundaries** — filed 2026-07-18
+  (code-review Finding #7). `src/game/Game.ts` is a ~2k-line god object owning economy, combat, pathing
+  contact, projectiles, garrisons, hero, VFX, wave flow, meta loadout transforms. Port and review cost
+  climb with every feature.
+  **Acceptance:** behavior byte-identical on smoke (both levels completable; no intentional balance
+  change); modules extracted (e.g. combat / garrison / hero / waves / economy) with `Game` as thin
+  orchestrator; `npx tsc --noEmit` clean; optional golden cases from **CD-57** still green.
+  **SDLC**
+  - Product Designer: n/a (maintainability) — player-facing behavior unchanged.
+  - Software Architect: Module map, public surfaces, what stays on `Game`, migration order that keeps
+    the game playable each step; design note in `docs/` if multi-PR.
+  - Software Engineer: Extract pure modules under `src/game/`; no feature work mixed in; out of scope:
+    CD-9 pathfinding, new abilities.
+  - QA: Smoke full clear both levels; sell/undo; hero night; loadout perks if present; harness if CD-57
+    exists.
+  - Dependencies / freeze: **Unfrozen** but **P3** — after P0 trust and preferably after CD-57.
+  - Review pack area: **#10**.
 
 - [ ] CD-37 (balance, P2) — Garrison's non-dead-option status still not decisively demonstrated in the
   counter matrix — RE-MEASURED live (2026-07-14) against the CD-38 roster (garrison now fields a real
@@ -96,6 +350,9 @@ reviewer); Sonnet does (coder, QA).
   controller story).
 - [ ] CD-6 (feature, P2) — Projectile & muzzle-flash sprites — extend the
   atlas; barrels rotate toward targets (ROADMAP art pipeline step 5).
+  **Review pack (2026-07-18) area #7 juice.** **SDLC:** PD — weapon fire reads;
+  Arch — atlas API only; Eng — sprites + barrel aim; QA — muzzle on fire, no sim
+  balance change. Complements **CD-60** (data delivery) and **CD-58** (feedback).
 - [ ] CD-7 (feature, P2) — Economy rework: mining near crystals + Plasma
   Wells + one research slot (ROADMAP Phase 2). Designed 2026-07-15 —
   `docs/design-economy-rework.md`. **Steps 1-3 implemented 2026-07-15
@@ -767,6 +1024,10 @@ reviewer); Sonnet does (coder, QA).
   pass criterion is the standing one: **name the metric before shipping** (CD-37's lesson, fourth time),
   and check it doesn't re-open CD-35's idle-money snowball (≤70₡/dawn) or make economy-first dominant —
   it currently doesn't, since economy-first still dies at W3 at every multiplier down to free.
+  **Review pack (2026-07-18) area #3 — dead production upgrades.** **BALANCE FREEZE — filed, waits.**
+  **SDLC (when unfrozen):** PD — no dead buy on the button face; Arch — payback ≤ run length or cut
+  maxLevel; Eng — `buildings.json` / mining upgrade costs only after metric named; QA — L1→L2 pays back
+  inside a normal clear or option removed.
 - [x] CD-51 (tech-debt, P2) — **The game's RULES were magic numbers in TypeScript, not data — extracted to
   `src/data/tuning.json`. DONE 2026-07-15.** The *defs* (buildings/enemies/units/levels) already honoured
   "all data in `src/data/*.json` so Godot loads the same files unchanged" — the *rules* didn't. A port had
@@ -801,33 +1062,30 @@ reviewer); Sonnet does (coder, QA).
   missing spawn, orphan spawn, unknown building option, stale `"production"` category, a crystal parked on
   a lane), and the unmutated real data passes clean — no false positives. Same standard CD-7's `requires`
   filter was held to.
-- [ ] CD-49 (feature, P2) — **Widen branch coverage — the cheapest build-variety win available** — filed
+- [x] CD-49 (feature, P2) — **Widen branch coverage — the cheapest build-variety win available** — filed
   2026-07-15 against the user's stated goal ("different build options so things don't get stale over
   multiple playthroughs"). **Architect first** (new options are new balance surface), but zero engine work:
   this is pure `buildings.json` data on the `branch`/`branchId` mechanism CD-38 already shipped and QA
   verified end-to-end (CD-38 test plan item 5: real mouse click on a `.branch-chip`, real dispatched
   keydown, same-day undo, later-day undo-upgrade clearing `branchId`, and destroy→dawn-rebuild all
   preserving the choice).
-  **Measured gap vs. the Thronefall benchmark (see the design-benchmark rule):** Thronefall's single Tower
-  offers **1 of 4** at L3 (Archer's / Ballistic / Fire / Healing Spire — full stat numbers shown before
-  purchase, locked per building, 5g then 15g). We ship **2 of 9 buildings branching, 1 of 2 each**:
-  `gun_tower` (rapid/longbarrel) and `garrison` (riflemen/snipers). `siege_tank`, `missile_battery`,
-  `sniper_tower`, `mining_facility`, `plasma_tap`, `sensor_array` and `command_center` have **no branch at
-  all**. So our widest choice is half Thronefall's, on a quarter as many buildings.
-  **Benchmark verdict: ADOPT.** Per-building branching is in Thronefall's praised column, not its complaint
-  list (rigid nodes / no undo-sell / micromanagement / difficulty cliffs / clutter) — it is in fact part of
-  their answer to complaint #1 (rigid building nodes), which ROADMAP logs as our inherited problem too.
-  **Scope to settle with the architect:** which buildings get branches (the three unbranched defenses are
-  the obvious start); whether to widen 1-of-2 → 1-of-3/4 (note UI_PLAN's ≤4-options/keys-1-4 cap is a hard
-  ceiling and `sniper_tower`'s site already carries 4 options on Ridge `d3`); and the no-dead-options rule
-  every branch must satisfy — CD-37 is still open precisely because a branch-like option's value was
-  measured with the wrong metric, so **each new branch needs its non-dominance metric named up front**, not
-  after the third re-measure.
-  **Sequencing:** must land AFTER CD-41/CD-48/CD-46 close — adding balance surface while two P1 cliffs are
-  open would make both un-measurable. Related: **CD-30** (pre-run perks/mutators) is the *other* variety
-  layer and the one ROADMAP calls "the top replayability driver every studied community ranks top";
-  Thronefall gives 1 perk slot at start rising to 5 by level 24, we give 0. This ticket is the cheap in-run
-  layer; CD-30 is the across-run layer. They are complementary, not alternatives.
+  **Pre-ship inventory (stale ticket text corrected 2026-07-18):** defenses already had 1-of-2 (gun /
+  artillery / missile / sniper) plus garrison 1-of-4 and CC global 1-of-2. Mining has no combat stats to
+  branch without income-in-mods (D8 banned) — **left unbranched by design**.
+  **SHIPPED 2026-07-18 (coder) — 1-of-2 → 1-of-3 on four combat towers.** Zero engine work; pure
+  `buildings.json`. UpgradeChip already wraps >2 chips 2-per-row (CD-49 note). Numbers plausible /
+  freeze-untuned.
+  | Building | New third fork | Non-dominance metric (named up front) |
+  |----------|----------------|----------------------------------------|
+  | `gun_tower` | **Hollowpoint** +40% dmg | Rapid = stream DPS; longbarrel = intercept range; hollowpoint = TTK mid-weight / armor floor |
+  | `artillery_platform` | **Barrage Loaders** +45% fire rate | Saturation = multi-target packing; long_battery = reach+punch; barrage = sustained single-pack DPS |
+  | `missile_battery` | **Heavy Warhead** +35% dmg | Flak = clumped air; lock-on = straggler hunt; warhead = TTK tough air |
+  | `sniper_tower` | **Marksman Scope** +35% range | AP = armor crack; overwatch = lane cadence; marksman = extreme reach only |
+  **Out of scope:** mining branches (no legal StatMods tradeoff); widening garrison past 4; point-target
+  hero actives. **QA:** upgrade each tower to L2, chips 1–3 + sell wrap, pick each fork, undo clears
+  branchId, dawn rebuild keeps branch; `validateLevels` clean. Keyboard 1–3 for branch, 1–4 site options
+  unchanged.
+  **Review pack (2026-07-18) area #5 — building-branch half** (site forks are **CD-55**).
 - [ ] CD-47 (feature, P2) — **Cheap low-yield "house"-archetype economy building (a safe income floor)** —
   filed 2026-07-15 at user request. **Architect design pass required before implementation — do NOT
   implement from this ticket** (same precedent as CD-7: designed first, then user decisions). Concept, in
@@ -882,6 +1140,22 @@ reviewer); Sonnet does (coder, QA).
   **Next step: architect design pass (coordinate with CD-41), then back to PM** for the two user decisions it
   will surface (the economy-thesis tension in Q1, the name in Q5) — mirroring CD-7's "designed → two user
   decisions" flow.
+  **Review pack (2026-07-18) area #3 — economy safe floor.** **SDLC:** PD — “map is budget” plus a legible
+  safe-vs-gamble choice without replaying CD-35 snowball; Arch — **design doc required** before code
+  (Q1–Q5 above; coordinate CD-41); Eng — implement only after user decisions; QA — safe floor reachable,
+  house not dominant, income band / idle-money rules named in design; name is **CD-16**. Freeze-adjacent:
+  do not ship pure balance retunes of mining rates under this ticket alone.
+  **DESIGNED 2026-07-18 — `docs/design-house-economy.md`.** Ready for user decisions; **do not code yet.**
+  Architect recommendations (full rationale in the doc):
+  - **U1 Thesis:** accept constrained safe floor (reading b), not a full return of barracks.
+  - **U2 Placement:** dedicated rear sites `e1`/`e2` on both levels (not free placement; not bolted onto
+    combat-heavy `s1` alone).
+  - **Def:** id `rear_depot`, cost 55, flat **18₡/dawn**, maxLevel 1, no crystal `mining` block; cap = two
+    offering sites (not global `unique`, which would block the second site).
+  - **Invariants:** I1 best-case still 190–230; **I2 safe floor** 80–100 Outpost; I3 depots must not
+    dominate tower or contested mine.
+  - **U4 Name:** placeholder "Rear Depot" until CD-16; id is the contract.
+  **Blocking user calls:** U1 (accept/reject thesis), U2 (placement model). Then Slice 1 Outpost → Slice 2 Ridge.
 - [ ] CD-42 (balance, P3) — **Ridge Pass `a1` (the far/contested mineral mine) has a 60% per-wave wreck
   rate** even in a build that goes on to win — found 2026-07-15 alongside CD-7's item-3 re-verification.
   Scripted 5/5-wave victory (build order: `d5` gun_tower, `a1` mining_facility, `d1` gun_tower, `d2`
@@ -943,6 +1217,17 @@ reviewer); Sonnet does (coder, QA).
   stable and fun". Phase 3a shipped with CD-38, so CD-7 + this ticket are
   the last two things standing between the project and the port decision —
   and CD-31 (campaign content) is explicitly blocked behind that decision.**
+  **Review pack (2026-07-18) area #4 — hero night power fantasy.** **SDLC:** PD — night emotional peak is
+  “move + one dramatic active,” not pure auto-attack; weapon = passive + optional active;
+  Arch — design with CD-29 seams + CD-30 weapon defs (`docs/design-hero-commander.md`); Sensor Pulse
+  cancelled; Eng — abilities not empty / weapon actives on `GameAction`; QA — each active has a readable
+  counter role and cooldown; no unit-command verb. Couples to **CD-30**.
+  **FIX SHIPPED 2026-07-18 (coder) — weapon actives v1, pending qa-engineer sign-off.**
+  Sensor Pulse cancelled as planned. Instead each weapon has one **self-cast** active in `abilities.json`:
+  Rifle **Volley** (AoE damage), Scattergun **Concussion Blast** (damage+slow), Railgun **Overcharge**
+  (single toughest target), Machine Pistols **Sky Burst** (air only). `Game.castAbility`, night `1`/`Q`,
+  HUD ability bar + CD, ready-ring telegraph, `abilityCast` SFX. Point-targeted airstrike/nuke still deferred.
+  Harness: day blocked, night cast + cooldown. `npx tsc --noEmit` / `npm test` green (14 asserts).
 - [ ] CD-9 (feature, P3) — Flow-field pathfinding over a nav grid from
   obstacles; roads as cost discounts — AND the wall system it unlocks:
   grid-snapped freely-placed wall segments (no weapon, HP, smashable —
@@ -970,6 +1255,7 @@ reviewer); Sonnet does (coder, QA).
   become a blocked lane the moment `blocks` goes live.
 - [ ] CD-10 (tech-debt, P3) — Split Renderer into terrain/buildings/units/fx
   layers once units land.
+  **Review pack (2026-07-18) area #10 companion** (sim split is **CD-61**).
 - [ ] CD-15 (tech-debt, P3) — `Game.getSnapshot()` (`src/game/Game.ts`)
   returns the live internal arrays (`this.buildings`, `this.sites`,
   `this.enemies`, etc.) by reference rather than cloning them, so a
@@ -980,6 +1266,10 @@ reviewer); Sonnet does (coder, QA).
   name implies and will bite any future code that diffs or caches
   snapshots (replay, analytics, undo). Suggested fix: shallow-clone the
   array fields (and their element objects) in `getSnapshot()`.
+  **Review pack (2026-07-18) area #10 — snapshot contract.** **SDLC:** PD — n/a
+  (correctness for tooling); Arch — clone vs freeze+document; Eng —
+  `getSnapshot()`; QA — retained snapshot does not mutate with sim; pair with
+  **CD-20** for replay/co-op readiness. Note: `hero` already shallow-cloned (CD-29).
 
 - [ ] CD-16 (feature, P2) — **Raised stakes (2026-07-17): StarCraft: Cartooned exists (official
   Blizzard × Carbot re-skin), so "re-flavored StarCraft" is a product space Blizzard actively occupies —
@@ -998,6 +1288,11 @@ reviewer); Sonnet does (coder, QA).
   session is the only remaining gate before the demo can go in front of
   anyone; the title-slot/rename seam (`src/data/strings.json`,
   `buildings.json` "Siege Tank" name field) is already wired and waiting.
+  **Review pack (2026-07-18) area #9 — identity / first 5 minutes.** **SDLC:** PD —
+  title + faction + enemy species sell the fantasy; **user sign-off required**
+  (never auto-commit names); Arch — strings/data seams only; Eng —
+  `strings.json` + display names; QA — no banned Blizzard terms remain in UI;
+  title screen shows signed-off title.
 
 - [ ] CD-17 (feature, P3) — Godot spike (1–2 days, do well before the real
   port): new Godot 4 project that loads `src/data/*.json`, renders one level
@@ -1012,6 +1307,11 @@ reviewer); Sonnet does (coder, QA).
   may interpolate). Enables lockstep online co-op (ROADMAP "Co-op") and
   action-replays for QA regression testing. Cheap now, expensive to
   retrofit — do before Phase 3 systems multiply the sim surface.
+  **Review pack (2026-07-18) area #10 — determinism.** **SDLC:** PD — n/a
+  (enables replay/co-op QA); Arch — fixed-tick accumulator + seeded RNG;
+  cosmetic particles out of sim or seeded; Eng — `Game.update`, rAF host,
+  burst path; QA — two runs same seed + same actions → identical phase/HQ;
+  harness **CD-57** benefits.
 
 - [ ] CD-30 (feature, P1, v1.0) — **DESIGNED 2026-07-17 — `docs/design-meta-progression.md`; 5 slices,
   ready for the coder after user sign-off on naming + unlock pacing (doc §11).** **Hero weapons SHIPPED 2026-07-16 (all unlocked from the start, per
@@ -1121,10 +1421,21 @@ reviewer); Sonnet does (coder, QA).
   `unlockStars` pacing numbers before Slice 4; (3) Slice 4 itself (weapon + perk unlock gating against
   `totalStars`, locked-chip visuals, sanitize-to-rifle/trim-to-slots on a stars regression) is fully
   unbuilt and next in line per the design doc's slice order.
+  **Review pack (2026-07-18) area #8 — meta retention.** **SDLC:** PD — kits feel
+  earned; unlock pacing user-pending (`PERK_SLOT_THRESHOLD_STARS`, `unlockStars`);
+  Arch — design doc exists (`docs/design-meta-progression.md` Slice 4); Eng —
+  gating + locked chips + sanitize on stars regression; QA — locked content not
+  selectable; stars light correctly; mutator star sticky. Complements in-run
+  variety (**CD-49** / **CD-55**).
 - [ ] CD-31 (feature, P1, v1.0) — Campaign content: grow 2 levels to 8–12
   with a difficulty/mechanic introduction curve (new enemy or building
   unlock every 1-2 levels), integrated tutorial level 0. Build after the
   Godot port gate decision (content belongs in the shipping engine).
+  **Review pack (2026-07-18) areas #2 / #8 — content volume** (not a substitute
+  for unfreezing `docs/design-level-length.md` Steps 1–3 on *current* maps).
+  **SDLC:** PD — campaign arc + tutorial L0; Arch — intro curve after port gate;
+  Eng — levels in shipping engine; QA — difficulty intro per level, both
+  completable. **Do not** treat as unfreezing same-map wave lengthening.
 - [ ] CD-32 (feature, P2, v1.0) — **Art-direction constraint (2026-07-17): do NOT drift toward a
   cute-cartoon StarCraft look.** StarCraft: Cartooned (2019, Blizzard × Carbot Animations) is an
   OFFICIAL Blizzard product — that art style is effectively their trade dress now, and a cartoon
@@ -1142,6 +1453,9 @@ reviewer); Sonnet does (coder, QA).
 - [ ] CD-33 (feature, P2, v1.0) — Audio pass 2: music (day/night themes,
   finale escalation), announcer lines ("Hostiles inbound, Commander"),
   full mix pass. Builds on CD-3's SFX foundation.
+  **Review pack (2026-07-18) area #7 juice.** **SDLC:** PD — night drop +
+  climax sell; Arch — AudioBus themes only, no sim coupling; Eng — music +
+  mix on CD-3 foundation; QA — day/night themes swap, mute/volume still work.
 
 ## Done
 

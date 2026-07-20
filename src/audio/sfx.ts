@@ -120,7 +120,7 @@ export const SFX: Record<SoundId, SfxRecipe> = {
     playNoise(ctx, dest, when, { duration: 0.05, gain: 0.07, filterFreq: 400 });
   },
 
-  // Deep boom — siege tank splash shot.
+  // Deep boom — artillery splash shot.
   shot_siege: (ctx, dest, when, p) => {
     playTone(ctx, dest, when, {
       type: "sine",

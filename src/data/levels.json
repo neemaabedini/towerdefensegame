@@ -10,14 +10,14 @@
     "sites": [
       { "id": "d1", "x": 350, "y": 150, "category": "defense", "options": ["gun_tower", "garrison"] },
       { "id": "d2", "x": 330, "y": 300, "category": "defense", "options": ["gun_tower", "garrison"] },
-      { "id": "d3", "x": 500, "y": 360, "category": "defense", "options": ["gun_tower", "siege_tank", "missile_battery", "sniper_tower"] },
-      { "id": "d4", "x": 640, "y": 300, "category": "defense", "options": ["siege_tank", "missile_battery", "gun_tower", "sniper_tower"] },
+      { "id": "d3", "x": 500, "y": 360, "category": "defense", "options": ["gun_tower", "artillery_platform", "missile_battery", "sniper_tower"] },
+      { "id": "d4", "x": 640, "y": 300, "category": "defense", "options": ["artillery_platform", "missile_battery", "gun_tower", "sniper_tower"] },
       { "id": "d5", "x": 700, "y": 480, "category": "defense", "options": ["garrison", "missile_battery", "gun_tower", "sniper_tower"] },
       { "id": "m1", "x": 880, "y": 478, "category": "resource", "options": ["mining_facility"] },
-      { "id": "s1", "x": 868, "y": 372, "category": "any", "options": ["gun_tower"] },
+      { "id": "s1", "x": 868, "y": 372, "category": "any", "options": ["gun_tower", "missile_battery", "garrison"] },
       { "id": "m2", "x": 440, "y": 498, "category": "resource", "options": ["mining_facility", "garrison"] },
       { "id": "a1", "x": 130, "y": 200, "category": "any", "options": ["gun_tower", "garrison", "sniper_tower"] },
-      { "id": "a2", "x": 540, "y": 255, "category": "any", "options": ["gun_tower"] }
+      { "id": "a2", "x": 540, "y": 255, "category": "any", "options": ["gun_tower", "missile_battery", "artillery_platform"] }
     ],
     "spawns": [
       { "id": "west", "x": 40, "y": 100 },
@@ -128,15 +128,15 @@
     "startingMoney": 360,
     "hq": { "x": 830, "y": 110 },
     "sites": [
-      { "id": "d1", "x": 360, "y": 350, "category": "defense", "options": ["gun_tower", "garrison", "siege_tank"] },
-      { "id": "d2", "x": 500, "y": 250, "category": "defense", "options": ["gun_tower", "siege_tank", "missile_battery", "sniper_tower"] },
+      { "id": "d1", "x": 360, "y": 350, "category": "defense", "options": ["gun_tower", "garrison", "artillery_platform"] },
+      { "id": "d2", "x": 500, "y": 250, "category": "defense", "options": ["gun_tower", "artillery_platform", "missile_battery", "sniper_tower"] },
       { "id": "d3", "x": 560, "y": 400, "category": "defense", "options": ["garrison", "missile_battery", "sniper_tower"] },
       { "id": "d4", "x": 700, "y": 260, "category": "defense", "options": ["gun_tower", "garrison", "missile_battery", "sniper_tower"] },
       { "id": "d5", "x": 250, "y": 318, "category": "defense", "options": ["gun_tower", "garrison"] },
       { "id": "m1", "x": 900, "y": 170, "category": "resource", "options": ["mining_facility"] },
-      { "id": "s1", "x": 770, "y": 50, "category": "any", "options": ["gun_tower"] },
+      { "id": "s1", "x": 770, "y": 50, "category": "any", "options": ["gun_tower", "missile_battery", "garrison"] },
       { "id": "a1", "x": 176, "y": 392, "category": "resource", "options": ["mining_facility", "garrison"] },
-      { "id": "a2", "x": 420, "y": 180, "category": "any", "options": ["siege_tank", "gun_tower"] }
+      { "id": "a2", "x": 420, "y": 180, "category": "any", "options": ["artillery_platform", "gun_tower", "missile_battery"] }
     ],
     "spawns": [
       { "id": "west", "x": 40, "y": 240 },

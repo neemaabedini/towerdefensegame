@@ -65,14 +65,20 @@
         {
           "id": "rapid",
           "name": "Rapid Loader",
-          "blurb": "+35% fire rate",
+          "blurb": "+35% fire rate — shreds light streams",
           "mods": { "fireRate": 1.35 }
         },
         {
           "id": "longbarrel",
           "name": "Long Barrel",
-          "blurb": "+30% range",
+          "blurb": "+30% range — starts the fight earlier",
           "mods": { "range": 1.3 }
+        },
+        {
+          "id": "hollowpoint",
+          "name": "Hollowpoint",
+          "blurb": "+40% damage — punches mid-weight ground",
+          "mods": { "damage": 1.4 }
         }
       ]
     }
@@ -96,27 +102,27 @@
     "size": 26,
     "shape": "bunker",
     "targets": "all",
-    "squad": { "unitId": "marine", "countByLevel": [3] },
+    "squad": { "unitId": "rifleman", "countByLevel": [3] },
     "branch": {
       "atLevel": 2,
       "options": [
         {
           "id": "riflemen",
           "name": "Riflemen",
-          "blurb": "More marines. Keeps anti-air.",
-          "squad": { "unitId": "marine", "countByLevel": [3, 5, 7] }
+          "blurb": "More riflemen. Keeps anti-air.",
+          "squad": { "unitId": "rifleman", "countByLevel": [3, 5, 7] }
         },
         {
-          "id": "firebats",
+          "id": "scorchers",
           "name": "Scorchers",
           "blurb": "Splash. Melts ground swarms up close.",
-          "squad": { "unitId": "firebat", "countByLevel": [3, 4, 5] }
+          "squad": { "unitId": "scorcher", "countByLevel": [3, 4, 5] }
         },
         {
-          "id": "marauders",
+          "id": "breakers",
           "name": "Breakers",
           "blurb": "Anti-armor. Slows what it hits.",
-          "squad": { "unitId": "marauder", "countByLevel": [3, 3, 4] }
+          "squad": { "unitId": "breaker", "countByLevel": [3, 3, 4] }
         },
         {
           "id": "bulwarks",
@@ -127,8 +133,8 @@
       ]
     }
   },
-  "siege_tank": {
-    "id": "siege_tank",
+  "artillery_platform": {
+    "id": "artillery_platform",
     "name": "Artillery Platform",
     "category": "defense",
     "description": "Long-range splash artillery. Shreds packed swarms. Ground only.",
@@ -156,10 +162,16 @@
           "mods": { "splashRadius": 1.4 }
         },
         {
-          "id": "siege_battery",
-          "name": "Siege Battery",
+          "id": "long_battery",
+          "name": "Long Battery",
           "blurb": "+25% range, +20% damage. Reaches and punches.",
           "mods": { "range": 1.25, "damage": 1.2 }
+        },
+        {
+          "id": "barrage",
+          "name": "Barrage Loaders",
+          "blurb": "+45% fire rate. Sustained fire on long packs.",
+          "mods": { "fireRate": 1.45 }
         }
       ]
     }
@@ -197,6 +209,12 @@
           "name": "Lock-On",
           "blurb": "+20% range, +25% fire rate. Hunts lone flyers.",
           "mods": { "range": 1.2, "fireRate": 1.25 }
+        },
+        {
+          "id": "heavy_warhead",
+          "name": "Heavy Warhead",
+          "blurb": "+35% damage. Cracks tough air targets.",
+          "mods": { "damage": 1.35 }
         }
       ]
     }
@@ -234,6 +252,12 @@
           "name": "Overwatch",
           "blurb": "+15% range, +40% fire rate. Covers the whole lane.",
           "mods": { "range": 1.15, "fireRate": 1.4 }
+        },
+        {
+          "id": "marksman",
+          "name": "Marksman Scope",
+          "blurb": "+35% range. Extreme reach, same cadence.",
+          "mods": { "range": 1.35 }
         }
       ]
     }

@@ -4,7 +4,7 @@ import { HERO_SHEET_DIRS, HERO_SHEET_FRAMES } from "./heroSheet.generated";
  * Pixel-sprite engine + enemy sprite atlas.
  *
  * Sprites are composed from primitives on a small pixel grid, auto-outlined
- * and auto-shaded (Brotato-style: chunky, 1px dark outline, 3-tone shading),
+ * and auto-shaded (chunky pixel look: 1px dark outline, 3-tone shading),
  * then baked at PIXEL_SCALE into one atlas canvas. Each enemy gets 2 walk
  * frames plus pre-baked white hit-flash variants.
  *
@@ -365,6 +365,34 @@ function warlord(frame: number): Grid {
   return finish(g, p);
 }
 
+/** Spitter: low green spit-bug with a bulbous sac and needle face (was vector-only). */
+function spitter(frame: number): Grid {
+  const p: Palette = {
+    base: "#558b2f",
+    shadow: "#33691e",
+    highlight: "#7cb342",
+    accent: "#c5e1a5",
+    eye: "#ffeb3b",
+  };
+  const g = makeGrid(18, 13);
+  const a = frame === 0;
+  // ground contact shadow in-sprite
+  fillEllipse(g, 8, 11.2, 5.5, 1.4, p.shadow);
+  // body + spit sac
+  fillEllipse(g, 7.5, 7.5, 5, 3.2, p.base);
+  fillEllipse(g, 5.2, 7.8, 2.6, 2.4, p.highlight);
+  // head / needle
+  fillEllipse(g, 13, 6.5, 2.4, 2, p.base);
+  line(g, 14.5, 6.5, 17, a ? 5.5 : 6.2, p.accent);
+  px(g, 17, a ? 5.5 : 6.2, p.eye);
+  px(g, 13.6, 5.8, p.eye);
+  // legs
+  line(g, 5, 9.5, a ? 3 : 4, 11.5, p.shadow);
+  line(g, 8, 10, a ? 9 : 7.5, 12, p.shadow);
+  line(g, 11, 9.5, a ? 12.5 : 11, 11.5, p.shadow);
+  return finish(g, p);
+}
+
 const ENEMY_BUILDERS: Record<string, Builder> = {
   swarmling,
   raider,
@@ -372,13 +400,20 @@ const ENEMY_BUILDERS: Record<string, Builder> = {
   siege_walker: siegeWalker,
   skimmer,
   warlord,
+  spitter,
 };
 
 /* ---------------- garrison unit sprite builders ---------------- */
-/* Keyed by UnitDef.id. Small human silhouettes, 2-frame walk/aim cycle. */
+/* Keyed by UnitDef.id. Small human silhouettes, 2-frame walk/aim cycle.
+ *  Authored facing RIGHT. Ground ellipse at feet = 2.5D contact. */
 
-/** Marine: helmet, armored torso, rifle. */
-function marineUnit(frame: number): Grid {
+/** Shared boots-on-ground contact ellipse for infantry sprites. */
+function unitGround(g: Grid, cx: number, cy: number, rx: number): void {
+  fillEllipse(g, cx, cy, rx, rx * 0.35, "#1a1e24");
+}
+
+/** Rifleman: helmet, armored torso, rifle. */
+function riflemanUnit(frame: number): Grid {
   const p: Palette = {
     base: "#1565c0",
     shadow: "#0d3c74",
@@ -386,21 +421,112 @@ function marineUnit(frame: number): Grid {
     accent: "#90caf9",
     eye: "#fff59d",
   };
-  const g = makeGrid(10, 12);
-  // legs (alternate stride)
+  const g = makeGrid(12, 14);
   const a = frame === 0;
-  line(g, 4, 11, a ? 3 : 5, 8, p.shadow);
-  line(g, 6, 11, a ? 7 : 5, 8, p.shadow);
-  // torso
-  fillRect(g, 3, 4, 4, 5, p.base);
+  unitGround(g, 5.5, 12.6, 3.2);
+  // legs (alternate stride)
+  line(g, 4, 12, a ? 3 : 5, 8.5, p.shadow);
+  line(g, 7, 12, a ? 8 : 6, 8.5, p.shadow);
+  // torso + chest plate
+  fillRect(g, 3, 4.5, 5, 5, p.base);
+  fillRect(g, 4, 5.5, 3, 2, p.highlight);
   // shoulder pad
-  px(g, 3, 4, p.accent);
+  fillEllipse(g, 3.2, 5, 1.6, 1.3, p.accent);
   // helmet
-  fillEllipse(g, 5, 2.2, 2.2, 1.8, p.base);
-  px(g, 6, 2, p.eye); // visor glint
-  // rifle, muzzle bobs slightly between frames
-  line(g, 7, 5, a ? 9 : 9.4, a ? 4.4 : 4.2, p.accent);
-  px(g, a ? 9 : 9.4, a ? 4.4 : 4.2, "#37474f");
+  fillEllipse(g, 5.5, 2.6, 2.6, 2.1, p.base);
+  fillRect(g, 4, 2.8, 4, 1, p.shadow); // visor band
+  px(g, 6.5, 2.4, p.eye);
+  // rifle
+  line(g, 8, 6, a ? 11 : 11.2, a ? 4.8 : 4.5, p.accent);
+  px(g, a ? 11 : 11.2, a ? 4.8 : 4.5, "#37474f");
+  return finish(g, p);
+}
+
+/** Scorcher: bulky flamer tanks + short-range projector. */
+function scorcherUnit(frame: number): Grid {
+  const p: Palette = {
+    base: "#e65100",
+    shadow: "#bf360c",
+    highlight: "#ff8a50",
+    accent: "#ffcc80",
+    eye: "#ffeb3b",
+  };
+  const g = makeGrid(13, 14);
+  const a = frame === 0;
+  unitGround(g, 5.5, 12.6, 3.4);
+  line(g, 4, 12, a ? 3 : 5, 8.5, p.shadow);
+  line(g, 7, 12, a ? 8 : 6, 8.5, p.shadow);
+  // twin fuel tanks on back
+  fillRect(g, 2, 4, 2, 5, p.shadow);
+  fillRect(g, 8, 4, 2, 5, p.shadow);
+  fillEllipse(g, 3, 4, 1.2, 0.9, p.accent);
+  fillEllipse(g, 9, 4, 1.2, 0.9, p.accent);
+  // bulky torso
+  fillRect(g, 3.5, 5, 5, 5, p.base);
+  fillRect(g, 4, 6, 4, 2, p.highlight);
+  // helmet
+  fillEllipse(g, 6, 3, 2.4, 2, p.base);
+  px(g, 7, 2.6, p.eye);
+  // flamer nozzle + flame flicker
+  line(g, 8.5, 7, 12, 6.2, p.shadow);
+  px(g, 12, 6, a ? "#ffeb3b" : "#ff9800");
+  px(g, 11.5, 5.4, a ? "#ff9800" : "#ffeb3b");
+  return finish(g, p);
+}
+
+/** Breaker: heavy frame + grenade launcher. */
+function breakerUnit(frame: number): Grid {
+  const p: Palette = {
+    base: "#4e342e",
+    shadow: "#3e2723",
+    highlight: "#6d4c41",
+    accent: "#bcaaa4",
+    eye: "#ffcc80",
+  };
+  const g = makeGrid(14, 14);
+  const a = frame === 0;
+  unitGround(g, 6, 12.6, 3.6);
+  line(g, 4.5, 12, a ? 3.5 : 5.5, 8.5, p.shadow);
+  line(g, 7.5, 12, a ? 8.5 : 6.5, 8.5, p.shadow);
+  // heavy torso + armor plates
+  fillRect(g, 3, 4.5, 6, 5.5, p.base);
+  fillRect(g, 4, 5.5, 4, 2, p.highlight);
+  px(g, 3, 5, p.accent);
+  px(g, 8, 5, p.accent);
+  // helmet
+  fillEllipse(g, 6, 2.8, 2.8, 2.2, p.base);
+  fillRect(g, 4.5, 3, 3.5, 1, p.shadow);
+  px(g, 7, 2.5, p.eye);
+  // grenade launcher
+  fillRect(g, 9, 5.5, 4, 2.5, p.shadow);
+  px(g, 12.5, 6.5, a ? p.accent : p.highlight);
+  return finish(g, p);
+}
+
+/** Bulwark: tower shield + short carbine — tanky front-liner. */
+function bulwarkUnit(frame: number): Grid {
+  const p: Palette = {
+    base: "#5d4037",
+    shadow: "#3e2723",
+    highlight: "#8d6e63",
+    accent: "#ffab91",
+    eye: "#ffe0b2",
+  };
+  const g = makeGrid(13, 14);
+  const a = frame === 0;
+  unitGround(g, 6, 12.6, 3.5);
+  line(g, 5, 12, a ? 4 : 6, 8.5, p.shadow);
+  line(g, 7.5, 12, a ? 8.5 : 6.5, 8.5, p.shadow);
+  // body
+  fillRect(g, 4, 5, 4, 5, p.base);
+  fillEllipse(g, 6, 3, 2.3, 1.9, p.base);
+  px(g, 7, 2.6, p.eye);
+  // tower shield (reads as volume in front)
+  fillRect(g, 1, 3.5, 3.5, 8, p.highlight);
+  fillRect(g, 1.5, 4.5, 2.5, 6, p.base);
+  px(g, 2.5, 5, p.accent); // shield crest
+  // carbine
+  line(g, 8, 6.5, 11.5, a ? 5.8 : 6.2, p.shadow);
   return finish(g, p);
 }
 
@@ -413,45 +539,62 @@ function sniperUnit(frame: number): Grid {
     accent: "#4dd0e1",
     eye: "#4dd0e1",
   };
-  const g = makeGrid(13, 12);
+  const g = makeGrid(14, 14);
   const a = frame === 0;
-  line(g, 4, 11, a ? 3 : 5, 8, p.shadow);
-  line(g, 6, 11, a ? 7 : 5, 8, p.shadow);
-  fillRect(g, 3, 4, 4, 5, p.base);
-  px(g, 3, 4, p.accent);
-  fillEllipse(g, 5, 2.2, 2.2, 1.8, p.base);
-  px(g, 6, 2, p.eye);
-  // long barrel — noticeably longer than the marine's, with a scope block
-  line(g, 7, 5, 12.4, 3.6, p.shadow);
-  px(g, 12.4, 3.6, "#0e1417");
-  fillRect(g, 8, 3.6, 2, 1, p.accent); // scope
+  unitGround(g, 5.5, 12.6, 3);
+  line(g, 4, 12, a ? 3 : 5, 8.5, p.shadow);
+  line(g, 7, 12, a ? 8 : 6, 8.5, p.shadow);
+  fillRect(g, 3.5, 4.5, 4, 5, p.base);
+  px(g, 3.5, 4.5, p.accent);
+  fillEllipse(g, 5.5, 2.6, 2.3, 1.9, p.base);
+  px(g, 6.5, 2.3, p.eye);
+  // long barrel + scope
+  line(g, 7.5, 5.5, 13, 3.8, p.shadow);
+  px(g, 13, 3.8, "#0e1417");
+  fillRect(g, 8.5, 3.8, 2.5, 1.2, p.accent);
   return finish(g, p);
 }
 
 const UNIT_BUILDERS: Record<string, Builder> = {
-  marine: marineUnit,
+  rifleman: riflemanUnit,
+  scorcher: scorcherUnit,
+  breaker: breakerUnit,
+  bulwark: bulwarkUnit,
   sniper: sniperUnit,
 };
 
 /* ---------------- building sprite builders ---------------- */
-/* Keyed by BuildingDef.shape. frame is 0/1 idle animation. */
+/* Keyed by BuildingDef.shape. frame is 0/1 idle animation.
+ *  2.5D recipe: dark ground pad → shadowed lower body → lit upper faces. */
 
-/** Command Post: pad, slab, dome, side pods, blinking antenna, energy core */
+function buildingPad(g: Grid, cx: number, cy: number, rx: number, ry: number): void {
+  fillEllipse(g, cx, cy, rx, ry, "#1a2228");
+  fillEllipse(g, cx, cy - 0.6, rx * 0.88, ry * 0.7, "#2a343c");
+}
+
+/** Command Post: pad, extruded slab, dome, pods, antenna, energy core */
 function hqSprite(frame: number): Grid {
   const base = "#1e88e5";
-  const g = makeGrid(40, 32);
-  fillEllipse(g, 20, 26.5, 17, 4, "#2c3a45"); // landing pad
-  fillEllipse(g, 20, 20, 16, 6.5, base); // main slab
-  fillRect(g, 4, 17, 32, 6, base);
-  fillRect(g, 1, 16, 5, 8, "#10529e"); // side pods
-  fillRect(g, 34, 16, 5, 8, "#10529e");
-  fillEllipse(g, 20, 12, 9, 6, "#64b5f6"); // dome
-  fillRect(g, 14, 10, 12, 2, "#0d1826"); // window band
-  line(g, 29, 8, 29, 2, "#90a4ae"); // antenna
-  px(g, 29, 1, frame === 0 ? "#ff5252" : "#5d1a1a"); // blinking light
-  // energy core
+  const g = makeGrid(44, 36);
+  buildingPad(g, 22, 31, 18, 4.5);
+  // body extrusion (darker south face)
+  fillRect(g, 6, 18, 32, 10, "#10529e");
+  fillRect(g, 6, 16, 32, 6, base); // top face
+  fillEllipse(g, 22, 17, 16, 5, base);
+  // side pods (volume)
+  fillRect(g, 2, 18, 5, 9, "#0d47a1");
+  fillRect(g, 37, 18, 5, 9, "#0d47a1");
+  fillRect(g, 2, 17, 5, 3, "#1565c0");
+  fillRect(g, 37, 17, 5, 3, "#1565c0");
+  // dome
+  fillEllipse(g, 22, 12, 10, 7, "#64b5f6");
+  fillEllipse(g, 20, 10, 5, 3.5, "#90caf9"); // lit dome face
+  fillRect(g, 15, 11, 14, 2, "#0d1826");
+  // antenna + blink
+  line(g, 31, 9, 31, 2, "#90a4ae");
+  px(g, 31, 1, frame === 0 ? "#ff5252" : "#5d1a1a");
   const core = frame === 0 ? "#b3e5fc" : "#4fc3f7";
-  fillRect(g, 19, 21, 2, 2, core);
+  fillRect(g, 21, 22, 3, 3, core);
   return (() => {
     shadeAuto(g, base, "#5aa9ec", "#10529e");
     outlineAuto(g);
@@ -459,19 +602,28 @@ function hqSprite(frame: number): Grid {
   })();
 }
 
-/** Gun Tower: splayed legs, column, boxy head, twin angled barrels */
+/** Gun Tower: splayed legs, thick column, boxy head, twin barrels */
 function towerSprite(frame: number): Grid {
   const base = "#546e7a";
-  const g = makeGrid(22, 24);
-  line(g, 5, 22, 8, 15, base); // legs
-  line(g, 16, 22, 13, 15, base);
-  fillRect(g, 8, 10, 6, 11, base); // column
-  fillRect(g, 5, 5, 12, 6, "#78909c"); // head
-  line(g, 13, 6, 19, 2, "#263238"); // barrels
-  line(g, 14, 8, 20, 4, "#263238");
-  px(g, 19, 2, frame === 0 ? "#eceff1" : "#90a4ae"); // muzzle tips
-  px(g, 20, 4, frame === 0 ? "#90a4ae" : "#eceff1");
-  px(g, 9, 12, frame === 0 ? "#4fc3f7" : "#1e5a75"); // status light
+  const g = makeGrid(26, 28);
+  buildingPad(g, 13, 25.5, 9, 2.4);
+  // legs as solid wedges
+  fillTriangle(g, 4, 25, 9, 14, 11, 25, "#37474f");
+  fillTriangle(g, 22, 25, 17, 14, 15, 25, "#37474f");
+  // column with side face
+  fillRect(g, 9, 10, 8, 13, base);
+  fillRect(g, 9, 10, 3, 13, "#37474f"); // left shadow face
+  fillRect(g, 14, 10, 3, 13, "#78909c"); // right lit strip
+  // turret head
+  fillRect(g, 6, 5, 14, 7, "#78909c");
+  fillRect(g, 6, 5, 14, 2, "#90a4ae"); // top lid
+  fillRect(g, 6, 5, 3, 7, "#455a64");
+  // twin barrels
+  line(g, 16, 6, 23, 2, "#263238");
+  line(g, 16, 9, 24, 5, "#263238");
+  px(g, 23, 2, frame === 0 ? "#eceff1" : "#90a4ae");
+  px(g, 24, 5, frame === 0 ? "#90a4ae" : "#eceff1");
+  px(g, 10, 13, frame === 0 ? "#4fc3f7" : "#1e5a75");
   return (() => {
     shadeAuto(g, base, "#78909c", "#37474f");
     outlineAuto(g);
@@ -479,24 +631,28 @@ function towerSprite(frame: number): Grid {
   })();
 }
 
-/** Missile Battery: pedestal + tilted rack with four red-tipped tubes */
+/** Missile Battery: pedestal + extruded rack + 4 tubes */
 function missileSprite(frame: number): Grid {
   const base = "#455a64";
-  const g = makeGrid(24, 22);
-  fillRect(g, 6, 16, 12, 4, "#2c3a45"); // pedestal
-  // tilted rack (a fat diagonal slab)
-  fillTriangle(g, 4, 15, 16, 3, 20, 8, base);
-  fillTriangle(g, 4, 15, 20, 8, 9, 18, base);
-  // tubes with warheads
+  const g = makeGrid(28, 26);
+  buildingPad(g, 14, 23, 10, 2.6);
+  // pedestal block
+  fillRect(g, 7, 16, 14, 6, "#2c3a45");
+  fillRect(g, 7, 15, 14, 2, base);
+  // tilted rack body
+  fillTriangle(g, 4, 16, 17, 3, 22, 9, base);
+  fillTriangle(g, 4, 16, 22, 9, 10, 19, "#2c3a45");
+  // tubes
   const tip = frame === 0 ? "#ef5350" : "#ff8a80";
-  px(g, 9, 11, "#1c262b");
-  px(g, 12, 8, "#1c262b");
-  px(g, 12, 13, "#1c262b");
-  px(g, 15, 10, "#1c262b");
-  px(g, 10, 10, tip);
-  px(g, 13, 7, tip);
-  px(g, 13, 12, tip);
-  px(g, 16, 9, tip);
+  for (const [tx, ty] of [
+    [10, 11],
+    [13, 8],
+    [13, 13],
+    [16, 10],
+  ] as const) {
+    fillEllipse(g, tx, ty, 1.6, 1.2, "#1c262b");
+    px(g, tx + 1, ty - 0.5, tip);
+  }
   return (() => {
     shadeAuto(g, base, "#607d8b", "#2c3a45");
     outlineAuto(g);
@@ -504,18 +660,25 @@ function missileSprite(frame: number): Grid {
   })();
 }
 
-/** Bunker: low pillbox, firing slit, sandbags */
+/** Bunker / Garrison: extruded pillbox + sandbags + slit */
 function bunkerSprite(frame: number): Grid {
   const base = "#5d4037";
-  const g = makeGrid(28, 18);
-  fillTriangle(g, 2, 14, 6, 4, 22, 4, base);
-  fillTriangle(g, 2, 14, 22, 4, 26, 14, base);
-  fillRect(g, 2, 13, 24, 3, base);
-  fillRect(g, 8, 8, 12, 3, "#191210"); // firing slit
-  line(g, 14, 9, frame === 0 ? 19 : 18, 9, "#263238"); // gun barrel
-  // sandbag row
-  for (let i = 0; i < 5; i++) {
-    fillEllipse(g, 5 + i * 4.5, 16, 2.2, 1.4, "#a1887f");
+  const g = makeGrid(32, 22);
+  buildingPad(g, 16, 19.5, 13, 2.8);
+  // south face (darker)
+  fillTriangle(g, 3, 16, 8, 6, 24, 6, "#3e2723");
+  fillTriangle(g, 3, 16, 24, 6, 29, 16, "#3e2723");
+  // top face (lighter)
+  fillTriangle(g, 8, 6, 16, 3, 24, 6, base);
+  fillRect(g, 8, 6, 16, 4, "#6d4c41");
+  // roof ridge
+  fillRect(g, 8, 5, 16, 2, "#4e342e");
+  // firing slit + barrel
+  fillRect(g, 10, 9, 12, 3, "#191210");
+  line(g, 16, 10, frame === 0 ? 23 : 22, 10, "#263238");
+  // sandbags along base
+  for (let i = 0; i < 6; i++) {
+    fillEllipse(g, 5 + i * 4, 17.5, 2.3, 1.5, "#a1887f");
   }
   return (() => {
     shadeAuto(g, base, "#8d6e63", "#3e2723");
@@ -524,17 +687,25 @@ function bunkerSprite(frame: number): Grid {
   })();
 }
 
-/** Artillery Platform (deployed): outriggers, hull, turret, long elevated barrel */
+/** Artillery platform: outriggers, hull volume, long barrel */
 function tankSprite(frame: number): Grid {
   const base = "#37474f";
-  const g = makeGrid(28, 22);
-  line(g, 6, 13, 2, 19, "#263238"); // outriggers
-  line(g, 21, 13, 25, 19, "#263238");
-  fillEllipse(g, 13.5, 14, 9.5, 4, base); // hull
-  fillEllipse(g, 12, 9.5, 4, 2.8, "#546e7a"); // turret
-  line(g, 13, 8, 23, 2, "#ff8a65"); // barrel
-  fillRect(g, 22, 1, 2, 3, "#ff8a65"); // muzzle brake
-  px(g, 5, 12, frame === 0 ? "#ffcc80" : "#8d5524"); // exhaust glow
+  const g = makeGrid(32, 26);
+  buildingPad(g, 15, 22.5, 12, 2.8);
+  // outriggers
+  line(g, 7, 15, 2, 22, "#263238");
+  line(g, 23, 15, 28, 22, "#263238");
+  fillEllipse(g, 4, 22, 2, 1, "#263238");
+  fillEllipse(g, 26, 22, 2, 1, "#263238");
+  // hull (darker lower + lit top)
+  fillEllipse(g, 15, 16, 11, 5, "#263238");
+  fillEllipse(g, 15, 14, 10, 4, base);
+  fillEllipse(g, 14, 12.5, 6, 2.5, "#546e7a");
+  // turret + barrel
+  fillEllipse(g, 13, 10, 4.5, 3, "#546e7a");
+  line(g, 15, 9, 27, 3, "#ff8a65");
+  fillRect(g, 26, 1.5, 3, 3, "#ff8a65");
+  px(g, 6, 13, frame === 0 ? "#ffcc80" : "#8d5524");
   return (() => {
     shadeAuto(g, base, "#546e7a", "#22303a");
     outlineAuto(g);
@@ -542,22 +713,20 @@ function tankSprite(frame: number): Grid {
   })();
 }
 
-/** Barracks: garrison block, lit door, windows, waving flag */
+/** Factory block (legacy shape; kept for atlas completeness) */
 function factorySprite(frame: number): Grid {
   const base = "#2e7d32";
-  const g = makeGrid(28, 26);
-  fillRect(g, 2, 10, 24, 13, base); // block
-  fillRect(g, 2, 10, 24, 3, "#1b5e20"); // roof band
-  fillRect(g, 12, 16, 4, 7, "#fff176"); // lit door
-  fillRect(g, 5, 14, 3, 2, "#ffe082"); // windows
-  fillRect(g, 20, 14, 3, 2, "#ffe082");
-  line(g, 23, 9, 23, 2, "#90a4ae"); // flag pole
-  // flag waves between frames
-  if (frame === 0) {
-    fillTriangle(g, 23, 2, 27, 3.5, 23, 6, "#81c784");
-  } else {
-    fillTriangle(g, 23, 2, 26.4, 4.6, 23, 6, "#66bb6a");
-  }
+  const g = makeGrid(30, 28);
+  buildingPad(g, 15, 25, 12, 2.6);
+  fillRect(g, 3, 12, 24, 12, "#1b5e20"); // south face
+  fillRect(g, 3, 10, 24, 10, base);
+  fillRect(g, 3, 10, 24, 3, "#43a047"); // roof band
+  fillRect(g, 13, 17, 4, 7, "#fff176");
+  fillRect(g, 6, 14, 3, 2, "#ffe082");
+  fillRect(g, 21, 14, 3, 2, "#ffe082");
+  line(g, 24, 9, 24, 2, "#90a4ae");
+  if (frame === 0) fillTriangle(g, 24, 2, 28, 3.5, 24, 6, "#81c784");
+  else fillTriangle(g, 24, 2, 27.4, 4.6, 24, 6, "#66bb6a");
   return (() => {
     shadeAuto(g, base, "#4caf50", "#1b5e20");
     outlineAuto(g);
@@ -565,20 +734,26 @@ function factorySprite(frame: number): Grid {
   })();
 }
 
-/** Refinery: twin vats, connecting pipe, bubbling glow */
+/** Mining facility: drill rig + crystal hopper (was twin yellow vats) */
 function siloSprite(frame: number): Grid {
   const base = "#f9a825";
-  const g = makeGrid(26, 24);
-  fillRect(g, 3, 8, 8, 13, base); // left vat
-  fillRect(g, 15, 8, 8, 13, base); // right vat
-  fillEllipse(g, 7, 8, 4, 1.8, "#ffd54f"); // caps
-  fillEllipse(g, 19, 8, 4, 1.8, "#ffd54f");
-  line(g, 11, 14, 15, 14, "#90a4ae"); // pipe
-  px(g, 13, 14, "#546e7a"); // valve
-  line(g, 3, 17, 10, 17, "#c17900"); // ring seams
-  line(g, 15, 17, 22, 17, "#c17900");
-  // rising bubble
-  px(g, 7, frame === 0 ? 5 : 3, "#ffee58");
+  const g = makeGrid(30, 28);
+  buildingPad(g, 15, 25, 12, 2.8);
+  // hopper body
+  fillRect(g, 5, 12, 12, 11, "#c17900");
+  fillRect(g, 5, 11, 12, 5, base);
+  fillEllipse(g, 11, 11, 6, 2.2, "#ffd54f");
+  // drill tower
+  fillRect(g, 18, 6, 6, 17, "#546e7a");
+  fillRect(g, 18, 6, 6, 3, "#90a4ae");
+  // rotating bit
+  const bitY = frame === 0 ? 22 : 23;
+  fillRect(g, 19, bitY, 4, 3, "#37474f");
+  px(g, 21, bitY + 3, "#4dd0e1");
+  // crystal glow in hopper
+  px(g, 9, frame === 0 ? 14 : 13, "#4dd0e1");
+  px(g, 12, frame === 0 ? 15 : 14, "#80deea");
+  line(g, 17, 14, 18, 14, "#90a4ae");
   return (() => {
     shadeAuto(g, base, "#ffd54f", "#c17900");
     outlineAuto(g);
@@ -586,18 +761,21 @@ function siloSprite(frame: number): Grid {
   })();
 }
 
-/** Sensor Array: tripod, pivot ball, tilted dish, blinking feed */
+/** Sensor Array: tripod + dish volume */
 function radarSprite(frame: number): Grid {
   const base = "#6a1b9a";
-  const g = makeGrid(22, 24);
-  line(g, 6, 22, 11, 14, base); // tripod
-  line(g, 16, 22, 11, 14, base);
-  line(g, 11, 22, 11, 14, base);
-  fillEllipse(g, 11, 13, 3, 2.6, base); // pivot ball
-  fillEllipse(g, 11, 7.5, 6.5, 3.6, "#ce93d8"); // dish
-  fillEllipse(g, 11.6, 8, 3.6, 1.9, "#4a148c"); // dish bowl
-  line(g, 11, 7, 15, 2, "#eceff1"); // feed arm
-  px(g, 15.6, 1.4, frame === 0 ? "#e040fb" : "#7b1fa2"); // blinking tip
+  const g = makeGrid(26, 28);
+  buildingPad(g, 13, 25, 8, 2.2);
+  line(g, 6, 24, 13, 14, base);
+  line(g, 20, 24, 13, 14, base);
+  line(g, 13, 24, 13, 14, base);
+  fillEllipse(g, 13, 14, 3.5, 2.8, base);
+  // dish with thickness
+  fillEllipse(g, 13, 8, 8, 4.2, "#4a148c");
+  fillEllipse(g, 13, 7.2, 7, 3.4, "#ce93d8");
+  fillEllipse(g, 13.8, 7.6, 4, 2, "#4a148c");
+  line(g, 13, 7, 18, 2, "#eceff1");
+  px(g, 18.5, 1.5, frame === 0 ? "#e040fb" : "#7b1fa2");
   return (() => {
     shadeAuto(g, base, "#8e24aa", "#4a148c");
     outlineAuto(g);
@@ -605,25 +783,23 @@ function radarSprite(frame: number): Grid {
   })();
 }
 
-/** Sniper Tower: tripod legs, compact body, one long thin barrel with a
- *  scope mounted just behind the muzzle; scope glints on the idle blink. */
+/** Sniper Tower: tripod, compact body, long barrel + scope */
 function sniperSprite(frame: number): Grid {
   const base = "#37474f";
-  const g = makeGrid(30, 20);
-  // tripod legs
-  line(g, 6, 19, 11, 12, base);
-  line(g, 24, 19, 19, 12, base);
-  line(g, 15, 19.5, 15, 12, base);
-  // compact body
-  fillRect(g, 9, 7, 10, 6, base);
-  fillEllipse(g, 14, 7, 5, 2.6, "#546e7a"); // turret cap
-  // long thin barrel, angled up-right
-  line(g, 17, 7, 28, 3, "#1a2226");
-  line(g, 17, 8, 27, 4.4, "#1a2226");
-  px(g, 27.6, 3, "#eceff1"); // muzzle tip
-  // scope mounted above the breach, glint blinks between frames
-  fillRect(g, 19, 4.6, 3, 2, "#263238");
-  px(g, 20.4, 5.4, frame === 0 ? "#4dd0e1" : "#1a5f66");
+  const g = makeGrid(34, 24);
+  buildingPad(g, 15, 21.5, 10, 2.4);
+  line(g, 6, 21, 12, 12, base);
+  line(g, 24, 21, 18, 12, base);
+  line(g, 15, 22, 15, 12, base);
+  fillRect(g, 10, 7, 11, 7, base);
+  fillRect(g, 10, 7, 3, 7, "#1c262b");
+  fillRect(g, 18, 7, 3, 7, "#546e7a");
+  fillEllipse(g, 15.5, 7, 5.5, 2.8, "#546e7a");
+  line(g, 19, 7, 31, 3, "#1a2226");
+  line(g, 19, 9, 30, 5, "#1a2226");
+  px(g, 31, 3, "#eceff1");
+  fillRect(g, 21, 4.5, 3.5, 2, "#263238");
+  px(g, 22.5, 5.2, frame === 0 ? "#4dd0e1" : "#1a5f66");
   return (() => {
     shadeAuto(g, base, "#546e7a", "#1c262b");
     outlineAuto(g);

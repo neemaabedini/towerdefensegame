@@ -1,7 +1,7 @@
 {
-  "marine": {
-    "id": "marine",
-    "name": "Marine",
+  "rifleman": {
+    "id": "rifleman",
+    "name": "Rifleman",
     "maxHp": 50,
     "damage": 4,
     "fireRate": 2.2,
@@ -14,8 +14,8 @@
     "accent": "#90caf9",
     "kind": "ranged"
   },
-  "firebat": {
-    "id": "firebat",
+  "scorcher": {
+    "id": "scorcher",
     "name": "Scorcher",
     "maxHp": 55,
     "damage": 6,
@@ -30,8 +30,8 @@
     "accent": "#ffcc80",
     "kind": "ranged"
   },
-  "marauder": {
-    "id": "marauder",
+  "breaker": {
+    "id": "breaker",
     "name": "Breaker",
     "maxHp": 70,
     "damage": 20,

@@ -786,6 +786,46 @@ body {
   gap: 0.4rem;
 }
 
+.ability-bar {
+  margin-top: 0.5rem;
+}
+
+.ability-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-bright);
+  background: linear-gradient(180deg, #1a2744 0%, #121a30 100%);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+
+.ability-btn.ready {
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.ability-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ability-btn .ability-cd {
+  color: var(--muted);
+  font-size: 0.85em;
+  min-width: 3.2em;
+  text-align: right;
+}
+
+.ability-btn.ready .ability-cd {
+  color: var(--success);
+}
+
 .phase-actions-row #btn-ready {
   flex: 1;
 }

@@ -18,7 +18,7 @@
             <span class="stat-icon money">₡</span>
             <span id="money">0</span>
           </div>
-          <div class="stat" title="Command Center HP">
+          <div class="stat" title="Command Post HP">
             <span class="stat-icon hp">♥</span>
             <span id="hq-hp">100</span>
           </div>
@@ -95,9 +95,17 @@
                 <span id="speed-label">1x</span><kbd>F</kbd>
               </button>
             </div>
+            <div id="ability-bar" class="ability-bar hidden">
+              <button id="btn-ability" class="ability-btn" type="button" disabled>
+                <span id="ability-name">Ability</span>
+                <kbd>Q</kbd>
+                <span id="ability-cd" class="ability-cd"></span>
+              </button>
+            </div>
             <button id="btn-restart" class="ghost" type="button">Restart</button>
             <p class="keys-hint">
-              <kbd>WASD</kbd> hero · <kbd>←→↑↓</kbd> select · <kbd>1–4</kbd> build ·
+              <kbd>WASD</kbd> hero · <kbd>Q</kbd>/<kbd>1</kbd> ability ·
+              <kbd>←→↑↓</kbd> select · <kbd>1–4</kbd> build ·
               <kbd>U</kbd> upgrade · <kbd>Space</kbd> night ·
               <kbd>F</kbd> speed · <kbd>P</kbd>/<kbd>Esc</kbd> pause
             </p>

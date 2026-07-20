@@ -18,10 +18,10 @@ export interface UnitDef {
   moveSpeed: number;
   /** Max distance a unit will stray from its owning building's position (D5/D7) */
   leash: number;
-  /** Splash radius on hit (px). >0 = firebat-style area damage, routed through
+  /** Splash radius on hit (px). >0 = area damage, routed through
    *  the same applyDamage/applySplash path buildings use. Omit for single-target. */
   splashRadius?: number;
-  /** Seconds of slow applied to the enemy on hit (marauder-style). Reuses the
+  /** Seconds of slow applied to the enemy on hit. Reuses the
    *  enemy `slowTimer` the movement code already respects — the same field
    *  CD-40's Sensor Pulse will drive. Omit for no slow. */
   slowSeconds?: number;

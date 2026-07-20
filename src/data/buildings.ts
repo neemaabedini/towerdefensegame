@@ -15,10 +15,8 @@ export type TargetMode = "all" | "ground" | "air";
  * e.g. `fireRate: 1.35` means "35% faster than this would otherwise be at
  * this level", not an absolute value. `incomePerDay` is deliberately NOT a
  * key here (D8, docs/design-wave-legibility.md §7c): no branch pick, local
- * or global, may ever touch income — Thronefall's own economy-global
- * ("Builder's Guild") is the community's textbook "too good NOT to take"
- * dead/dominant option, and this union makes that class unrepresentable
- * rather than merely undesirable.
+ * or global, may ever touch income — economy-wide income multipliers are
+ * deliberately unrepresentable (they tend to become must-pick traps).
  */
 export type StatMods = Partial<
   Record<"damage" | "range" | "fireRate" | "splashRadius" | "maxHp", number>

@@ -10,6 +10,7 @@ import {
   type TargetMode,
 } from "../data/buildings";
 import { getEnemy, type EnemyDef } from "../data/enemies";
+import { getAbility } from "../data/abilities";
 import { getHero, HEROES } from "../data/hero";
 import { getLevel, type LevelDef, type WaveDef } from "../data/levels";
 import { MUTATORS } from "../data/mutators";
@@ -103,6 +104,8 @@ export class Game {
    *  from main.ts's event listeners, never from inside update()/updateHero,
    *  so it stays constant across a 2x sub-step's two update() calls. */
   private heroMoveDir: Vec2 = { x: 0, y: 0 };
+  /** CD-58: building def id under cursor/focus on BuildRing (day only). */
+  private buildPreviewDefId: string | null = null;
 
   constructor(nowMs: () => number = () => Date.now()) {
     this.nowMs = nowMs;
@@ -274,26 +277,59 @@ export class Game {
       dayTime: 0,
       nightTime: this.waveElapsed,
       hqId: this.hqId,
-      // Shallow-cloned per the CD-15 rule for NEW snapshot fields (HeroState
-      // is flat primitives, so a spread is a complete clone). The legacy
-      // array fields above stay live-ref until the CD-15 cleanup.
-      hero: this.hero ? { ...this.hero } : null,
+      // Shallow-cloned per the CD-15 rule for NEW snapshot fields. abilityCooldowns
+      // is a nested object so it is cloned too.
+      hero: this.hero
+        ? {
+            ...this.hero,
+            abilityCooldowns: { ...this.hero.abilityCooldowns },
+          }
+        : null,
+      // CD-59: clone so render uses the same mods combat does.
+      globalStatMods: { ...this.globalStatMods },
+      rangePreview: this.computeRangePreview(),
     };
+  }
+
+  /**
+   * CD-58: which build option the player is previewing at the selected
+   * empty site (BuildRing hover/focus). Cleared on deselect/build/night.
+   * No notify — the frame loop re-reads the snapshot every draw.
+   */
+  setBuildPreview(defId: string | null): void {
+    this.buildPreviewDefId = defId;
+  }
+
+  private computeRangePreview(): { x: number; y: number; range: number } | null {
+    if (this.phase !== "day" || !this.selectedSiteId) return null;
+    const site = this.sites.find((s) => s.id === this.selectedSiteId);
+    if (!site || site.buildingId) return null;
+    const defId = this.buildPreviewDefId ?? site.options[0] ?? null;
+    if (!defId || !site.options.includes(defId)) return null;
+    const def = getBuilding(defId);
+    const stats = scaledStats(def, 1, null, this.globalStatMods);
+    if (stats.range <= 0) return null;
+    return { x: site.x, y: site.y, range: stats.range };
   }
 
   selectSite(siteId: string | null): void {
     if (siteId === null) {
       this.selectedSiteId = null;
       this.selectedBuildingId = null;
+      this.buildPreviewDefId = null;
       this.notify();
       return;
     }
     if (this.phase !== "day") return;
     this.selectedSiteId = siteId;
     this.selectedBuildingId = null;
+    this.buildPreviewDefId = null;
     const site = this.sites.find((s) => s.id === siteId);
     if (site?.buildingId) {
       this.selectedBuildingId = site.buildingId;
+    } else if (site?.options[0]) {
+      // Default ghost to first option so keyboard-only players see range.
+      this.buildPreviewDefId = site.options[0];
     }
     this.notify();
   }
@@ -785,8 +821,86 @@ export class Game {
       facing: surviving ? surviving.facing : 1,
       dir: surviving ? surviving.dir : 2,
       cooldown: 0,
+      // Fresh weapon kit — ability cooldowns reset at park (loadLevel/dawn).
+      abilityCooldowns: {},
     };
     this.heroMoveDir = { x: 0, y: 0 };
+  }
+
+  /**
+   * CD-40: cast weapon active by index into hero.def.abilities.
+   * Self-targeted only (v1). Night + alive only. Returns false if ready
+   * check fails.
+   */
+  castAbility(index: number): boolean {
+    if (this.phase !== "night") return false;
+    const hero = this.hero;
+    if (!hero || !hero.alive || !hero.deployed) return false;
+    const hDef = getHero(hero.defId);
+    const abilityId = hDef.abilities[index];
+    if (!abilityId) return false;
+    const ab = getAbility(abilityId);
+    if (ab.targeting !== "self") return false; // point seam later
+    const remaining = hero.abilityCooldowns[abilityId] ?? 0;
+    if (remaining > 0) return false;
+
+    hero.abilityCooldowns[abilityId] = ab.cooldown;
+    this.applyAbilityEffect(ab, hero.x, hero.y);
+    this.emit({ type: "abilityCast", abilityId });
+    this.floatText(hero.x, hero.y - 28, ab.name, hDef.accent);
+    this.burst(hero.x, hero.y, hDef.accent, 14);
+    this.notify();
+    return true;
+  }
+
+  private applyAbilityEffect(
+    ab: ReturnType<typeof getAbility>,
+    cx: number,
+    cy: number,
+  ): void {
+    const r = ab.radius;
+    const r2 = r * r;
+    const effect = ab.effect;
+
+    if (effect.kind === "damage_single") {
+      let best: (typeof this.enemies)[0] | null = null;
+      let bestArmor = -1;
+      let bestHp = -1;
+      for (const e of this.enemies) {
+        if (e.hp <= 0) continue;
+        const d2 = (e.x - cx) * (e.x - cx) + (e.y - cy) * (e.y - cy);
+        if (d2 > r2) continue;
+        const armor = getEnemy(e.defId).armor;
+        if (
+          armor > bestArmor ||
+          (armor === bestArmor && e.hp > bestHp)
+        ) {
+          best = e;
+          bestArmor = armor;
+          bestHp = e.hp;
+        }
+      }
+      if (best) this.hurtEnemy(best, effect.damage);
+      return;
+    }
+
+    for (const e of this.enemies) {
+      if (e.hp <= 0) continue;
+      const d2 = (e.x - cx) * (e.x - cx) + (e.y - cy) * (e.y - cy);
+      if (d2 > r2) continue;
+      const eDef = getEnemy(e.defId);
+      if (effect.kind === "damage_air") {
+        if (eDef.archetype !== "flyer") continue;
+        this.hurtEnemy(e, effect.damage);
+      } else if (effect.kind === "damage") {
+        this.hurtEnemy(e, effect.damage);
+      } else if (effect.kind === "damage_and_slow") {
+        this.hurtEnemy(e, effect.damage);
+        e.slowTimer = Math.max(e.slowTimer, effect.slowSeconds);
+      } else if (effect.kind === "slow") {
+        e.slowTimer = Math.max(e.slowTimer, effect.slowSeconds);
+      }
+    }
   }
 
   /** Selected weapon loadout (CD-30 hero weapons) — a hero.json def id.
@@ -827,6 +941,7 @@ export class Game {
 
     this.phase = "night";
     this.selectedSiteId = null;
+    this.buildPreviewDefId = null;
     this.waveElapsed = 0;
     this.waveSpawnComplete = false;
     this.pendingSpawns = [];
@@ -846,6 +961,27 @@ export class Game {
     this.queueWave(wave);
     this.emit({ type: "waveStarted", waveIndex: this.waveIndex });
     this.notify();
+  }
+
+  /**
+   * Headless / QA harness only (CD-57) — not a player input path.
+   * Puts the sim into a night-end candidate state so one `update(dt)` can
+   * exercise wave-clear vs HQ death (CD-54) without playing a full wave.
+   */
+  harnessSetNightEndState(opts: { hqHp: number; waveIndex?: number }): void {
+    this.phase = "night";
+    this.waveIndex =
+      opts.waveIndex ?? Math.max(0, this.level.waves.length - 1);
+    this.waveElapsed = 0;
+    this.waveSpawnComplete = true;
+    this.pendingSpawns = [];
+    this.enemies = [];
+    this.units = [];
+    this.projectiles = [];
+    this.selectedSiteId = null;
+    this.selectedBuildingId = null;
+    const hq = this.buildings.find((b) => b.id === this.hqId);
+    if (hq) hq.hp = opts.hqHp;
   }
 
   private queueWave(wave: WaveDef): void {
@@ -923,8 +1059,10 @@ export class Game {
 
   /** Lump-sum income from surviving production buildings, paid at dawn.
    *  Mining defs pay PER NODE (D3) — node count comes from the building's
-   *  own site, already capped at maxNodes by deriveSiteResources. */
-  private collectDawnIncome(): void {
+   *  own site, already capped at maxNodes by deriveSiteResources.
+   *  @returns total credits paid this dawn (for CD-58 post-wave summary). */
+  private collectDawnIncome(): number {
+    let total = 0;
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
       const def = getBuilding(b.defId);
@@ -936,8 +1074,10 @@ export class Game {
       const income = Math.round(stats.incomePerDay * nodes);
       if (income <= 0) continue;
       this.money += income;
+      total += income;
       this.floatText(b.x, b.y - 24, `+${income}₡`, "#ffd54f");
     }
+    return total;
   }
 
   private updateNight(dt: number): void {
@@ -988,22 +1128,26 @@ export class Game {
     this.units = this.units.filter((u) => u.hp > 0);
     this.projectiles = this.projectiles.filter((p) => p.alive);
 
-    // Wave clear
-    if (
-      this.waveSpawnComplete &&
-      this.enemies.length === 0 &&
-      this.pendingSpawns.length === 0
-    ) {
-      this.onWaveCleared();
-    }
-
-    // HQ check
+    // HQ death is terminal and wins over wave-clear (CD-54). If the last
+    // enemy and the HQ die on the same frame, the run is a defeat — never
+    // emit victory / pay clear-bonus / notify first (AppShell would unlock
+    // the next level on a transient victory transition).
     const hq = this.buildings.find((b) => b.id === this.hqId);
     if (!hq || hq.hp <= 0) {
       this.phase = "defeat";
       this.heroMoveDir = { x: 0, y: 0 };
       this.emit({ type: "defeat" });
       this.notify();
+      return;
+    }
+
+    // Wave clear (only with a living HQ)
+    if (
+      this.waveSpawnComplete &&
+      this.enemies.length === 0 &&
+      this.pendingSpawns.length === 0
+    ) {
+      this.onWaveCleared();
     }
   }
 
@@ -1049,6 +1193,13 @@ export class Game {
     const hero = this.hero;
     if (!hero || !hero.deployed || !hero.alive) return;
     const def = getHero(hero.defId);
+
+    // Tick ability cooldowns (CD-40).
+    for (const id of Object.keys(hero.abilityCooldowns)) {
+      const left = (hero.abilityCooldowns[id] ?? 0) - dt;
+      if (left <= 0) delete hero.abilityCooldowns[id];
+      else hero.abilityCooldowns[id] = left;
+    }
 
     if (this.heroMoveDir.x !== 0 || this.heroMoveDir.y !== 0) {
       hero.x += this.heroMoveDir.x * def.moveSpeed * dt;
@@ -1264,7 +1415,7 @@ export class Game {
   private destroyBuilding(b: PlacedBuilding): void {
     const site = this.sites.find((s) => s.id === b.siteId);
     if (site) site.buildingId = null;
-    // Rebuilt free at dawn (ThroneFall model) — but it earns nothing tonight
+    // Rebuilt free at dawn — but it earns nothing tonight
     this.wrecks.push({
       siteId: b.siteId,
       defId: b.defId,
@@ -1341,7 +1492,7 @@ export class Game {
 
     // Instant hit for gun tower / bunker / sniper for snappy feel; projectiles for siege/missile
     const useProjectile =
-      def.id === "siege_tank" || def.id === "missile_battery";
+      def.id === "artillery_platform" || def.id === "missile_battery";
 
     if (useProjectile) {
       this.projectiles.push({
@@ -1565,7 +1716,7 @@ export class Game {
     const idx = Math.max(0, Math.min(spec.countByLevel.length - 1, building.level - 1));
     const count = spec.countByLevel[idx] ?? 0;
 
-    // A branch pick can swap the unit type entirely (marine -> sniper) —
+    // A branch pick can swap the unit type entirely (rifleman -> sniper) —
     // that squad is a clean replacement, not a resize.
     if (current.some((u) => u.unitDefId !== spec.unitId)) {
       this.units = this.units.filter((u) => u.buildingId !== building.id);
@@ -1917,15 +2068,35 @@ export class Game {
 
   private onWaveCleared(): void {
     const wave = this.level.waves[this.waveIndex]!;
+    // Snapshot HQ % and wreck count BEFORE dawn heal/rebuild (CD-58 summary).
+    const hqBefore = this.buildings.find((b) => b.id === this.hqId);
+    const hqPct =
+      hqBefore && hqBefore.maxHp > 0
+        ? Math.round((Math.max(0, hqBefore.hp) / hqBefore.maxHp) * 100)
+        : 0;
+    const wreckCount = this.wrecks.length;
+
     this.money += wave.clearBonus;
     // Income first: buildings destroyed tonight are still wrecks here, so
-    // they earn nothing this dawn (ThroneFall rule)
-    this.collectDawnIncome();
+    // they earn nothing this dawn (wrecks collect no income)
+    const incomeTotal = this.collectDawnIncome();
     this.floatText(
       this.level.hq.x,
       this.level.hq.y - 50,
       `Wave clear +${wave.clearBonus}₡`,
       "#66bb6a",
+    );
+    // CD-58: one-line causality under the clear bonus.
+    const summaryParts = [
+      `+${wave.clearBonus + incomeTotal}₡`,
+      `HQ ${hqPct}%`,
+    ];
+    if (wreckCount > 0) summaryParts.push(`${wreckCount} rebuilt`);
+    this.floatText(
+      this.level.hq.x,
+      this.level.hq.y - 28,
+      summaryParts.join(" · "),
+      "#b0bec5",
     );
 
     // Dawn restoration: survivors fully repaired, wrecks rebuilt for free
@@ -1983,9 +2154,18 @@ export class Game {
     this.projectiles = [];
     this.pendingSpawns = [];
 
+    // Defense in depth for CD-54: final-wave clear must not declare victory
+    // if the HQ is gone or already dead (HQ is never wrecked, only hp <= 0).
+    const hqAlive = this.buildings.some((b) => b.id === this.hqId && b.hp > 0);
     if (this.waveIndex >= this.level.waves.length) {
-      this.phase = "victory";
-      this.emit({ type: "victory" });
+      if (!hqAlive) {
+        this.phase = "defeat";
+        this.heroMoveDir = { x: 0, y: 0 };
+        this.emit({ type: "defeat" });
+      } else {
+        this.phase = "victory";
+        this.emit({ type: "victory" });
+      }
     } else {
       this.phase = "day";
       this.emit({ type: "dawn" });

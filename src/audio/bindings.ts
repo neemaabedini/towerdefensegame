@@ -10,7 +10,7 @@ import type { SoundId } from "./sfx";
  */
 const WEAPON_SOUNDS: Record<string, SoundId> = {
   gun_tower: "shot_gun",
-  siege_tank: "shot_siege",
+  artillery_platform: "shot_siege",
   missile_battery: "shot_missile",
   command_center: "shot_gun",
   // garrison (Batch 3) has damage 0 / fireRate 0 and never emits
@@ -29,6 +29,8 @@ const SIMPLE_SOUNDS: Partial<Record<GameEvent["type"], SoundId>> = {
   upgraded: "ui_upgrade",
   sold: "ui_sell",
   undone: "ui_sell",
+  // CD-40 weapon active — reuse siege boom for impact-y self-casts.
+  abilityCast: "shot_siege",
 };
 
 /** Wires `game.onEvent` to `bus.play`. Returns the unsubscribe function. */

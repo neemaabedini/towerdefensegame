@@ -26,8 +26,7 @@ export interface HeroDef {
    *  through the same applyDamage path units/buildings use. Omit for
    *  single-target weapons. */
   splashRadius?: number;
-  /** Ability ids this hero can cast — empty in Slice 1 (CD-29); CD-40
-   *  Slice 2 adds abilities.json and starts populating this. */
+  /** Ability ids this weapon can cast (CD-40) — see abilities.json. */
   abilities: string[];
   /** Death penalty seam (design §5). v1 ships atDawn-only (out for the
    *  rest of the current night, restored free at dawn); midWaveSeconds is

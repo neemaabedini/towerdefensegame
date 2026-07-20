@@ -1,5 +1,6 @@
 import { BUILDINGS, deriveSiteResources, type StatMods, type TargetMode } from "./buildings";
 import { ENEMIES } from "./enemies";
+import { ABILITIES } from "./abilities";
 import { HEROES, type HeroDef } from "./hero";
 import { LEVELS, type LevelDef, type SiteCategory } from "./levels";
 import { MUTATORS } from "./mutators";
@@ -110,10 +111,45 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
   }
 
-  // CD-29 Slice 1: hero data contract (docs/design-hero-commander.md §10).
-  // Ability-id existence ("every hero.abilities[] id exists in the abilities
-  // registry") is deferred to CD-40 Slice 2 — there is no abilities.json to
-  // check against yet, and hero.json ships `abilities: []` until then.
+  // CD-40: ability data contract.
+  const ABILITY_EFFECT_KINDS = new Set([
+    "slow",
+    "damage",
+    "damage_and_slow",
+    "damage_single",
+    "damage_air",
+  ]);
+  for (const def of Object.values(ABILITIES)) {
+    if (def.targeting !== "self" && def.targeting !== "point") {
+      errors.push(`ability ${def.id}: targeting must be "self" or "point"`);
+    }
+    if (!(def.cooldown >= 0)) {
+      errors.push(`ability ${def.id}: cooldown must be >= 0`);
+    }
+    if (!(def.radius > 0)) {
+      errors.push(`ability ${def.id}: radius must be > 0`);
+    }
+    if (!ABILITY_EFFECT_KINDS.has(def.effect.kind)) {
+      errors.push(`ability ${def.id}: unknown effect.kind "${def.effect.kind}"`);
+    }
+    if (
+      (def.effect.kind === "slow" || def.effect.kind === "damage_and_slow") &&
+      !(def.effect.slowSeconds > 0)
+    ) {
+      errors.push(`ability ${def.id}: slowSeconds must be > 0`);
+    }
+    if (
+      (def.effect.kind === "damage" ||
+        def.effect.kind === "damage_and_slow" ||
+        def.effect.kind === "damage_single" ||
+        def.effect.kind === "damage_air") &&
+      !(def.effect.damage > 0)
+    ) {
+      errors.push(`ability ${def.id}: damage must be > 0`);
+    }
+  }
+
+  // CD-29 / CD-40: hero data contract (docs/design-hero-commander.md §10).
   const HERO_POSITIVE_FIELDS: readonly (keyof HeroDef)[] = [
     "maxHp",
     "moveSpeed",
@@ -140,6 +176,11 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
     }
     if (typeof def.respawn?.atDawn !== "boolean") {
       errors.push(`${def.id}: respawn.atDawn must be a boolean`);
+    }
+    for (const abId of def.abilities) {
+      if (!ABILITIES[abId]) {
+        errors.push(`hero ${def.id}: abilities references missing ability "${abId}"`);
+      }
     }
   }
 

@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "validate": "node tools/validate-data.mjs",
+    "test": "node tools/sim-harness.mjs",
+    "build": "tsc && node tools/validate-data.mjs && vite build",
     "preview": "vite preview"
   },
   "devDependencies": {

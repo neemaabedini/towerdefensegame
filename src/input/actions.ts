@@ -14,6 +14,8 @@ export type GameAction =
    *  Game.setHeroMove, which is itself a no-op outside phase === "night". */
   | { kind: "heroMove"; dx: number; dy: number }
   | { kind: "option"; index: number }
+  /** CD-40: cast hero weapon active at index into hero.abilities. */
+  | { kind: "ability"; index: number }
   | { kind: "upgrade" }
   | { kind: "confirm" }
   | { kind: "cancel" }
@@ -51,6 +53,10 @@ export function actionFromKey(ev: KeyboardEvent): GameAction | null {
     case "3":
     case "4":
       return { kind: "option", index: Number(key) - 1 };
+    case "q":
+    case "Q":
+      // CD-40: alias for ability 0 (primary weapon active).
+      return { kind: "ability", index: 0 };
     case "u":
     case "U":
     case "e":

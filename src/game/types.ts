@@ -1,4 +1,4 @@
-import type { BuildingDef, TargetMode } from "../data/buildings";
+import type { BuildingDef, StatMods, TargetMode } from "../data/buildings";
 import type { BuildSiteDef, LevelDef, ResourceKind } from "../data/levels";
 
 export type Phase = "day" | "night" | "victory" | "defeat";
@@ -80,6 +80,11 @@ export interface HeroState {
   dir: number;
   /** Seconds until the hero's auto-attack can fire again */
   cooldown: number;
+  /**
+   * Ability id → remaining cooldown seconds (CD-40). Missing keys mean
+   * ready. Cloned on snapshot with the rest of HeroState.
+   */
+  abilityCooldowns: Record<string, number>;
 }
 
 export interface EnemyUnit {
@@ -210,6 +215,17 @@ export interface GameSnapshot {
    *  legacy arrays above stay live-ref until that cleanup). Never null
    *  after boot — drivable day and night; starts each level at the HQ. */
   hero: HeroState | null;
+  /**
+   * Active global stat multipliers (perks + CC global branch + mutator mods).
+   * Cloned so render can resolve combat-accurate ranges without importing Game
+   * (CD-59). Empty object when nothing is active.
+   */
+  globalStatMods: StatMods;
+  /**
+   * Pre-buy range ghost at the selected empty site (CD-58). Null when no
+   * site is selected or the previewed option has no weapon range.
+   */
+  rangePreview: { x: number; y: number; range: number } | null;
 }
 
 export interface BuildingRuntime extends BuildingDef {
@@ -230,6 +246,7 @@ export type GameEvent =
   | { type: "unitDied"; unitDefId: string }
   | { type: "heroDied" }
   | { type: "heroRespawned" }
+  | { type: "abilityCast"; abilityId: string }
   | { type: "buildingDestroyed"; defId: string }
   | { type: "waveStarted"; waveIndex: number }
   | { type: "dawn" }

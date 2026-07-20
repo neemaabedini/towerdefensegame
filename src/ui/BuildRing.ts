@@ -68,10 +68,21 @@ export class BuildRing {
         btn.append(income);
       }
 
-      btn.addEventListener("click", () => this.game.build(site.id, optId));
+      // CD-58: hover/focus previews weapon range at this site before buy.
+      btn.addEventListener("pointerenter", () => this.game.setBuildPreview(optId));
+      btn.addEventListener("focus", () => this.game.setBuildPreview(optId));
+      btn.addEventListener("click", () => {
+        this.game.setBuildPreview(null);
+        this.game.build(site.id, optId);
+      });
       this.root.appendChild(btn);
       buttons.push(btn);
     }
+
+    this.root.addEventListener("pointerleave", () => {
+      // Restore default (first option) ghost while site stays selected.
+      this.game.setBuildPreview(site.options[0] ?? null);
+    });
 
     const gap = 8;
     const pad = 6;

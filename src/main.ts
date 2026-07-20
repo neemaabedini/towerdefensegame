@@ -189,6 +189,11 @@ window.addEventListener("keydown", (ev) => {
       game.navigate(action.dx, action.dy);
       break;
     case "option": {
+      // Night: number row casts weapon actives (CD-40). Day: build / branch.
+      if (state.phase === "night") {
+        game.castAbility(action.index);
+        break;
+      }
       // If a building is selected and a branch choice is pending, 1/2 pick
       // the branch option instead of building at an (in this case
       // nonexistent) empty site — see docs/design-roster-redesign.md D4.
@@ -203,6 +208,9 @@ window.addEventListener("keydown", (ev) => {
       }
       break;
     }
+    case "ability":
+      game.castAbility(action.index);
+      break;
     case "upgrade":
       // game.upgrade() itself requires a branchChoice whenever a branch is
       // pending, so calling it with none is already a safe no-op (D4).

@@ -10,7 +10,7 @@
     "range": 100,
     "targets": "ground",
     "radius": 8,
-    "abilities": [],
+    "abilities": ["volley"],
     "respawn": { "atDawn": true },
     "color": "#263238",
     "accent": "#ffca28"
@@ -27,7 +27,7 @@
     "targets": "ground",
     "radius": 8,
     "splashRadius": 30,
-    "abilities": [],
+    "abilities": ["concussion"],
     "respawn": { "atDawn": true },
     "color": "#4e342e",
     "accent": "#ff8a65"
@@ -43,7 +43,7 @@
     "range": 170,
     "targets": "ground",
     "radius": 8,
-    "abilities": [],
+    "abilities": ["overcharge"],
     "respawn": { "atDawn": true },
     "color": "#1a237e",
     "accent": "#4dd0e1"
@@ -59,9 +59,10 @@
     "range": 90,
     "targets": "all",
     "radius": 8,
-    "abilities": [],
+    "abilities": ["sky_burst"],
     "respawn": { "atDawn": true },
     "color": "#33691e",
     "accent": "#aed581"
   }
 }
+

@@ -60,6 +60,12 @@ Update it as decisions get made.
   survivors heal to full and destroyed buildings are rebuilt free at their
   previous level. The penalty: a building destroyed at night earns no income
   that dawn, and wrecks (smoking rubble) don't fight or earn until rebuilt.
+- **Backlog hygiene (2026-07-18):** dual code + design review pack filed in
+  `TICKETS.md` (CD-54–CD-61 new; areas 1–10 mapped to existing tickets).
+  **Re-sequenced 2026-07-18** after genre-peer review feedback (see
+  "Genre peer lessons" below): QA-close trust pack → CD-40 → CD-49 → CD-47
+  design → CD-30 Slice 4 / CD-16 / juice → eng scale. Does **not** unfreeze
+  balance work or level-length Steps 1–3.
 
 ---
 
@@ -345,24 +351,64 @@ real option, in this order:
    is just authoring wave entries at runtime.
 - Difficulty scaling for 2P: +enemy count percentage, tune later.
 
-## Community-feedback lessons (ThroneFall player data, reviewed 2026-07-14)
+## Genre peer lessons (day/night base defense)
 
-Make/break items mapped to our game:
-1. **Rigid building nodes** (their #1 complaint — we inherited the model):
-   counter with wave-direction variety, meaningfully different per-site
-   options, path geometry that punishes neglected zones (ticket CD-13), and
-   eventually nav-grid wall pieces (Phase 4) for StarCraft-style walling.
-2. **Difficulty cliffs** (their #4; our CD-12 confirmed a flatline-then-cliff):
-   waves should deal survivable-but-visible damage as builds thin out —
-   pressure must be legible before it is lethal.
-3. **No undo/sell** (their #2): add same-day full-refund undo + partial
-   refund sell (fits as a second chip next to the upgrade chip).
-4. **Micromanagement** (their #3): solved structurally by the anchor system.
-5. **Perk/mutator system** (their top replayability driver): mutators are
-   cheap for us — stat-modifier layers over the JSON defs. Pull forward
-   when meta progression starts.
-6. **Late-game visual clutter** (their #5): particle budget + readability
-   over spectacle once waves exceed ~40 enemies.
+Internal design notes from genre peers (notably the minimalist day-build /
+night-defend + commander-on-map family). **Not for player-facing marketing
+copy.** Sources: Steam/user review consensus, critic write-ups, community
+threads; cross-checked against our backlog 2026-07-14 and refreshed
+2026-07-18.
+
+### What peers are loved for (adopt / protect)
+
+| Lesson | Implication for us | Status |
+|--------|--------------------|--------|
+| Crystal-clear day → night → dawn loop | Keep micro-loops obvious; never bury "what do I do now?" | Shipped core |
+| Commander on the map (night agency) | Hero is baseline night avatar, not a late unlock | CD-29 shipped; **CD-40** actives still open |
+| Minimalist readability + juice over clutter | Prefer legible threats/counters; music/climax sell later | 2.5D paint shipped; **CD-6 / CD-33** open |
+| Geographic economy (safe floor vs contested rich) | Map is the budget; cheap safe income + scary rich nodes | Mining shipped; **CD-47** design open; **CD-50** frozen |
+| Pre-run perks / mutators as retention | Loadout remix + stars; kits should feel *earned* | CD-30 S0–3 shipped; **Slice 4 gating** open |
+| Long enough runs for a build identity | Branches/L3 only matter if the run funds them | Level-length parked (freeze); **CD-31** campaign later |
+| Forgiveness without free wins | Dawn free rebuild; income lost on wrecks that night | Shipped |
+
+### What peers are disliked for (avoid / counter)
+
+| Lesson | Implication for us | Status |
+|--------|--------------------|--------|
+| Rigid build nodes, same slots every run | Different options per site + per-building branches; free geometry later | **CD-55** site forks shipped; **CD-49** branches open; **CD-9** post-port |
+| Unit rally / troop micromanagement | **Never** add unit-command / rally verbs | Locked decision (lone fighter + anchors) |
+| No undo / sell of mis-builds | Same-day undo + partial sell | **CD-24** shipped |
+| Final-night / boss "lose first time by design" | Climaxes must be legible; competent combined-arms should clear without max-rush | Cliffs filed (**CD-41** etc.); **balance freeze** — file, don't ladder-tune |
+| Thin long-term strategy / repetition | Branches, site forks, mutators, campaign maps | CD-38/55 partial; **CD-49**, **CD-30 S4**, **CD-31** |
+| Hero-buff loadouts dominate everything else | No income-in-global-mods; keep tower/squad roles meaningful | D8 income ban in `StatMods`; watch CD-30 balance when unfrozen |
+| Late-game visual clutter | Particle budget; silhouettes over spectacle at high entity counts | Design constraint; enforce when content scales |
+
+### Plan implications (2026-07-18)
+
+Does **not** rewrite phases or unfreeze balance. It **reorders execution**:
+
+1. Close trust / data / harness work already coded (false wins destroy playtests).
+2. **CD-40** night kit next among features (peer praise for commander agency).
+3. **CD-49** branch depth (soft counter to rigid nodes without free placement).
+4. **CD-47** two-layer economy — designed 2026-07-18 (`docs/design-house-economy.md`); code after
+   user U1/U2 (safe floor yes/no + placement model).
+5. **CD-30 Slice 4** + **CD-16** + juice (**CD-6 / CD-33**) for retention and demo sell.
+6. **CD-31** campaign volume after port-gate decision (answers content/repetition).
+7. **CD-9** walls/pathing stays post-port (real free-form answer to rigid nodes).
+
+**Explicit non-goals from peer dislike lists:** unit rally/command; economy-global
+must-pick income perks; boss fights designed as free first losses.
+
+### Historical make/break list (ThroneFall player data, 2026-07-14)
+
+Preserved for ticket cross-refs; superseded in priority by the tables above:
+1. **Rigid building nodes** — counter with site options, branches, path pressure
+   (CD-13 era), eventually nav-grid walls (Phase 4 / CD-9).
+2. **Difficulty cliffs** — pressure legible before lethal (CD-12 lineage; freeze).
+3. **No undo/sell** — shipped as CD-24.
+4. **Micromanagement** — solved by anchors; do not reintroduce.
+5. **Perk/mutator system** — CD-30; gating still open.
+6. **Late-game visual clutter** — particle budget + readability.
 
 ## Open questions
 

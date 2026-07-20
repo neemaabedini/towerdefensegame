@@ -1,6 +1,8 @@
 import type { AppShell } from "../app/AppShell";
+import { getAbility } from "../data/abilities";
 import { getBuilding } from "../data/buildings";
 import { getEnemy } from "../data/enemies";
+import { getHero } from "../data/hero";
 import { getUnit } from "../data/units";
 import type { Game } from "../game/Game";
 import type { GameSnapshot } from "../game/types";
@@ -21,6 +23,10 @@ export class HUD {
   private btnReady: HTMLButtonElement;
   private btnSpeed: HTMLButtonElement;
   private speedLabelEl: HTMLElement;
+  private abilityBarEl: HTMLElement;
+  private btnAbility: HTMLButtonElement;
+  private abilityNameEl: HTMLElement;
+  private abilityCdEl: HTMLElement;
   private btnRestart: HTMLButtonElement;
   private overlay: HTMLElement;
   private overlayTitle: HTMLElement;
@@ -48,6 +54,10 @@ export class HUD {
     this.selectedInfoEl = el("selected-info");
     this.btnReady = el("btn-ready") as HTMLButtonElement;
     this.btnSpeed = el("btn-speed") as HTMLButtonElement;
+    this.abilityBarEl = el("ability-bar");
+    this.btnAbility = el("btn-ability") as HTMLButtonElement;
+    this.abilityNameEl = el("ability-name");
+    this.abilityCdEl = el("ability-cd");
     this.speedLabelEl = el("speed-label");
     this.btnRestart = el("btn-restart") as HTMLButtonElement;
     this.overlay = el("overlay");
@@ -61,6 +71,7 @@ export class HUD {
 
     this.btnReady.addEventListener("click", () => this.game.startNight());
     this.btnSpeed.addEventListener("click", () => this.shell.toggleNightSpeed());
+    this.btnAbility.addEventListener("click", () => this.game.castAbility(0));
     this.btnRestart.addEventListener("click", () => this.game.restartLevel());
     this.btnOverlaySecondary.addEventListener("click", () => {
       this.hideOverlay();
@@ -122,6 +133,9 @@ export class HUD {
     this.phaseLabelEl.className = `phase ${
       state.phase === "night" ? "night" : "day"
     }`;
+
+    // Ability cooldown ticks every frame during night (CD-40).
+    this.renderAbilityBar(state);
 
     // Live HP line for the selected building (drains during night)
     if (this.selectedHpEl && state.selectedBuildingId) {
@@ -325,6 +339,36 @@ export class HUD {
     // night starts (CD-28).
     this.btnSpeed.classList.toggle("hidden", state.phase !== "night");
     this.speedLabelEl.textContent = `${this.shell.nightSpeed}x`;
+
+    // CD-40 ability bar — night only while hero is alive.
+    this.renderAbilityBar(state);
+  }
+
+  /** Weapon active face + cooldown (CD-40). Numbers on the button, no hover tax. */
+  private renderAbilityBar(state: GameSnapshot): void {
+    const hero = state.hero;
+    const nightAlive =
+      state.phase === "night" && !!hero && hero.alive && hero.deployed;
+    this.abilityBarEl.classList.toggle("hidden", !nightAlive);
+    if (!nightAlive || !hero) {
+      this.btnAbility.disabled = true;
+      return;
+    }
+    const hDef = getHero(hero.defId);
+    const abilityId = hDef.abilities[0];
+    if (!abilityId) {
+      this.abilityBarEl.classList.add("hidden");
+      this.btnAbility.disabled = true;
+      return;
+    }
+    const ab = getAbility(abilityId);
+    this.abilityNameEl.textContent = ab.name;
+    this.btnAbility.title = ab.blurb;
+    const cd = hero.abilityCooldowns[abilityId] ?? 0;
+    const ready = cd <= 0;
+    this.btnAbility.disabled = !ready;
+    this.btnAbility.classList.toggle("ready", ready);
+    this.abilityCdEl.textContent = ready ? "Ready" : `${cd.toFixed(1)}s`;
   }
 
   private renderOverlay(state: GameSnapshot): void {

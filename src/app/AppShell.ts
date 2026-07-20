@@ -64,10 +64,11 @@ export class AppShell {
   private activeMutatorCount = 0;
 
   constructor(backend: StorageBackend = new LocalStorageBackend(SAVE_KEY)) {
-    // DEV-only data contract check (docs/design-economy-rework.md R4) —
-    // fails loud on boot rather than shipping a stale level.json edit that
-    // tsc's `as unknown as` casts can't catch. See src/data/validate.ts.
-    if (import.meta.env.DEV) validateLevels();
+    // Data contract (docs/design-economy-rework.md R4; CD-56) — fails loud
+    // on every boot, not only DEV. Build also runs the same check via
+    // `npm run validate` / `tools/validate-data.mjs` so broken JSON never
+    // ships. tsc's `as unknown as` casts cannot catch content errors.
+    validateLevels();
     this.backend = backend;
     this.data = load(this.backend);
     this._nightSpeed = this.data.settings.nightSpeed;
@@ -348,7 +349,12 @@ export class AppShell {
   private handleGameChange(): void {
     const state = this.game.getSnapshot();
     if (this.prevPhase !== "victory" && state.phase === "victory") {
-      this.recordVictory(state);
+      // CD-54: never persist a clear / unlock if the HQ is dead. Sim should
+      // not emit victory in that case; this is a shell-side belt.
+      const hq = state.buildings.find((b) => b.id === state.hqId);
+      if (hq && hq.hp > 0) {
+        this.recordVictory(state);
+      }
     }
     this.prevPhase = state.phase;
     this.notify();
@@ -359,7 +365,9 @@ export class AppShell {
     if (!level) return;
 
     const hq = state.buildings.find((b) => b.id === state.hqId);
-    const pct = hq && hq.maxHp > 0 ? Math.round((hq.hp / hq.maxHp) * 100) : 0;
+    // Belt for CD-54 — callers already gate, but never write cleared on a dead HQ.
+    if (!hq || hq.hp <= 0) return;
+    const pct = hq.maxHp > 0 ? Math.round((hq.hp / hq.maxHp) * 100) : 0;
     const existing = this.data.levels[level.id];
     const bestHqHpPct = existing ? Math.max(existing.bestHqHpPct, pct) : pct;
     // Star 3 (Hardened): >=1 mutator active on a winning run. Sticky once

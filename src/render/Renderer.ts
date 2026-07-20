@@ -1,3 +1,4 @@
+import { getAbility } from "../data/abilities";
 import { getBuilding, scaledStats } from "../data/buildings";
 import { getEnemy } from "../data/enemies";
 import { getHero } from "../data/hero";
@@ -83,75 +84,237 @@ export class Renderer {
     this.drawPhaseVignette(state);
   }
 
+  /**
+   * 2.5D ground paint: top-down coords stay flat for gameplay, but the
+   * paint uses foreshortened diamonds, mesa bands, and soft height so the
+   * battlefield reads with volume (not true 3D / no camera tilt).
+   */
   private drawTerrain(state: GameSnapshot): void {
     const ctx = this.ctx;
     const isNight = state.phase === "night";
+    const W = this.w;
+    const H = this.h;
 
-    // Base ground
-    const g = ctx.createLinearGradient(0, 0, 0, this.h);
+    // Deep base (ash / dusk soil)
+    const base = ctx.createLinearGradient(0, 0, 0, H);
     if (isNight) {
-      g.addColorStop(0, "#0a1220");
-      g.addColorStop(1, "#0d1528");
+      base.addColorStop(0, "#0b1424");
+      base.addColorStop(0.45, "#0e1a2e");
+      base.addColorStop(1, "#0a101c");
     } else {
-      g.addColorStop(0, "#1a2a1a");
-      g.addColorStop(1, "#152218");
+      base.addColorStop(0, "#2a3a28");
+      base.addColorStop(0.4, "#243424");
+      base.addColorStop(1, "#1a261c");
     }
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, this.w, this.h);
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, W, H);
 
-    // Grid
-    ctx.strokeStyle = isNight
-      ? "rgba(80, 120, 180, 0.06)"
-      : "rgba(100, 140, 80, 0.08)";
-    ctx.lineWidth = 1;
-    const step = 40;
-    for (let x = 0; x <= this.w; x += step) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x, this.h);
-      ctx.stroke();
-    }
-    for (let y = 0; y <= this.h; y += step) {
-      ctx.beginPath();
-      ctx.moveTo(0, y);
-      ctx.lineTo(this.w, y);
-      ctx.stroke();
+    // Distant ridge / mesa silhouettes (parallax-ish backdrop, pure paint)
+    this.drawMesaBands(isNight);
+
+    // Diamond ground tiles (foreshortened plate for 2.5D depth)
+    const tileW = 56;
+    const tileH = 28;
+    for (let row = -1; row < H / tileH + 2; row++) {
+      for (let col = -1; col < W / tileW + 2; col++) {
+        const cx = col * tileW + (row % 2 === 0 ? 0 : tileW * 0.5);
+        const cy = row * tileH * 0.5;
+        const n = this.hash2(col + 17, row + 31);
+        const shade = isNight
+          ? 0.04 + n * 0.06
+          : 0.05 + n * 0.08;
+        const warm = n > 0.55;
+        ctx.fillStyle = isNight
+          ? warm
+            ? `rgba(50, 72, 110, ${shade})`
+            : `rgba(30, 48, 72, ${shade})`
+          : warm
+            ? `rgba(90, 110, 55, ${shade})`
+            : `rgba(45, 70, 42, ${shade})`;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy - tileH * 0.5);
+        ctx.lineTo(cx + tileW * 0.5, cy);
+        ctx.lineTo(cx, cy + tileH * 0.5);
+        ctx.lineTo(cx - tileW * 0.5, cy);
+        ctx.closePath();
+        ctx.fill();
+        // Tiny top-edge highlight for fake height on some tiles
+        if (n > 0.72) {
+          ctx.strokeStyle = isNight
+            ? "rgba(100, 140, 190, 0.07)"
+            : "rgba(140, 170, 90, 0.1)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(cx - tileW * 0.35, cy - 2);
+          ctx.lineTo(cx, cy - tileH * 0.42);
+          ctx.lineTo(cx + tileW * 0.35, cy - 2);
+          ctx.stroke();
+        }
+      }
     }
 
-    // Subtle noise patches
-    ctx.fillStyle = isNight
-      ? "rgba(40, 60, 100, 0.12)"
-      : "rgba(60, 90, 50, 0.15)";
-    for (let i = 0; i < 12; i++) {
-      const px = ((i * 137) % this.w) + 20;
-      const py = ((i * 97) % this.h) + 20;
+    // Soil blotches (irregular "high ground" islands)
+    for (let i = 0; i < 18; i++) {
+      const px = this.hash2(i * 3, 9) * W;
+      const py = this.hash2(i * 5, 11) * H;
+      const rx = 40 + this.hash2(i, 2) * 70;
+      const ry = rx * (0.38 + this.hash2(i, 4) * 0.18);
+      const elev = this.hash2(i, 7);
+      ctx.fillStyle = isNight
+        ? `rgba(25, 40, 65, ${0.12 + elev * 0.1})`
+        : `rgba(55, 78, 40, ${0.14 + elev * 0.12})`;
       ctx.beginPath();
-      ctx.ellipse(px, py, 50 + (i % 5) * 10, 30 + (i % 3) * 8, 0, 0, Math.PI * 2);
+      ctx.ellipse(px, py, rx, ry, elev * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      // Soft south rim shadow (objects "sit" on the plane)
+      ctx.fillStyle = isNight
+        ? "rgba(0, 0, 0, 0.12)"
+        : "rgba(0, 0, 0, 0.1)";
+      ctx.beginPath();
+      ctx.ellipse(px, py + ry * 0.55, rx * 0.85, ry * 0.35, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+
+    // Fine grit (deterministic dither, not a flat grid)
+    ctx.fillStyle = isNight
+      ? "rgba(90, 120, 160, 0.07)"
+      : "rgba(120, 140, 80, 0.08)";
+    for (let i = 0; i < 220; i++) {
+      const x = Math.floor(this.hash2(i, 41) * W);
+      const y = Math.floor(this.hash2(i, 43) * H);
+      const s = 1 + (i % 3 === 0 ? 1 : 0);
+      ctx.fillRect(x, y, s, s);
+    }
+  }
+
+  /** Far cliffs / mesa bands along the top and sides — pure decoration. */
+  private drawMesaBands(isNight: boolean): void {
+    const ctx = this.ctx;
+    const W = this.w;
+    const H = this.h;
+    const ridges: Array<{ y: number; h: number; a: number }> = [
+      { y: 0, h: 48, a: 0.35 },
+      { y: 18, h: 36, a: 0.22 },
+      { y: H - 40, h: 40, a: 0.18 },
+    ];
+    for (const ridge of ridges) {
+      ctx.fillStyle = isNight
+        ? `rgba(12, 20, 36, ${ridge.a})`
+        : `rgba(18, 28, 16, ${ridge.a})`;
+      ctx.beginPath();
+      ctx.moveTo(0, ridge.y + ridge.h);
+      let x = 0;
+      let i = 0;
+      while (x <= W) {
+        const peak = ridge.y + this.hash2(i, Math.floor(ridge.y)) * ridge.h * 0.7;
+        ctx.lineTo(x, peak);
+        x += 28 + this.hash2(i + 3, 2) * 24;
+        i++;
+      }
+      ctx.lineTo(W, ridge.y + ridge.h);
+      ctx.closePath();
+      ctx.fill();
+      // Lit rim
+      ctx.strokeStyle = isNight
+        ? "rgba(70, 100, 140, 0.15)"
+        : "rgba(100, 130, 70, 0.18)";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      x = 0;
+      i = 0;
+      let first = true;
+      while (x <= W) {
+        const peak = ridge.y + this.hash2(i, Math.floor(ridge.y)) * ridge.h * 0.7;
+        if (first) {
+          ctx.moveTo(x, peak);
+          first = false;
+        } else ctx.lineTo(x, peak);
+        x += 28 + this.hash2(i + 3, 2) * 24;
+        i++;
+      }
+      ctx.stroke();
+    }
+  }
+
+  /** Stable 0..1 hash from integer seeds (no Math.random — CD-20-safe paint). */
+  private hash2(a: number, b: number): number {
+    let n = (a * 374761393 + b * 668265263) | 0;
+    n = (n ^ (n >>> 13)) * 1274126177;
+    n = n ^ (n >>> 16);
+    return (n >>> 0) / 4294967296;
+  }
+
+  /** Soft contact shadow on the ground plane (2.5D). */
+  private drawGroundShadow(
+    x: number,
+    y: number,
+    rx: number,
+    ry: number,
+    alpha = 0.28,
+  ): void {
+    const ctx = this.ctx;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, rx);
+    g.addColorStop(0, `rgba(0, 0, 0, ${alpha})`);
+    g.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.ellipse(x, y + ry * 0.15, rx, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   private drawPaths(state: GameSnapshot): void {
     const ctx = this.ctx;
     const isNight = state.phase === "night";
-    ctx.strokeStyle = isNight
-      ? "rgba(180, 100, 100, 0.18)"
-      : "rgba(120, 90, 60, 0.2)";
-    ctx.lineWidth = 14;
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
 
     for (const spawn of state.level.spawns) {
       const path = state.level.paths[spawn.id];
       if (!path || path.length < 2) continue;
-      ctx.beginPath();
-      ctx.moveTo(path[0]!.x, path[0]!.y);
-      for (let i = 1; i < path.length; i++) {
-        ctx.lineTo(path[i]!.x, path[i]!.y);
-      }
-      ctx.lineTo(state.level.hq.x, state.level.hq.y);
-      ctx.stroke();
+
+      // Build polyline including HQ terminus
+      const pts = path.map((p) => ({ x: p.x, y: p.y }));
+      pts.push({ x: state.level.hq.x, y: state.level.hq.y });
+
+      // Embankment (wider, darker) — reads as a cut road bed
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.strokeStyle = isNight
+        ? "rgba(20, 14, 18, 0.55)"
+        : "rgba(35, 28, 18, 0.45)";
+      ctx.lineWidth = 22;
+      this.strokePolyline(pts);
+
+      // Dirt pack
+      ctx.strokeStyle = isNight
+        ? "rgba(90, 55, 48, 0.55)"
+        : "rgba(120, 88, 52, 0.55)";
+      ctx.lineWidth = 16;
+      this.strokePolyline(pts);
+
+      // Worn center (lighter, slightly recessed highlight)
+      ctx.strokeStyle = isNight
+        ? "rgba(140, 90, 70, 0.28)"
+        : "rgba(168, 128, 78, 0.4)";
+      ctx.lineWidth = 7;
+      this.strokePolyline(pts);
+
+      // Edge ruts
+      ctx.strokeStyle = isNight
+        ? "rgba(0, 0, 0, 0.2)"
+        : "rgba(0, 0, 0, 0.15)";
+      ctx.lineWidth = 1.5;
+      this.strokePolyline(pts);
     }
+  }
+
+  private strokePolyline(pts: Array<{ x: number; y: number }>): void {
+    if (pts.length < 2) return;
+    const ctx = this.ctx;
+    ctx.beginPath();
+    ctx.moveTo(pts[0]!.x, pts[0]!.y);
+    for (let i = 1; i < pts.length; i++) {
+      ctx.lineTo(pts[i]!.x, pts[i]!.y);
+    }
+    ctx.stroke();
   }
 
   /** Sprite path for terrain props; crystals get a pulsing glow behind. */
@@ -175,18 +338,23 @@ export class Renderer {
     if (!f) return false;
 
     const ctx = this.ctx;
+    // Contact shadow under sprite (2.5D)
+    this.drawGroundShadow(o.x, o.y + 2, o.r * 1.05, o.r * 0.42, 0.32);
+
     if (o.kind === "crystal") {
       const glow = 0.22 + 0.14 * Math.sin(this.time * 1.5 + o.x);
       ctx.fillStyle = `rgba(77, 208, 225, ${glow})`;
       ctx.beginPath();
-      ctx.arc(o.x, o.y, o.r + 6, 0, Math.PI * 2);
+      ctx.ellipse(o.x, o.y, o.r + 8, (o.r + 8) * 0.55, 0, 0, Math.PI * 2);
       ctx.fill();
     }
 
     const flip = (o.x * 7 + o.y * 13) % 2 === 0;
+    // Slight Y squash + lift so flat sprites read as standing on the plane
     ctx.save();
     ctx.translate(Math.round(o.x), Math.round(o.y));
     if (flip) ctx.scale(-1, 1);
+    ctx.scale(1, 0.92);
     ctx.drawImage(
       this.atlas.canvas,
       f.sx,
@@ -194,7 +362,7 @@ export class Renderer {
       f.sw,
       f.sh,
       -f.ax,
-      -f.ay,
+      -f.ay - 2,
       f.sw,
       f.sh,
     );
@@ -202,89 +370,163 @@ export class Renderer {
     return true;
   }
 
+  /**
+   * Extruded rock mesa (2.5D): ground ellipse + side walls + lit top face.
+   * Same footprint as gameplay collision radius — paint only.
+   */
+  private drawRock25d(o: { x: number; y: number; r: number }): void {
+    const ctx = this.ctx;
+    const seed = o.x * 7.3 + o.y * 13.7;
+    const verts = 8;
+    const elev = Math.max(8, o.r * 0.55);
+    const top: Array<{ x: number; y: number }> = [];
+    const base: Array<{ x: number; y: number }> = [];
+    for (let i = 0; i < verts; i++) {
+      const a = (i / verts) * Math.PI * 2 - Math.PI / 2;
+      const wobble = 0.72 + 0.28 * Math.abs(Math.sin(seed + i * 2.4));
+      const rx = o.r * wobble;
+      const ry = o.r * wobble * 0.62;
+      base.push({
+        x: o.x + Math.cos(a) * rx,
+        y: o.y + Math.sin(a) * ry + 2,
+      });
+      top.push({
+        x: o.x + Math.cos(a) * rx * 0.88 - elev * 0.08,
+        y: o.y + Math.sin(a) * ry * 0.88 - elev,
+      });
+    }
+
+    this.drawGroundShadow(o.x, o.y + 4, o.r * 1.15, o.r * 0.48, 0.35);
+
+    // Side walls (back-to-front by average Y of edge)
+    for (let i = 0; i < verts; i++) {
+      const j = (i + 1) % verts;
+      const midY = (base[i]!.y + base[j]!.y) * 0.5;
+      const lit = midY < o.y; // upper edges catch light
+      ctx.fillStyle = lit ? "#4a5560" : "#2a3238";
+      ctx.beginPath();
+      ctx.moveTo(base[i]!.x, base[i]!.y);
+      ctx.lineTo(base[j]!.x, base[j]!.y);
+      ctx.lineTo(top[j]!.x, top[j]!.y);
+      ctx.lineTo(top[i]!.x, top[i]!.y);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // Top plateau
+    ctx.fillStyle = "#5c6b76";
+    ctx.beginPath();
+    ctx.moveTo(top[0]!.x, top[0]!.y);
+    for (let i = 1; i < verts; i++) ctx.lineTo(top[i]!.x, top[i]!.y);
+    ctx.closePath();
+    ctx.fill();
+    // Spec highlight
+    ctx.fillStyle = "rgba(180, 195, 205, 0.22)";
+    ctx.beginPath();
+    ctx.moveTo(top[0]!.x, top[0]!.y);
+    for (let i = 1; i < Math.ceil(verts / 2); i++) {
+      ctx.lineTo(top[i]!.x, top[i]!.y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
   /** Rocky outcrops and mineral crystals — the natural barriers that shape the funnels */
   private drawObstacles(state: GameSnapshot): void {
     const ctx = this.ctx;
-    for (const o of state.level.obstacles) {
-      if (this.drawObstacleSprite(o)) continue;
+    // Painter's algorithm-ish: sort by Y so lower props cover upper ones
+    const sorted = [...state.level.obstacles].sort((a, b) => a.y - b.y);
+    for (const o of sorted) {
       if (o.kind === "rock") {
-        // Jagged blob, deterministic per-obstacle so it doesn't flicker
-        const seed = o.x * 7.3 + o.y * 13.7;
-        const verts = 7;
-        for (const [fill, scale, dx, dy] of [
-          ["#2b343b", 1, 0, 3],
-          ["#3e4a52", 0.92, 0, 0],
-          ["#55636d", 0.55, -o.r * 0.18, -o.r * 0.2],
-        ] as const) {
-          ctx.fillStyle = fill;
-          ctx.beginPath();
-          for (let i = 0; i <= verts; i++) {
-            const a = (i / verts) * Math.PI * 2;
-            const wobble = 0.72 + 0.28 * Math.abs(Math.sin(seed + i * 2.4));
-            const px = o.x + dx + Math.cos(a) * o.r * scale * wobble;
-            const py = o.y + dy + Math.sin(a) * o.r * scale * wobble * 0.8;
-            if (i === 0) ctx.moveTo(px, py);
-            else ctx.lineTo(px, py);
-          }
-          ctx.closePath();
-          ctx.fill();
-        }
-      } else if (o.kind === "plasma") {
-        // Plasma Well: pulsing amber pool + rising motes. Vector fallback
-        // (Step 5 ships plasma:0|1 atlas frames) — amber deliberately, not
-        // green, so it reads distinct from Blizzard's vespene trade dress
-        // (docs/design-economy-rework.md C1/§5 naming note).
+        // Large rocks: extruded 2.5D mesa; small: atlas sprite with shadow
+        if (o.r >= 26) this.drawRock25d(o);
+        else if (!this.drawObstacleSprite(o)) this.drawRock25d(o);
+        continue;
+      }
+      if (this.drawObstacleSprite(o)) continue;
+      if (o.kind === "plasma") {
+        // Plasma Well: amber pool on the ground plane
+        this.drawGroundShadow(o.x, o.y + 2, o.r * 1.3, o.r * 0.55, 0.25);
         const glow = 0.5 + 0.3 * Math.sin(this.time * 1.2 + o.x);
-        const grad = ctx.createRadialGradient(o.x, o.y, o.r * 0.1, o.x, o.y, o.r);
-        grad.addColorStop(0, `rgba(255, 202, 40, ${0.75 + glow * 0.2})`);
-        grad.addColorStop(1, `rgba(239, 108, 0, ${0.25 + glow * 0.15})`);
+        const grad = ctx.createRadialGradient(
+          o.x,
+          o.y - 2,
+          o.r * 0.1,
+          o.x,
+          o.y,
+          o.r,
+        );
+        grad.addColorStop(0, `rgba(255, 202, 40, ${0.8 + glow * 0.15})`);
+        grad.addColorStop(0.55, `rgba(239, 140, 20, ${0.45 + glow * 0.1})`);
+        grad.addColorStop(1, `rgba(120, 50, 0, 0.15)`);
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.ellipse(o.x, o.y, o.r, o.r * 0.62, 0, 0, Math.PI * 2);
+        ctx.ellipse(o.x, o.y, o.r * 1.15, o.r * 0.55, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.strokeStyle = `rgba(255, 167, 38, ${0.5 + glow * 0.3})`;
-        ctx.lineWidth = 2;
+        // Raised rim
+        ctx.strokeStyle = `rgba(255, 180, 60, ${0.45 + glow * 0.25})`;
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.ellipse(o.x, o.y, o.r * 1.15, o.r * 0.55, 0, 0, Math.PI * 2);
         ctx.stroke();
-        for (let i = 0; i < 3; i++) {
-          const t = (this.time * 0.6 + i / 3 + o.x * 0.01) % 1;
-          ctx.fillStyle = `rgba(255, 224, 130, ${0.5 * (1 - t)})`;
+        ctx.strokeStyle = "rgba(60, 30, 10, 0.35)";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.ellipse(o.x, o.y + 1, o.r * 1.05, o.r * 0.48, 0, 0, Math.PI * 2);
+        ctx.stroke();
+        for (let i = 0; i < 4; i++) {
+          const t = (this.time * 0.55 + i / 4 + o.x * 0.01) % 1;
+          ctx.fillStyle = `rgba(255, 230, 140, ${0.55 * (1 - t)})`;
           ctx.beginPath();
           ctx.arc(
-            o.x + Math.sin(this.time * 2 + i * 3) * o.r * 0.3,
-            o.y - t * o.r * 1.4,
-            2 + (1 - t) * 2,
+            o.x + Math.sin(this.time * 2 + i * 3) * o.r * 0.35,
+            o.y - t * o.r * 1.6 - 4,
+            2 + (1 - t) * 2.5,
             0,
             Math.PI * 2,
           );
           ctx.fill();
         }
       } else {
-        // Crystal cluster: elongated shards with a slow glow pulse
+        // Crystal cluster: ground glow + tall shards (2.5D)
+        this.drawGroundShadow(o.x, o.y + 3, o.r * 1.2, o.r * 0.45, 0.28);
         const glow = 0.5 + 0.3 * Math.sin(this.time * 1.5 + o.x);
+        ctx.fillStyle = `rgba(40, 160, 180, ${0.2 + glow * 0.15})`;
+        ctx.beginPath();
+        ctx.ellipse(o.x, o.y + 2, o.r * 1.1, o.r * 0.45, 0, 0, Math.PI * 2);
+        ctx.fill();
         const shards: Array<[number, number, number, number]> = [
-          [0, 0, 1.15, 0],
-          [-o.r * 0.55, o.r * 0.25, 0.75, -0.35],
-          [o.r * 0.55, o.r * 0.3, 0.85, 0.3],
+          [0, 0, 1.35, 0],
+          [-o.r * 0.55, o.r * 0.15, 0.9, -0.35],
+          [o.r * 0.55, o.r * 0.2, 1.0, 0.3],
         ];
         for (const [ox, oy, len, lean] of shards) {
           const bx = o.x + ox;
           const by = o.y + oy;
           const h = o.r * len;
-          ctx.fillStyle = `rgba(77, 208, 225, ${0.55 + glow * 0.25})`;
+          // Side face (darker)
+          ctx.fillStyle = `rgba(20, 110, 130, ${0.65 + glow * 0.15})`;
           ctx.beginPath();
-          ctx.moveTo(bx + lean * h, by - h);
-          ctx.lineTo(bx + h * 0.3, by);
-          ctx.lineTo(bx, by + h * 0.25);
-          ctx.lineTo(bx - h * 0.3, by);
+          ctx.moveTo(bx + lean * h * 0.2, by - h);
+          ctx.lineTo(bx + h * 0.32, by + 2);
+          ctx.lineTo(bx - h * 0.08, by + 2);
           ctx.closePath();
           ctx.fill();
-          ctx.fillStyle = `rgba(178, 235, 242, ${0.35 + glow * 0.25})`;
+          // Lit face
+          ctx.fillStyle = `rgba(100, 230, 240, ${0.55 + glow * 0.25})`;
           ctx.beginPath();
-          ctx.moveTo(bx + lean * h, by - h);
-          ctx.lineTo(bx + h * 0.12, by - h * 0.15);
-          ctx.lineTo(bx - h * 0.08, by);
+          ctx.moveTo(bx + lean * h * 0.2, by - h);
+          ctx.lineTo(bx - h * 0.08, by + 2);
+          ctx.lineTo(bx - h * 0.35, by + 2);
           ctx.closePath();
           ctx.fill();
+          // Specular edge
+          ctx.strokeStyle = `rgba(220, 255, 255, ${0.35 + glow * 0.2})`;
+          ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(bx + lean * h * 0.2, by - h);
+          ctx.lineTo(bx - h * 0.12, by);
+          ctx.stroke();
         }
       }
     }
@@ -298,34 +540,43 @@ export class Renderer {
       const active = upcoming.has(spawn.id);
 
       if (!active) {
-        // Dormant spawn: faint marker only
-        ctx.strokeStyle = "rgba(144, 164, 174, 0.25)";
+        // Dormant spawn: foreshortened ground ring
+        ctx.strokeStyle = "rgba(144, 164, 174, 0.28)";
         ctx.lineWidth = 1.5;
         ctx.beginPath();
-        ctx.arc(spawn.x, spawn.y, 10, 0, Math.PI * 2);
+        ctx.ellipse(spawn.x, spawn.y, 12, 6, 0, 0, Math.PI * 2);
         ctx.stroke();
-        ctx.fillStyle = "rgba(144, 164, 174, 0.15)";
+        ctx.fillStyle = "rgba(144, 164, 174, 0.12)";
         ctx.beginPath();
-        ctx.arc(spawn.x, spawn.y, 5, 0, Math.PI * 2);
+        ctx.ellipse(spawn.x, spawn.y, 6, 3, 0, 0, Math.PI * 2);
         ctx.fill();
         continue;
       }
 
-      // Threat marker: pulsing double ring
+      // Threat marker: pulsing ellipses on the ground plane (2.5D)
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 4);
+      this.drawGroundShadow(spawn.x, spawn.y + 2, 16, 8, 0.2);
       ctx.strokeStyle = `rgba(239, 83, 80, ${0.5 + pulse * 0.4})`;
       ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.arc(spawn.x, spawn.y, 12, 0, Math.PI * 2);
+      ctx.ellipse(spawn.x, spawn.y, 14, 7, 0, 0, Math.PI * 2);
       ctx.stroke();
       ctx.strokeStyle = `rgba(239, 83, 80, ${0.25 + pulse * 0.25})`;
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(spawn.x, spawn.y, 19 + pulse * 5, 0, Math.PI * 2);
+      ctx.ellipse(
+        spawn.x,
+        spawn.y,
+        20 + pulse * 5,
+        10 + pulse * 2.5,
+        0,
+        0,
+        Math.PI * 2,
+      );
       ctx.stroke();
       ctx.fillStyle = "rgba(239, 83, 80, 0.35)";
       ctx.beginPath();
-      ctx.arc(spawn.x, spawn.y, 7, 0, Math.PI * 2);
+      ctx.ellipse(spawn.x, spawn.y, 8, 4, 0, 0, Math.PI * 2);
       ctx.fill();
 
       // Marching chevrons along the first path segment — "they come this way"
@@ -373,35 +624,72 @@ export class Renderer {
       if (site.buildingId) continue;
       const selected = site.id === state.selectedSiteId;
       const pulse = 0.6 + 0.4 * Math.sin(this.time * 2.5 + site.x * 0.01);
-
-      if (selected) this.drawFocusBrackets(site.x, site.y, 30);
-
-      ctx.fillStyle = selected
-        ? `rgba(79, 195, 247, ${0.25 + pulse * 0.15})`
-        : `rgba(144, 164, 174, ${0.12 + pulse * 0.08})`;
-      ctx.strokeStyle = selected
-        ? "#4fc3f7"
-        : site.category === "resource"
+      const catColor =
+        site.category === "resource"
           ? "#4dd0e1"
           : site.category === "defense"
             ? "#90a4ae"
             : "#ce93d8";
-      ctx.lineWidth = selected ? 2.5 : 1.5;
-      ctx.setLineDash(selected ? [] : [6, 4]);
 
+      if (selected) this.drawFocusBrackets(site.x, site.y, 30);
+
+      // Isometric build pad (foundation plate) — not a flat circle
+      const hw = 26;
+      const hh = 14;
+      this.drawGroundShadow(site.x, site.y + 4, hw * 1.1, hh * 0.9, 0.22);
+
+      // Pad top (diamond)
+      ctx.fillStyle = selected
+        ? `rgba(40, 70, 95, ${0.55 + pulse * 0.12})`
+        : "rgba(30, 40, 48, 0.55)";
       ctx.beginPath();
-      ctx.arc(site.x, site.y, 22, 0, Math.PI * 2);
+      ctx.moveTo(site.x, site.y - hh);
+      ctx.lineTo(site.x + hw, site.y);
+      ctx.lineTo(site.x, site.y + hh);
+      ctx.lineTo(site.x - hw, site.y);
+      ctx.closePath();
       ctx.fill();
+
+      // South face (extrusion)
+      ctx.fillStyle = selected
+        ? "rgba(20, 40, 55, 0.75)"
+        : "rgba(12, 18, 22, 0.7)";
+      ctx.beginPath();
+      ctx.moveTo(site.x - hw, site.y);
+      ctx.lineTo(site.x, site.y + hh);
+      ctx.lineTo(site.x, site.y + hh + 5);
+      ctx.lineTo(site.x - hw, site.y + 5);
+      ctx.closePath();
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(site.x + hw, site.y);
+      ctx.lineTo(site.x, site.y + hh);
+      ctx.lineTo(site.x, site.y + hh + 5);
+      ctx.lineTo(site.x + hw, site.y + 5);
+      ctx.closePath();
+      ctx.fill();
+
+      ctx.strokeStyle = selected ? "#4fc3f7" : catColor;
+      ctx.lineWidth = selected ? 2.2 : 1.4;
+      ctx.setLineDash(selected ? [] : [5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(site.x, site.y - hh);
+      ctx.lineTo(site.x + hw, site.y);
+      ctx.lineTo(site.x, site.y + hh);
+      ctx.lineTo(site.x - hw, site.y);
+      ctx.closePath();
       ctx.stroke();
       ctx.setLineDash([]);
 
-      // Inner diamond
-      ctx.fillStyle = selected ? "#4fc3f7" : "rgba(255,255,255,0.35)";
+      // Inner diamond marker
+      ctx.fillStyle = selected
+        ? `rgba(79, 195, 247, ${0.75 + pulse * 0.2})`
+        : "rgba(255,255,255,0.35)";
       ctx.beginPath();
-      ctx.moveTo(site.x, site.y - 6);
-      ctx.lineTo(site.x + 6, site.y);
-      ctx.lineTo(site.x, site.y + 6);
-      ctx.lineTo(site.x - 6, site.y);
+      ctx.moveTo(site.x, site.y - 5);
+      ctx.lineTo(site.x + 7, site.y);
+      ctx.lineTo(site.x, site.y + 5);
+      ctx.lineTo(site.x - 7, site.y);
       ctx.closePath();
       ctx.fill();
 
@@ -409,7 +697,7 @@ export class Renderer {
       ctx.font = "10px Segoe UI, sans-serif";
       ctx.fillStyle = "rgba(200, 210, 230, 0.7)";
       ctx.textAlign = "center";
-      ctx.fillText(site.category.toUpperCase(), site.x, site.y + 34);
+      ctx.fillText(site.category.toUpperCase(), site.x, site.y + 36);
 
       // Resource badge (C2/C7: numbers visible without hover) — how many
       // crystal/plasma nodes a mining building would see if built here.
@@ -433,12 +721,28 @@ export class Renderer {
 
   private drawRanges(state: GameSnapshot): void {
     const ctx = this.ctx;
+
+    // CD-58: pre-buy ghost at the selected empty site (dashed, slightly dimmer).
+    const preview = state.rangePreview;
+    if (preview && preview.range > 0) {
+      ctx.strokeStyle = "rgba(79, 195, 247, 0.28)";
+      ctx.fillStyle = "rgba(79, 195, 247, 0.05)";
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([6, 5]);
+      ctx.beginPath();
+      ctx.arc(preview.x, preview.y, preview.range, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Selected building: combat-accurate range (CD-59 — include globalStatMods).
     const id = state.selectedBuildingId;
     if (!id) return;
     const b = state.buildings.find((x) => x.id === id);
     if (!b) return;
     const def = getBuilding(b.defId);
-    const stats = scaledStats(def, b.level, b.branchId);
+    const stats = scaledStats(def, b.level, b.branchId, state.globalStatMods);
     if (stats.range <= 0) return;
 
     ctx.strokeStyle = "rgba(79, 195, 247, 0.35)";
@@ -478,8 +782,12 @@ export class Renderer {
 
   private drawBuildings(state: GameSnapshot): void {
     this.drawWrecks(state);
-    for (const b of state.buildings) {
-      if (b.hp <= 0) continue;
+    // Painter's algorithm — lower on screen draws later (2.5D depth cue)
+    const list = state.buildings
+      .filter((b) => b.hp > 0)
+      .slice()
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const b of list) {
       this.drawBuilding(b, state);
     }
   }
@@ -522,29 +830,11 @@ export class Renderer {
     const selected = b.id === state.selectedBuildingId;
     const s = def.size;
 
-    // Category base plate: defense = slate, production = green, support = violet
-    if (!b.isHq) {
-      const plate =
-        def.category === "defense"
-          ? ["rgba(96, 125, 139, 0.20)", "rgba(144, 164, 174, 0.45)"]
-          : def.category === "production"
-            ? ["rgba(102, 187, 106, 0.16)", "rgba(129, 199, 132, 0.45)"]
-            : ["rgba(171, 71, 188, 0.16)", "rgba(206, 147, 216, 0.45)"];
-      ctx.fillStyle = plate[0]!;
-      ctx.strokeStyle = plate[1]!;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y + 2, s + 5, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.stroke();
-    }
+    // 2.5D contact shadow + isometric foundation pad
+    this.drawGroundShadow(b.x, b.y + s * 0.35, s * 1.15, s * 0.48, 0.36);
+    this.drawIsoFoundation(b.x, b.y + 2, s + 6, def.category, selected);
 
     if (selected) {
-      ctx.strokeStyle = "#4fc3f7";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y, s + 8, 0, Math.PI * 2);
-      ctx.stroke();
       this.drawFocusBrackets(b.x, b.y, s + 14);
     }
 
@@ -616,6 +906,71 @@ export class Renderer {
     }
   }
 
+  /**
+   * Isometric foundation plate under buildings. Pure paint — selection
+   * radius / gameplay footprint unchanged.
+   */
+  private drawIsoFoundation(
+    x: number,
+    y: number,
+    half: number,
+    category: string,
+    selected: boolean,
+  ): void {
+    const ctx = this.ctx;
+    const hw = half * 1.05;
+    const hh = half * 0.48;
+    const fill =
+      category === "defense"
+        ? selected
+          ? "rgba(70, 95, 110, 0.55)"
+          : "rgba(50, 65, 75, 0.45)"
+        : category === "production"
+          ? selected
+            ? "rgba(55, 90, 50, 0.5)"
+            : "rgba(40, 65, 40, 0.4)"
+          : selected
+            ? "rgba(80, 50, 95, 0.5)"
+            : "rgba(55, 35, 70, 0.4)";
+    const stroke = selected
+      ? "rgba(79, 195, 247, 0.7)"
+      : category === "defense"
+        ? "rgba(144, 164, 174, 0.4)"
+        : category === "production"
+          ? "rgba(129, 199, 132, 0.4)"
+          : "rgba(206, 147, 216, 0.4)";
+
+    // South faces (extrusion)
+    ctx.fillStyle = "rgba(0, 0, 0, 0.28)";
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y);
+    ctx.lineTo(x, y + hh);
+    ctx.lineTo(x, y + hh + 4);
+    ctx.lineTo(x - hw, y + 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + hw, y);
+    ctx.lineTo(x, y + hh);
+    ctx.lineTo(x, y + hh + 4);
+    ctx.lineTo(x + hw, y + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Top diamond
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(x, y - hh);
+    ctx.lineTo(x + hw, y);
+    ctx.lineTo(x, y + hh);
+    ctx.lineTo(x - hw, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = stroke;
+    ctx.lineWidth = selected ? 1.8 : 1.1;
+    ctx.stroke();
+  }
+
   /** Draw a building from the sprite atlas, with living-base overlays
    *  (radar sweep, HQ core glow) kept procedural on top. Returns false if
    *  no sprite exists so the vector fallback runs. */
@@ -626,17 +981,22 @@ export class Renderer {
     if (!f) return false;
 
     const ctx = this.ctx;
+    // Slight vertical squash so atlas art sits on the foreshortened pad
+    ctx.save();
+    ctx.translate(Math.round(b.x), Math.round(b.y));
+    ctx.scale(1, 0.94);
     ctx.drawImage(
       this.atlas.canvas,
       f.sx,
       f.sy,
       f.sw,
       f.sh,
-      Math.round(b.x - f.ax),
-      Math.round(b.y - f.ay),
+      -f.ax,
+      -f.ay - 1,
       f.sw,
       f.sh,
     );
+    ctx.restore();
 
     // Living overlays that want smooth motion, not 2-frame ticks
     if (shape === "radar") {
@@ -652,7 +1012,7 @@ export class Renderer {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 2);
       ctx.fillStyle = `rgba(100, 181, 246, ${0.18 + pulse * 0.2})`;
       ctx.beginPath();
-      ctx.arc(b.x, b.y + 4, 8 + pulse * 3, 0, Math.PI * 2);
+      ctx.ellipse(b.x, b.y + 4, 10 + pulse * 3, 5 + pulse * 1.5, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     return true;
@@ -682,7 +1042,7 @@ export class Renderer {
     }
   }
 
-  /** Command Post: wide pad, dome, side pods, antenna — Terran CC vibes */
+  /** Command Post: wide pad, dome, side pods, antenna */
   private drawHq(x: number, y: number, s: number, color: string, accent: string): void {
     const ctx = this.ctx;
     // Landing pad
@@ -1083,30 +1443,35 @@ export class Renderer {
    *  enemies so units read as standing in front of their bunker. */
   private drawUnits(state: GameSnapshot): void {
     const ctx = this.ctx;
-    for (const u of state.units) {
-      if (u.hp <= 0) continue;
+    const list = state.units
+      .filter((u) => u.hp > 0)
+      .slice()
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const u of list) {
       const def = getUnit(u.unitDefId);
       const r = def.radius;
 
-      // Shadow
-      ctx.fillStyle = "rgba(0,0,0,0.3)";
-      ctx.beginPath();
-      ctx.ellipse(u.x, u.y + r * 0.6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
-      ctx.fill();
+      this.drawGroundShadow(u.x, u.y + r * 0.55, r * 1.05, r * 0.4, 0.32);
 
       if (this.drawUnitSprite(u, state)) {
         this.drawUnitHpBar(u, r);
         continue;
       }
 
-      // Vector fallback: colored body + accent highlight
+      // Vector fallback: 2.5D infantry silhouette
       ctx.fillStyle = def.color;
       ctx.beginPath();
-      ctx.arc(u.x, u.y, r, 0, Math.PI * 2);
+      ctx.ellipse(u.x, u.y + r * 0.15, r * 0.7, r * 0.95, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = def.accent;
       ctx.beginPath();
-      ctx.arc(u.x, u.y - r * 0.3, r * 0.4, 0, Math.PI * 2);
+      ctx.ellipse(u.x, u.y - r * 0.55, r * 0.45, r * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // feet
+      ctx.fillStyle = "rgba(0,0,0,0.35)";
+      ctx.beginPath();
+      ctx.ellipse(u.x - r * 0.25, u.y + r * 0.7, r * 0.25, r * 0.12, 0, 0, Math.PI * 2);
+      ctx.ellipse(u.x + r * 0.25, u.y + r * 0.7, r * 0.25, r * 0.12, 0, 0, Math.PI * 2);
       ctx.fill();
 
       this.drawUnitHpBar(u, r);
@@ -1139,6 +1504,8 @@ export class Renderer {
     ctx.save();
     ctx.translate(Math.round(u.x), Math.round(u.y));
     if (flip) ctx.scale(-1, 1);
+    // Slight foreshorten so infantry stand on the ground plane
+    ctx.scale(1, 0.92);
     ctx.drawImage(
       this.atlas.canvas,
       f.sx,
@@ -1146,7 +1513,7 @@ export class Renderer {
       f.sw,
       f.sh,
       -f.ax,
-      -f.ay,
+      -f.ay - 1,
       f.sw,
       f.sh,
     );
@@ -1198,6 +1565,11 @@ export class Renderer {
     ctx.beginPath();
     ctx.ellipse(hero.x, hero.y + r * 0.6, r * 0.9, r * 0.35, 0, 0, Math.PI * 2);
     ctx.fill();
+
+    // CD-40: faint ability radius when primary active is ready (night only).
+    if (state.phase === "night" && hero.deployed) {
+      this.drawAbilityReadyRing(hero);
+    }
 
     // Imported sprite first (CD-32 pipeline: hero:<frame> baked from
     // tools/import-hero-sheet.mjs); vector figure below stays the fallback.
@@ -1268,27 +1640,42 @@ export class Renderer {
     ctx.fillRect(bx, by, bw * (hero.hp / hero.maxHp), 3);
   }
 
+  /** Soft ring for ready self-cast (CD-40) — telegraph radius without hover. */
+  private drawAbilityReadyRing(hero: HeroState): void {
+    const hDef = getHero(hero.defId);
+    const abilityId = hDef.abilities[0];
+    if (!abilityId) return;
+    if ((hero.abilityCooldowns[abilityId] ?? 0) > 0) return;
+    const ab = getAbility(abilityId);
+    const ctx = this.ctx;
+    const pulse = 0.35 + 0.15 * Math.sin(this.time * 3);
+    ctx.strokeStyle = `rgba(255, 202, 40, ${pulse})`;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.ellipse(hero.x, hero.y, ab.radius, ab.radius * 0.55, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   private drawEnemies(state: GameSnapshot): void {
     const ctx = this.ctx;
-    for (const e of state.enemies) {
-      if (e.hp <= 0) continue;
+    const list = state.enemies
+      .filter((e) => e.hp > 0)
+      .slice()
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const e of list) {
       const def = getEnemy(e.defId);
       const r = def.radius;
       const flyer = def.archetype === "flyer";
 
-      // Shadow (flyers cast a smaller one, further below)
-      ctx.fillStyle = flyer ? "rgba(0,0,0,0.22)" : "rgba(0,0,0,0.3)";
-      ctx.beginPath();
-      ctx.ellipse(
+      this.drawGroundShadow(
         e.x,
-        e.y + r * (flyer ? 1.1 : 0.6),
-        r * (flyer ? 0.7 : 0.9),
-        r * 0.35,
-        0,
-        0,
-        Math.PI * 2,
+        e.y + r * (flyer ? 1.15 : 0.55),
+        r * (flyer ? 0.75 : 1.05),
+        r * (flyer ? 0.28 : 0.4),
+        flyer ? 0.2 : 0.32,
       );
-      ctx.fill();
 
       if (this.drawEnemySprite(e)) {
         this.drawEnemyHpBar(e, r);
@@ -1396,6 +1783,7 @@ export class Renderer {
     ctx.save();
     ctx.translate(dx, dy);
     if (flip) ctx.scale(-1, 1);
+    if (!flyer) ctx.scale(1, 0.92);
     ctx.drawImage(
       this.atlas.canvas,
       f.sx,
@@ -1403,7 +1791,7 @@ export class Renderer {
       f.sw,
       f.sh,
       -f.ax,
-      -f.ay,
+      -f.ay - (flyer ? 0 : 1),
       f.sw,
       f.sh,
     );
