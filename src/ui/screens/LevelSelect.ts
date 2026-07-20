@@ -31,37 +31,44 @@ export class LevelSelect {
 
     this.cardsEl.innerHTML = "";
 
-    // CD-30 hero weapons: pre-level loadout picker. All unlocked for now
-    // (user decision 2026-07-16) — unlock gating arrives with CD-30 proper.
+    // CD-30 hero weapons: pre-level loadout picker. Slice 4 gates chips by
+    // totalStars vs unlockStars (locked chips stay visible, not selectable).
     // Blurb + name on the face, no hover (UI_PLAN 6); selection persists via
     // shell.setHeroWeapon and lands in Game at startLevel.
+    const totalStars = this.shell.totalStars();
     const weaponRow = document.createElement("div");
     weaponRow.className = "weapon-row";
     const weaponLabel = document.createElement("div");
     weaponLabel.className = "weapon-row-label";
-    weaponLabel.textContent = "Commander weapon";
+    weaponLabel.textContent = `Commander weapon · ${totalStars}★`;
     weaponRow.appendChild(weaponLabel);
     for (const def of Object.values(HEROES)) {
+      const unlocked = this.shell.isWeaponUnlocked(def.id);
+      const need = def.unlockStars ?? 0;
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "weapon-chip";
       if (def.id === this.shell.heroWeapon) chip.classList.add("selected");
+      if (!unlocked) {
+        chip.classList.add("locked");
+        chip.disabled = true;
+      }
       const name = document.createElement("div");
       name.className = "weapon-chip-name";
       name.textContent = def.name;
       const blurb = document.createElement("div");
       blurb.className = "weapon-chip-blurb";
-      blurb.textContent = def.blurb;
+      blurb.textContent = unlocked ? def.blurb : `Unlock at ${need}★`;
       chip.append(name, blurb);
-      chip.addEventListener("click", () => this.shell.setHeroWeapon(def.id));
+      if (unlocked) {
+        chip.addEventListener("click", () => this.shell.setHeroWeapon(def.id));
+      }
       weaponRow.appendChild(chip);
     }
     this.cardsEl.appendChild(weaponRow);
 
-    // CD-30 Slice 2: perk row — selectable up to shell.perkSlots(), "n/m"
-    // counter, chip text derived from `mods` (formatPerkBlurb, M8). Gating
-    // by unlockStars is Slice 4 (out of scope) — every v1 perk is unlocked,
-    // the only cap here is the slot count.
+    // CD-30 Slice 2/4: perk row — selectable up to shell.perkSlots(), "n/m"
+    // counter, locked chips by unlockStars, chip text from formatPerkBlurb.
     const perkSlots = this.shell.perkSlots();
     const selectedPerks = this.shell.selectedPerks;
     const perkRow = document.createElement("div");
@@ -71,21 +78,30 @@ export class LevelSelect {
     perkLabel.textContent = `Perks (${selectedPerks.length}/${perkSlots})`;
     perkRow.appendChild(perkLabel);
     for (const def of Object.values(PERKS)) {
+      const unlocked = this.shell.isPerkUnlocked(def.id);
       const selected = selectedPerks.includes(def.id);
-      const atCap = !selected && selectedPerks.length >= perkSlots;
+      const atCap = unlocked && !selected && selectedPerks.length >= perkSlots;
       const chip = document.createElement("button");
       chip.type = "button";
       chip.className = "perk-chip";
       if (selected) chip.classList.add("selected");
       if (atCap) chip.classList.add("at-cap");
+      if (!unlocked) {
+        chip.classList.add("locked");
+        chip.disabled = true;
+      }
       const name = document.createElement("div");
       name.className = "perk-chip-name";
       name.textContent = def.name;
       const blurb = document.createElement("div");
       blurb.className = "perk-chip-blurb";
-      blurb.textContent = formatPerkBlurb(def);
+      blurb.textContent = unlocked
+        ? formatPerkBlurb(def)
+        : `Unlock at ${def.unlockStars}★`;
       chip.append(name, blurb);
-      chip.addEventListener("click", () => this.shell.togglePerk(def.id));
+      if (unlocked) {
+        chip.addEventListener("click", () => this.shell.togglePerk(def.id));
+      }
       perkRow.appendChild(chip);
     }
     this.cardsEl.appendChild(perkRow);

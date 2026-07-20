@@ -1,6 +1,6 @@
 # Design Doc — CD-30: Meta-Progression (Stars · Perks · Mutators · Unlock Gating)
 
-Architect, 2026-07-17. Covers `TICKETS.md` **CD-30** (weapons slice shipped; this is CD-30 proper), `ROADMAP.md` Phase 5 + the ThroneFall/They-Are-Billions community-feedback sections. Status: designed → ready to slice after user sign-off (§11). Every number is **plausible-but-untuned** (BALANCE FREEZE, CD-37 rule); each carries a named QA metric.
+Architect, 2026-07-17. Covers `TICKETS.md` **CD-30** (weapons slice shipped; this is CD-30 proper), `ROADMAP.md` Phase 5 + the ThroneFall/They-Are-Billions community-feedback sections. Status: Slices 0–4 shipped (Slice 4 unlock gating 2026-07-19 with freeze-untuned thresholds). Every number is **plausible-but-untuned** (BALANCE FREEZE, CD-37 rule); each carries a named QA metric.
 
 Relevant files: `src/persist/save.ts`, `src/app/AppShell.ts`, `src/ui/screens/LevelSelect.ts`, `src/game/Game.ts`, `src/data/buildings.ts`, `src/data/hero.ts`/`hero.json`, `src/data/validate.ts`, and new `src/data/perks.json`/`perks.ts`, `src/data/mutators.json`/`mutators.ts`.
 
@@ -141,7 +141,7 @@ Non-dominance rule: **no perk may be correct regardless of build/level** (the Bu
 - **Slice 1 — Stars.** Derive 1/2 from save; `mutatorWin` field; star glyphs on cards; `totalStars`/`perkSlots`. Star 3 empty until Slice 3.
 - **Slice 2 — Perks.** Perk row (slots from stars, selection → `settings.perks`); effects into `computeGlobalMods` + `startingCredits`. Ships all-unlocked (gating is Slice 4).
 - **Slice 3 — Mutators + Star 3.** Mutator toggles; wave transform + player debuff; `recordVictory` writes `mutatorWin`. Enemy-HP multiply only if clean.
-- **Slice 4 — Unlock gating on.** Weapons + perks gated by `totalStars` vs `unlockStars`; locked chips; sanitize locked ids → rifle. **The USER-pacing slice.**
+- **Slice 4 — Unlock gating on.** Weapons + perks gated by `totalStars` vs `unlockStars`; locked chips; sanitize locked ids → rifle. **SHIPPED 2026-07-19** with freeze-untuned provisional thresholds (weapons 0/1/2/3; perks 0/1/1/2/3; slot growth at 3★; mutators stay 0). Re-tune numbers only — no code change.
 
 Order rationale: framework → stars visible → perks (useful immediately) → mutators (earns Star 3) → gating last, so every earlier slice tests with everything unlocked and scarcity is the final, reversible switch.
 

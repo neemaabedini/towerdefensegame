@@ -296,6 +296,17 @@ body {
   box-shadow: 0 0 0 1px #ffca28 inset;
 }
 
+/* CD-30 Slice 4: locked weapons stay visible with star requirement on face. */
+.weapon-chip.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.weapon-chip.locked:hover {
+  border-color: #37474f;
+}
+
 .weapon-chip-name {
   font-weight: 600;
   font-size: 13px;
@@ -352,6 +363,17 @@ body {
 .perk-chip.at-cap {
   opacity: 0.45;
   cursor: not-allowed;
+}
+
+/* CD-30 Slice 4: locked perks show unlock threshold, not selectable. */
+.perk-chip.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-style: dashed;
+}
+
+.perk-chip.locked:hover {
+  border-color: #37474f;
 }
 
 .perk-chip-name,

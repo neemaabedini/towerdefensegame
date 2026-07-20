@@ -7,8 +7,8 @@ import rawHero from "./hero.json";
  * engines (a future Godot port) can load it unchanged. Keyed by id: each
  * def is a WEAPON loadout (CD-30 hero weapons, user-approved roster
  * 2026-07-16) — rifle (default) / scattergun / railgun / machine_pistols —
- * selected pre-level on the level-select screen. All unlocked from the
- * start for now; unlock gating arrives with CD-30 proper.
+ * selected pre-level on the level-select screen. Unlock gating is
+ * `unlockStars` vs total stars (CD-30 Slice 4).
  */
 export interface HeroDef {
   id: string;
@@ -34,10 +34,8 @@ export interface HeroDef {
   respawn: { atDawn: boolean; midWaveSeconds?: number };
   color: string;
   accent: string;
-  /** Total-star gate for CD-30 Slice 4 (unlock gating), still out of scope
-   *  — see docs/design-meta-progression.md §5. Absent/0 = unlocked from a
-   *  fresh save; the rifle is always 0. Typed now so Slice 4 is data+UI
-   *  only, same as `PerkDef.unlockStars`/`MutatorDef.unlockStars`. */
+  /** Total-star gate (CD-30 Slice 4). Absent/0 = unlocked from a fresh
+   *  save; the rifle is always 0. Thresholds are freeze-untuned data. */
   unlockStars?: number;
 }
 

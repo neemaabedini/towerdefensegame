@@ -13,7 +13,8 @@
     "abilities": ["volley"],
     "respawn": { "atDawn": true },
     "color": "#263238",
-    "accent": "#ffca28"
+    "accent": "#ffca28",
+    "unlockStars": 0
   },
   "scattergun": {
     "id": "scattergun",
@@ -30,7 +31,8 @@
     "abilities": ["concussion"],
     "respawn": { "atDawn": true },
     "color": "#4e342e",
-    "accent": "#ff8a65"
+    "accent": "#ff8a65",
+    "unlockStars": 1
   },
   "railgun": {
     "id": "railgun",
@@ -46,7 +48,8 @@
     "abilities": ["overcharge"],
     "respawn": { "atDawn": true },
     "color": "#1a237e",
-    "accent": "#4dd0e1"
+    "accent": "#4dd0e1",
+    "unlockStars": 3
   },
   "machine_pistols": {
     "id": "machine_pistols",
@@ -62,7 +65,8 @@
     "abilities": ["sky_burst"],
     "respawn": { "atDawn": true },
     "color": "#33691e",
-    "accent": "#aed581"
+    "accent": "#aed581",
+    "unlockStars": 2
   }
 }
 

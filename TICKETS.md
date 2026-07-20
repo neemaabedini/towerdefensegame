@@ -85,7 +85,7 @@ spatial economy design → earned meta / demo identity / juice → content volum
 | **P1 Agency** | **CD-40** (weapon/commander actives) | Night power fantasy — passive + one active per weapon | **Coder shipped 2026-07-18** — QA sign-off next |
 | **P1 Variety** | **CD-49** (branch coverage) | Soft answer to rigid nodes without free placement | **CLOSED 2026-07-18** — combat towers 1-of-3 |
 | **P1 Economy design** | **CD-47** — **shipped 2026-07-19** (`rear_depot` + `e1`/`e2`) | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
-| **P2 Retention** | **CD-30** Slice 4 (unlock gating; user pacing numbers) | Kits feel earned | Pre-run loadouts drive replay when scarce |
+| **P2 Retention** | **CD-30** Slice 4 — **shipped 2026-07-19** (freeze-untuned gates) | Kits feel earned | Pre-run loadouts drive replay when scarce |
 | **P2 Demo** | **CD-16** (naming/lore; **user session**) | Ownable identity before public showings | Demo gate (ours), not a peer complaint |
 | **P2 Juice** | **CD-6**, **CD-33** | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
 | **P3 Content** | **CD-31** (after port-gate decision) | Campaign length / less repetition | Content ceiling / same-loop fatigue |
@@ -95,8 +95,8 @@ spatial economy design → earned meta / demo identity / juice → content volum
 **Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
 perks; boss fights designed as free first losses.
 
-**Single next move (default):** **CD-30 Slice 4** (unlock gating; needs user pacing numbers) or **CD-16**
-(naming/lore user session). CD-47 U1/U2 accepted and shipped 2026-07-19.
+**Single next move (default):** **CD-16** (naming/lore user session) or juice (**CD-6** / **CD-33**).
+CD-30 Slice 4 + CD-47 shipped 2026-07-19.
 
 **SDLC role template** (on each pack ticket):
 
@@ -1426,16 +1426,30 @@ perks; boss fights designed as free first losses.
   ticket's changes provably did not cause or change that outcome). Do not re-tune balance to "fix" this
   under the standing balance freeze.
   **Follow-ups for the user/next session:** (1) sign off on all placeholder names (perks, mutators,
-  the doc's currency name) per design doc §11; (2) set the real `PERK_SLOT_THRESHOLD_STARS` and any
-  `unlockStars` pacing numbers before Slice 4; (3) Slice 4 itself (weapon + perk unlock gating against
-  `totalStars`, locked-chip visuals, sanitize-to-rifle/trim-to-slots on a stars regression) is fully
-  unbuilt and next in line per the design doc's slice order.
-  **Review pack (2026-07-18) area #8 — meta retention.** **SDLC:** PD — kits feel
-  earned; unlock pacing user-pending (`PERK_SLOT_THRESHOLD_STARS`, `unlockStars`);
-  Arch — design doc exists (`docs/design-meta-progression.md` Slice 4); Eng —
-  gating + locked chips + sanitize on stars regression; QA — locked content not
-  selectable; stars light correctly; mutator star sticky. Complements in-run
-  variety (**CD-49** / **CD-55**).
+  the doc's currency name) per design doc §11 / **CD-16**; (2) re-tune freeze-untuned
+  `PERK_SLOT_THRESHOLD_STARS` / `unlockStars` if the provisional curve feels off (data-only).
+  **SLICE 4 SHIPPED 2026-07-19 (coder)** — unlock gating with freeze-untuned provisional thresholds
+  (2-level / 6★ max campaign):
+  | Content | Threshold |
+  |---------|-----------|
+  | Rifle | 0★ (always) |
+  | Scattergun | 1★ |
+  | Machine Pistols | 2★ |
+  | Railgun | 3★ |
+  | Standing Orders | 0★ |
+  | Reinforced Plating / Long Guns | 1★ |
+  | Rapid Response | 2★ |
+  | War Chest | 3★ |
+  | Perk slots 1→2 | 3★ (`PERK_SLOT_THRESHOLD_STARS`) |
+  | Mutators | all 0★ (Star 3 earnable from fresh save) |
+  **Code:** `AppShell.isWeaponUnlocked` / `isPerkUnlocked`; `heroWeapon` + `selectedPerks` sanitize
+  locked ids at read (rifle / drop); `setHeroWeapon`/`togglePerk` no-op when locked; LevelSelect locked
+  chips (dashed, "Unlock at N★"); CSS `.weapon-chip.locked` / `.perk-chip.locked`. Unlocks derived
+  from stars only — nothing stored. **QA:** fresh save → rifle + Standing Orders only, 1 slot;
+  earn 1★ → scattergun + plating/long guns; 3★ → railgun + war chest + 2nd slot; stale save with
+  locked railgun selected falls back to rifle; tsc + validate clean.
+  **Review pack (2026-07-18) area #8 — meta retention.** Complements in-run variety (**CD-49** /
+  **CD-55**).
 - [ ] CD-31 (feature, P1, v1.0) — Campaign content: grow 2 levels to 8–12
   with a difficulty/mechanic introduction curve (new enemy or building
   unlock every 1-2 levels), integrated tutorial level 0. Build after the

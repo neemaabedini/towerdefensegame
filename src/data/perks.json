@@ -13,7 +13,7 @@
     "blurb": "Heavier armor plate on every structure and unit.",
     "mods": { "maxHp": 1.12 },
     "scope": "all structures & squads",
-    "unlockStars": 0
+    "unlockStars": 1
   },
   "long_guns": {
     "id": "long_guns",
@@ -21,7 +21,7 @@
     "blurb": "Extended barrels reach further down the lane.",
     "mods": { "range": 1.12 },
     "scope": "all structures",
-    "unlockStars": 0
+    "unlockStars": 1
   },
   "rapid_response": {
     "id": "rapid_response",
@@ -29,13 +29,13 @@
     "blurb": "Faster reloads across the board.",
     "mods": { "fireRate": 1.12 },
     "scope": "all structures & squads",
-    "unlockStars": 0
+    "unlockStars": 2
   },
   "war_chest": {
     "id": "war_chest",
     "name": "War Chest",
     "blurb": "A one-time supply drop on landing.",
     "startingCredits": 90,
-    "unlockStars": 0
+    "unlockStars": 3
   }
 }

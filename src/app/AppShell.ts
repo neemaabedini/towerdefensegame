@@ -1,3 +1,4 @@
+import { HEROES } from "../data/hero";
 import { LEVELS } from "../data/levels";
 import { MUTATORS } from "../data/mutators";
 import { PERKS } from "../data/perks";
@@ -20,10 +21,10 @@ export type AppModal = "none" | "pause";
 /** Total-star threshold where perk slots grow 1 -> 2 (design doc §4 Q2,
  *  §11 "USER-set data"). A single named constant so the real pacing number
  *  is a one-line edit, not a design change — v1 max is 2 slots per the
- *  design doc's own conservative cap. USER-PENDING: this number (3) is
- *  plausible-but-untuned, same balance-freeze status as every other CD-30
- *  number. */
+ *  design doc's own conservative cap. Freeze-untuned (balance freeze). */
 const PERK_SLOT_THRESHOLD_STARS = 3;
+
+const DEFAULT_HERO_WEAPON = "rifle";
 
 /**
  * App state machine ABOVE the sim (see design-demo-milestone.md Problem 1).
@@ -150,12 +151,14 @@ export class AppShell {
   }
 
   /** Selected hero weapon (CD-30) — falls back to the rifle for pre-CD-30
-   *  saves and stale/unknown ids (Game.setHeroLoadout re-sanitizes too). */
+   *  saves, unknown ids, and locked weapons (Slice 4 sanitize). */
   get heroWeapon(): string {
-    return this.data.settings.heroWeapon ?? "rifle";
+    const raw = this.data.settings.heroWeapon ?? DEFAULT_HERO_WEAPON;
+    return this.isWeaponUnlocked(raw) ? raw : DEFAULT_HERO_WEAPON;
   }
 
   setHeroWeapon(id: string): void {
+    if (!this.isWeaponUnlocked(id)) return;
     if (this.data.settings.heroWeapon === id) return;
     this.data.settings.heroWeapon = id;
     this.persistNow();
@@ -173,8 +176,7 @@ export class AppShell {
   }
 
   /** Sum of every level's stars — the single progression currency (design
-   *  doc §3 A2) gating perk slots (Slice 1/2) and, later, unlock gating
-   *  (Slice 4, out of scope here). */
+   *  doc §3 A2) gating perk slots, weapon unlocks, and perk unlocks. */
   totalStars(): number {
     let total = 0;
     for (let i = 0; i < LEVELS.length; i++) {
@@ -188,20 +190,37 @@ export class AppShell {
     return this.totalStars() >= PERK_SLOT_THRESHOLD_STARS ? 2 : 1;
   }
 
-  /** Equipped perk ids (CD-30 Slice 2). Trims unknown ids and anything past
-   *  the current slot count at READ time — mirrors `heroWeapon`'s stale-id
-   *  sanitization, so slots shrinking (e.g. a future reset) never needs a
-   *  write-time migration, just a shorter read. */
-  get selectedPerks(): string[] {
-    const raw = this.data.settings.perks ?? [];
-    return raw.filter((id) => !!PERKS[id]).slice(0, this.perkSlots());
+  /** Weapon unlock gate (CD-30 Slice 4). Unlocks are pure functions of
+   *  total stars vs def.unlockStars — nothing stored (design §4 Q4). */
+  isWeaponUnlocked(id: string): boolean {
+    const def = HEROES[id];
+    if (!def) return false;
+    return this.totalStars() >= (def.unlockStars ?? 0);
   }
 
-  /** Toggles a perk on/off; no-ops if the id is unknown or (when adding)
+  /** Perk unlock gate (CD-30 Slice 4). Mutators stay unlocked from a fresh
+   *  save so Star 3 is earnable immediately (design §11 recommendation). */
+  isPerkUnlocked(id: string): boolean {
+    const def = PERKS[id];
+    if (!def) return false;
+    return this.totalStars() >= def.unlockStars;
+  }
+
+  /** Equipped perk ids (CD-30 Slice 2/4). Trims unknown, locked, and
+   *  over-cap ids at READ time — mirrors heroWeapon sanitization so a
+   *  stars regression never needs a write-time migration. */
+  get selectedPerks(): string[] {
+    const raw = this.data.settings.perks ?? [];
+    return raw
+      .filter((id) => this.isPerkUnlocked(id))
+      .slice(0, this.perkSlots());
+  }
+
+  /** Toggles a perk on/off; no-ops if unknown, locked, or (when adding)
    *  the slot cap is already full. Persists immediately, same as
    *  `setHeroWeapon` — this is a deliberate pre-level click, not a drag. */
   togglePerk(id: string): void {
-    if (!PERKS[id]) return;
+    if (!this.isPerkUnlocked(id)) return;
     const current = this.selectedPerks;
     let next: string[];
     if (current.includes(id)) {
