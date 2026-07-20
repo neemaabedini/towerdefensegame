@@ -10,6 +10,9 @@ var units: Dictionary = {}
 var levels: Array = []
 var tuning: Dictionary = {}
 var strings: Dictionary = {}
+var perks: Dictionary = {}
+var mutators: Dictionary = {}
+var abilities: Dictionary = {}
 
 func load_all() -> void:
 	buildings = _as_dict(_load_json("res://data/buildings.json"))
@@ -20,8 +23,19 @@ func load_all() -> void:
 	levels = raw_levels if raw_levels is Array else []
 	tuning = _as_dict(_load_json("res://data/tuning.json"))
 	strings = _as_dict(_load_json("res://data/strings.json"))
+	perks = _as_dict(_load_json("res://data/perks.json"))
+	mutators = _as_dict(_load_json("res://data/mutators.json"))
+	abilities = _as_dict(_load_json("res://data/abilities.json"))
 	assert(not buildings.is_empty(), "buildings.json failed to load")
 	assert(not levels.is_empty(), "levels.json failed to load")
+
+
+## Level ids in play order — SaveData keys its per-level results by these.
+func level_ids() -> Array:
+	var ids: Array = []
+	for l in levels:
+		ids.append(str(l.get("id", "")))
+	return ids
 
 
 func get_building(id: String) -> Dictionary:
@@ -38,6 +52,16 @@ func get_hero(id: String = "rifle") -> Dictionary:
 	if heroes.has(id):
 		return heroes[id]
 	return heroes["rifle"]
+
+
+func get_unit(id: String) -> Dictionary:
+	assert(units.has(id), "Unknown unit: %s" % id)
+	return units[id]
+
+
+func get_ability(id: String) -> Dictionary:
+	assert(abilities.has(id), "Unknown ability: %s" % id)
+	return abilities[id]
 
 
 func get_level(index: int) -> Dictionary:

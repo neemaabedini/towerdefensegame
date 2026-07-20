@@ -1,69 +1,86 @@
 # City Defense — Godot port
 
-Godot **4.7** project that loads the **same JSON defs** as the web build (`res://data/*.json`, copied from `src/data/`).
-
-This is the real port start (beyond the old CD-17 spike idea): playable day/night loop on Outpost Alpha.
+Godot **4.7** project using the **same JSON** as the web build (`res://data/` ← `src/data/`).
 
 ## Run
 
 ```text
-# From repo root (Windows example)
 "C:\Program Files\Godot\Godot_v4.7-stable_win64.exe" --path godot
 ```
 
-Or open the `godot/` folder in the Godot editor and press **F5**.
+Or open `godot/` in the Godot editor → **F5**.
 
 ## Controls
 
 | Input | Action |
 |-------|--------|
 | Click empty site | Select build site |
-| **1–4** | Build option at selected site |
-| **Space** | Start night / confirm end screen |
+| Click building | Select for upgrade / sell |
+| **1–4** | Build option / branch pick |
+| **U / E** | Upgrade |
+| **X** | Sell / undo |
+| **Space** | Start night / end-screen confirm |
 | **WASD** | Move hero (day + night) |
+| **P** | Pause |
+| **F** | Night 2× speed |
+| **Esc** | Deselect, then pause |
 | **R** | Restart level |
 
-## What’s ported
+## Parity vs web (2026-07-20)
 
-- Levels, buildings, enemies, hero, tuning from JSON
-- Day build at fixed sites
-- Night waves (path-following enemies)
-- Tower combat (hitscan + artillery/missile projectiles)
-- Hero move + auto-attack
-- Dawn income + HQ restore
-- Victory / defeat (HQ death checked before wave-clear — CD-54)
+### Present in Godot
 
-## Not yet (web still ahead)
+| Area | Status |
+|------|--------|
+| Title → level select → game → victory/defeat | Yes |
+| Loadout: weapons, perks, mutators, stars, unlocks | Yes |
+| Build / upgrade / branch / sell-undo | Yes |
+| Dawn income + mining + rear depot | Yes |
+| **Garrison units** (spawn, leash AI, fire, body-block) | Yes |
+| Hero move, auto-attack, damageable, dawn revive | Yes |
+| Tower combat + projectiles + splash | Yes |
+| CD-54 end conditions | Yes |
+| **2.5D terrain** (gradients, mesa, diamonds, grit) | Yes |
+| **Spawn threat markers** + next-wave counts | Yes |
+| **Iso foundations**, shadows, range rings, HQ stop ring | Yes |
+| Shape-aware buildings/enemies/units/hero | Yes |
+| Particles, muzzle flash, aim barrels, wrecks, float text | Yes |
+| Pause, settings (night speed, fullscreen), save | Yes |
+| Build ring + upgrade chip world UI | Yes |
 
-- Full garrison unit AI / body-block parity
-- Hero weapon actives (CD-40)
-- Perks / mutators / stars (CD-30)
-- Sell / undo, full HUD chrome
-- Audio (CD-3 / CD-33)
-- Sprite atlas (procedural shapes for now)
-- Multi-level select + save
-- **Walls / pathfinding (CD-9)** — still planned for Godot after core parity
+### Still thinner than web (next passes)
+
+| Gap | Web source | Notes |
+|-----|------------|--------|
+| Pixel **atlas sprites** | `sprites.ts`, hero sheet | Godot uses vector shapes; same art pipeline can export PNGs later |
+| **Hero abilities (Q)** | CD-40 `castAbility` | Not wired yet |
+| **Full HUD chrome** | `HUD.ts` + CSS | One status line + hint, not full side panel |
+| **Audio** SFX + music | `src/audio/*` | Save has volume fields; no bus yet |
+| **Arrow-key** site nav | `Game.navigate` | Mouse + rings only |
+| **Onboarding hints** | `Hints.ts` | Static phase hints only |
+| **Enemy separation** | CD-45 | Optional polish |
+| **Walls / pathfinding** | CD-9 | Planned Godot-native |
 
 ## Data sync
 
-After editing web `src/data/*.json`:
+After editing web JSON:
 
 ```powershell
 Copy-Item src/data/*.json godot/data/ -Force
 ```
-
-Keep field names stable — Godot reads the same contract as `validate.ts`.
 
 ## Layout
 
 ```text
 godot/
   project.godot
-  data/           # JSON mirror of src/data
+  data/                 # JSON mirror
   scenes/main.tscn
   scripts/
-    data_db.gd    # JSON loaders
-    game_sim.gd   # day/night sim
-    world_draw.gd # 2D render
-    main.gd       # shell + input
+    main.gd             # shell (AppShell + input)
+    game_sim.gd         # day/night sim + garrisons
+    world_draw.gd       # 2.5D render density
+    data_db.gd / save_data.gd
+    build_ring.gd / upgrade_chip.gd
+    screens/            # title, level select, settings
 ```
