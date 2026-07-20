@@ -1,4 +1,4 @@
-import type { BuildingDef, StatMods, TargetMode } from "../data/buildings";
+import type { StatMods, TargetMode } from "../data/buildings";
 import type { BuildSiteDef, LevelDef, ResourceKind } from "../data/levels";
 
 export type Phase = "day" | "night" | "victory" | "defeat";
@@ -209,14 +209,10 @@ export interface GameSnapshot {
   particles: Particle[];
   selectedSiteId: string | null;
   selectedBuildingId: string | null;
-  waveActive: boolean;
-  enemiesRemainingToSpawn: number;
   /** Spawn points that will emit (day: next wave) or still have pending units (night) */
   upcomingSpawnIds: string[];
   /** Enemy counts per spawn id, matching upcomingSpawnIds */
   upcomingSpawnCounts: Record<string, number>;
-  dayTime: number;
-  nightTime: number;
   hqId: string;
   /** Shallow-cloned per snapshot (the CD-15 rule for NEW fields — the
    *  legacy arrays above stay live-ref until that cleanup). Never null
@@ -233,10 +229,6 @@ export interface GameSnapshot {
    * site is selected or the previewed option has no weapon range.
    */
   rangePreview: { x: number; y: number; range: number } | null;
-}
-
-export interface BuildingRuntime extends BuildingDef {
-  // resolved at use site via scaledStats
 }
 
 /**

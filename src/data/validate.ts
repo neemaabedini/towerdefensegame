@@ -348,8 +348,6 @@ export function validateLevels(levels: LevelDef[] = LEVELS): void {
       }
     }
 
-    // Research trackId check intentionally omitted — no research.json until
-    // Step 4 (PARKED, see TICKETS.md CD-7).
   }
 
   if (errors.length > 0) {

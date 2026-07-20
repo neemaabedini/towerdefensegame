@@ -713,28 +713,7 @@ function tankSprite(frame: number): Grid {
   })();
 }
 
-/** Factory block (legacy shape; kept for atlas completeness) */
-function factorySprite(frame: number): Grid {
-  const base = "#2e7d32";
-  const g = makeGrid(30, 28);
-  buildingPad(g, 15, 25, 12, 2.6);
-  fillRect(g, 3, 12, 24, 12, "#1b5e20"); // south face
-  fillRect(g, 3, 10, 24, 10, base);
-  fillRect(g, 3, 10, 24, 3, "#43a047"); // roof band
-  fillRect(g, 13, 17, 4, 7, "#fff176");
-  fillRect(g, 6, 14, 3, 2, "#ffe082");
-  fillRect(g, 21, 14, 3, 2, "#ffe082");
-  line(g, 24, 9, 24, 2, "#90a4ae");
-  if (frame === 0) fillTriangle(g, 24, 2, 28, 3.5, 24, 6, "#81c784");
-  else fillTriangle(g, 24, 2, 27.4, 4.6, 24, 6, "#66bb6a");
-  return (() => {
-    shadeAuto(g, base, "#4caf50", "#1b5e20");
-    outlineAuto(g);
-    return g;
-  })();
-}
-
-/** Mining facility: drill rig + crystal hopper (was twin yellow vats) */
+/** Mining facility: drill rig + crystal hopper */
 function siloSprite(frame: number): Grid {
   const base = "#f9a825";
   const g = makeGrid(30, 28);
@@ -756,28 +735,6 @@ function siloSprite(frame: number): Grid {
   line(g, 17, 14, 18, 14, "#90a4ae");
   return (() => {
     shadeAuto(g, base, "#ffd54f", "#c17900");
-    outlineAuto(g);
-    return g;
-  })();
-}
-
-/** Sensor Array: tripod + dish volume */
-function radarSprite(frame: number): Grid {
-  const base = "#6a1b9a";
-  const g = makeGrid(26, 28);
-  buildingPad(g, 13, 25, 8, 2.2);
-  line(g, 6, 24, 13, 14, base);
-  line(g, 20, 24, 13, 14, base);
-  line(g, 13, 24, 13, 14, base);
-  fillEllipse(g, 13, 14, 3.5, 2.8, base);
-  // dish with thickness
-  fillEllipse(g, 13, 8, 8, 4.2, "#4a148c");
-  fillEllipse(g, 13, 7.2, 7, 3.4, "#ce93d8");
-  fillEllipse(g, 13.8, 7.6, 4, 2, "#4a148c");
-  line(g, 13, 7, 18, 2, "#eceff1");
-  px(g, 18.5, 1.5, frame === 0 ? "#e040fb" : "#7b1fa2");
-  return (() => {
-    shadeAuto(g, base, "#8e24aa", "#4a148c");
     outlineAuto(g);
     return g;
   })();
@@ -813,9 +770,7 @@ const BUILDING_BUILDERS: Record<string, Builder> = {
   missile: missileSprite,
   bunker: bunkerSprite,
   tank: tankSprite,
-  factory: factorySprite,
   silo: siloSprite,
-  radar: radarSprite,
   sniper: sniperSprite,
 };
 
@@ -963,10 +918,6 @@ export class SpriteAtlas {
 
   get(key: string): SpriteFrame | undefined {
     return this.frames.get(key);
-  }
-
-  get frameCount(): number {
-    return this.frames.size;
   }
 }
 

@@ -139,10 +139,8 @@ function dirFromKey(key: string): "up" | "down" | "left" | "right" | null {
 }
 
 /** Derives the normalized 8-way vector from the held-key Set and latches it.
- *  Safe to call any time the Set changes (or on a phase/pause transition
- *  that needs a re-latch) — no-ops by itself while off-screen or paused, and
- *  Game.setHeroMove is itself a no-op outside phase === "night" (defense in
- *  depth, §9.5). */
+ *  Safe on any Set change or phase/pause re-latch; no-ops while off-screen or
+ *  paused. Hero is drivable day and night (CD-29 day-positioning). */
 function dispatchHeroMove(): void {
   if (shell.screen !== "game" || shell.modal !== "none") return;
   let dx = 0;

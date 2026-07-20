@@ -66,8 +66,6 @@ export interface SaveDataV1 {
   hintsSeen: string[];
 }
 
-export type SaveData = SaveDataV1;
-
 /** Renamed alongside CD-16's title slot (was a generic key). */
 export const SAVE_KEY = "citydefense.save";
 

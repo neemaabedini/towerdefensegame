@@ -38,10 +38,6 @@ export interface PerkDef {
 
 export const PERKS = rawPerks as unknown as Record<string, PerkDef>;
 
-export function getPerk(id: string): PerkDef | undefined {
-  return PERKS[id];
-}
-
 /**
  * Chip-face text (UI_PLAN 6, no hover) derived mechanically from `mods`/
  * `startingCredits` — never hand-typed, so it can't drift from what the

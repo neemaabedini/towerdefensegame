@@ -9,7 +9,6 @@
 
 export type SoundId =
   | "shot_gun"
-  | "shot_bunker"
   | "shot_siege"
   | "shot_missile"
   | "enemy_die"
@@ -108,18 +107,6 @@ export const SFX: Record<SoundId, SfxRecipe> = {
       duration: 0.06,
       gain: 0.16,
     });
-  },
-
-  // Lower thump — heavier instant-hit bunker.
-  shot_bunker: (ctx, dest, when, p) => {
-    playTone(ctx, dest, when, {
-      type: "sine",
-      freq: 220 * p,
-      freqEnd: 90 * p,
-      duration: 0.1,
-      gain: 0.26,
-    });
-    playNoise(ctx, dest, when, { duration: 0.05, gain: 0.07, filterFreq: 400 });
   },
 
   // Deep boom — artillery splash shot.

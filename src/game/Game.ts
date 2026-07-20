@@ -78,9 +78,7 @@ export class Game {
   /** Multipliers from every GLOBAL branch pick (currently only the Command
    *  Center — docs/design-wave-legibility.md §7c), merged together. Recomputed
    *  ONLY at pick time (see computeGlobalMods/restatAll, called from
-   *  upgrade()) — never per tick. Read this field directly from hot per-tick
-   *  paths; call the public globalMods() getter only from outside the sim
-   *  (QA/dev hooks), so a call-count spy sees "at most once per pick". */
+   *  upgrade()) — never per tick. Snapshot exposes a clone as globalStatMods. */
   private globalStatMods: StatMods = {};
   /** CD-30 meta-progression loadout — equipped perk ids (persisted,
    *  `AppShell.selectedPerks`) and active mutator ids (session-only,
@@ -220,17 +218,6 @@ export class Game {
     this.loadLevel(this.levelIndex);
   }
 
-  /**
-   * Thin sim reset — advances to the next level index. Level-count-aware
-   * flow (is there a next level? unlock it? go to menu instead?) lives in
-   * AppShell, which owns level flow (see design-demo-milestone.md
-   * Problem 1). getLevel() clamps out-of-range indices, so this never
-   * throws even past the last level.
-   */
-  nextLevel(): void {
-    this.loadLevel(this.levelIndex + 1);
-  }
-
   /** Where the danger comes from: next wave during day, remaining spawns at night */
   private upcomingSpawnInfo(): { ids: string[]; counts: Record<string, number> } {
     const counts: Record<string, number> = {};
@@ -272,12 +259,8 @@ export class Game {
       particles: this.particles,
       selectedSiteId: this.selectedSiteId,
       selectedBuildingId: this.selectedBuildingId,
-      waveActive: this.phase === "night",
-      enemiesRemainingToSpawn: this.pendingSpawns.length,
       upcomingSpawnIds: upcoming.ids,
       upcomingSpawnCounts: upcoming.counts,
-      dayTime: 0,
-      nightTime: this.waveElapsed,
       hqId: this.hqId,
       // Shallow-cloned per the CD-15 rule for NEW snapshot fields. abilityCooldowns
       // is a nested object so it is cloned too.
@@ -588,18 +571,6 @@ export class Game {
     this.emit({ type: "upgraded" });
     this.notify();
     return true;
-  }
-
-  /**
-   * Live global stat multipliers from every GLOBAL branch pick, merged
-   * (docs/design-wave-legibility.md §7c). This is the memoized field, not a
-   * recomputation — safe to call anytime, including from QA/dev-hook spies
-   * expecting "at most once per pick, never per tick". Hot per-tick sim code
-   * reads `this.globalStatMods` directly instead of calling this, so this
-   * method itself is never invoked from inside update().
-   */
-  globalMods(): StatMods {
-    return this.globalStatMods;
   }
 
   /** Live stats for a placed building, INCLUDING global picks — HUD reads
@@ -1235,7 +1206,7 @@ export class Game {
         // units/buildings use (respects the weapon's TargetMode); single-
         // target weapons hit directly — mirrors the unit attack loop.
         if (def.splashRadius && def.splashRadius > 0) {
-          this.applyDamage(target, def.damage, def.splashRadius, hero.x, hero.y, def.targets);
+          this.applyDamage(target, def.damage, def.splashRadius, def.targets);
         } else {
           this.hurtEnemy(target, def.damage);
         }
@@ -1513,7 +1484,7 @@ export class Game {
     b.aimAngle = Math.atan2(target.y - b.y, target.x - b.x);
     b.muzzleFlash = 0.1;
 
-    // Instant hit for gun tower / bunker / sniper for snappy feel; projectiles for siege/missile
+    // Hitscan for most towers; projectiles for siege/missile.
     const useProjectile =
       def.id === "artillery_platform" || def.id === "missile_battery";
 
@@ -1535,7 +1506,7 @@ export class Game {
         style: def.id === "missile_battery" ? "missile" : "shell",
       });
     } else {
-      this.applyDamage(target, stats.damage, stats.splashRadius, b.x, b.y, def.targets);
+      this.applyDamage(target, stats.damage, stats.splashRadius, def.targets);
       this.particles.push({
         id: uid("pt"),
         x: (b.x + target.x) / 2,
@@ -1600,7 +1571,7 @@ export class Game {
             hit = this.findTarget(tx, ty, 24, p.targets);
           }
           if (hit) {
-            this.applyDamage(hit, p.damage, p.splash, tx, ty, p.targets);
+            this.applyDamage(hit, p.damage, p.splash, p.targets);
           } else if (p.splash > 0) {
             this.applySplash(tx, ty, p.damage, p.splash, null, p.targets);
           }
@@ -1657,16 +1628,12 @@ export class Game {
     primary: EnemyUnit,
     damage: number,
     splash: number,
-    ox: number,
-    oy: number,
     targets: TargetMode,
   ): void {
     this.hurtEnemy(primary, damage);
     if (splash > 0) {
       this.applySplash(primary.x, primary.y, damage * TUNING.combat.splashFalloff, splash, primary.id, targets);
     }
-    void ox;
-    void oy;
   }
 
   /** Splash respects the same TargetMode as the primary hit — a missile's
@@ -2038,8 +2005,6 @@ export class Game {
                 enemy,
                 stats.damage,
                 unitDef.splashRadius,
-                enemy.x,
-                enemy.y,
                 unitDef.targets,
               );
             } else {

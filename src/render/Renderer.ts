@@ -705,13 +705,8 @@ export class Renderer {
       // site can incidentally have a crystal within another building's
       // hypothetical mining radius without ever offering one (e.g. Ridge
       // d5 sits near the Far Field but only offers gun_tower/garrison).
-      const offersPlasma = site.options.some((id) => getBuilding(id).mining?.resource === "plasma");
       const offersMineral = site.options.some((id) => getBuilding(id).mining?.resource === "mineral");
-      if (offersPlasma && site.resources.plasma > 0) {
-        ctx.font = "bold 11px Segoe UI, sans-serif";
-        ctx.fillStyle = "#ffb74d";
-        ctx.fillText(`◆ ×${site.resources.plasma}`, site.x, site.y - 32);
-      } else if (offersMineral && site.resources.mineral > 0) {
+      if (offersMineral && site.resources.mineral > 0) {
         ctx.font = "bold 11px Segoe UI, sans-serif";
         ctx.fillStyle = "#4dd0e1";
         ctx.fillText(`◆ ×${site.resources.mineral}`, site.x, site.y - 32);
@@ -855,20 +850,11 @@ export class Renderer {
         case "tank":
           this.drawTank(b.x, b.y, s, def.color, def.accent);
           break;
-        case "factory":
-          this.drawFactory(b.x, b.y, s, def.color, def.accent);
-          break;
         case "silo":
           this.drawSilo(b.x, b.y, s, def.color, def.accent);
           break;
-        case "radar":
-          this.drawRadar(b.x, b.y, s, def.color, def.accent);
-          break;
         case "sniper":
           this.drawSniper(b.x, b.y, s, def.color, def.accent);
-          break;
-        case "tap":
-          this.drawTap(b.x, b.y, s, def.color, def.accent);
           break;
       }
     }
@@ -1002,16 +988,7 @@ export class Renderer {
     ctx.restore();
 
     // Living overlays that want smooth motion, not 2-frame ticks
-    if (shape === "radar") {
-      ctx.strokeStyle = "#ce93d8";
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.5;
-      const ang = this.time * 2.5;
-      ctx.beginPath();
-      ctx.arc(b.x, b.y - 2, f.sh * 0.55, ang - 0.5, ang + 0.1);
-      ctx.stroke();
-      ctx.globalAlpha = 1;
-    } else if (shape === "hq") {
+    if (shape === "hq") {
       const pulse = 0.5 + 0.5 * Math.sin(this.time * 2);
       ctx.fillStyle = `rgba(100, 181, 246, ${0.18 + pulse * 0.2})`;
       ctx.beginPath();
@@ -1224,43 +1201,7 @@ export class Renderer {
     ctx.fill();
   }
 
-  /** Barracks: blocky garrison with lit door, windows, and a flag */
-  private drawFactory(x: number, y: number, s: number, color: string, accent: string): void {
-    const ctx = this.ctx;
-    // Main block
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(x - s, y - s * 0.5, s * 2, s * 1.15, 3);
-    ctx.fill();
-    // Roof band
-    ctx.fillStyle = "rgba(0,0,0,0.25)";
-    ctx.fillRect(x - s, y - s * 0.5, s * 2, s * 0.22);
-    // Door (lit)
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.roundRect(x - s * 0.2, y + s * 0.05, s * 0.4, s * 0.6, 2);
-    ctx.fill();
-    // Windows
-    ctx.fillStyle = "rgba(255, 241, 118, 0.8)";
-    ctx.fillRect(x - s * 0.75, y - s * 0.15, s * 0.28, s * 0.2);
-    ctx.fillRect(x + s * 0.47, y - s * 0.15, s * 0.28, s * 0.2);
-    // Flag pole
-    ctx.strokeStyle = "#90a4ae";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x + s * 0.8, y - s * 0.5);
-    ctx.lineTo(x + s * 0.8, y - s * 1.05);
-    ctx.stroke();
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.moveTo(x + s * 0.8, y - s * 1.05);
-    ctx.lineTo(x + s * 1.15, y - s * 0.92);
-    ctx.lineTo(x + s * 0.8, y - s * 0.8);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  /** Refinery: twin storage vats with connecting pipe and bubbling glow */
+  /** Mining facility silo / rear depot — twin vats with connecting pipe. */
   private drawSilo(x: number, y: number, s: number, color: string, accent: string): void {
     const ctx = this.ctx;
     const vatW = s * 0.72;
@@ -1305,94 +1246,7 @@ export class Renderer {
     ctx.fill();
   }
 
-  /** Plasma Tap: squat drill housing over the well, bobbing pump arm with an
-   *  amber cap, pulsing core glow. Vector fallback — Step 5 ships bld:tap:0|1. */
-  private drawTap(x: number, y: number, s: number, color: string, accent: string): void {
-    const ctx = this.ctx;
-    // Base collar over the well
-    ctx.fillStyle = "rgba(38, 50, 56, 0.8)";
-    ctx.beginPath();
-    ctx.ellipse(x, y + s * 0.5, s * 0.95, s * 0.32, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Housing
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.roundRect(x - s * 0.55, y - s * 0.35, s * 1.1, s * 0.85, 6);
-    ctx.fill();
-    // Pump arm, bobs slowly
-    const bob = Math.sin(this.time * 2.2 + x) * s * 0.08;
-    ctx.strokeStyle = "#37474f";
-    ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.moveTo(x, y - s * 0.35 + bob);
-    ctx.lineTo(x, y + s * 0.15);
-    ctx.stroke();
-    // Amber cap
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.ellipse(x, y - s * 0.35 + bob, s * 0.32, s * 0.2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    // Pulsing core glow
-    const pulse = 0.5 + 0.5 * Math.sin(this.time * 3);
-    ctx.fillStyle = `rgba(255, 167, 38, ${0.4 + pulse * 0.3})`;
-    ctx.beginPath();
-    ctx.arc(x, y + s * 0.05, 5 + pulse * 2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  /** Sensor Array: tripod-mounted dish with rotating sweep beam */
-  private drawRadar(x: number, y: number, s: number, color: string, accent: string): void {
-    const ctx = this.ctx;
-    // Tripod
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(x - s * 0.5, y + s * 0.7);
-    ctx.lineTo(x, y);
-    ctx.moveTo(x + s * 0.5, y + s * 0.7);
-    ctx.lineTo(x, y);
-    ctx.moveTo(x, y + s * 0.75);
-    ctx.lineTo(x, y);
-    ctx.stroke();
-    // Dish base
-    ctx.fillStyle = color;
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.05, s * 0.32, 0, Math.PI * 2);
-    ctx.fill();
-    // Tilted dish
-    ctx.fillStyle = accent;
-    ctx.beginPath();
-    ctx.ellipse(x, y - s * 0.35, s * 0.55, s * 0.28, -0.35, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath();
-    ctx.ellipse(x, y - s * 0.35, s * 0.3, s * 0.14, -0.35, 0, Math.PI * 2);
-    ctx.fill();
-    // Feed antenna + blinking tip
-    ctx.strokeStyle = "#eceff1";
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.moveTo(x, y - s * 0.35);
-    ctx.lineTo(x + s * 0.3, y - s * 0.75);
-    ctx.stroke();
-    const blink = 0.4 + 0.6 * Math.abs(Math.sin(this.time * 4));
-    ctx.fillStyle = `rgba(206, 147, 216, ${blink})`;
-    ctx.beginPath();
-    ctx.arc(x + s * 0.3, y - s * 0.75, 2.5, 0, Math.PI * 2);
-    ctx.fill();
-    // Rotating sweep beam
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.globalAlpha = 0.5;
-    const ang = this.time * 2.5;
-    ctx.beginPath();
-    ctx.arc(x, y - s * 0.05, s * 1.05, ang - 0.5, ang + 0.1);
-    ctx.stroke();
-    ctx.globalAlpha = 1;
-  }
-
-  /** Garrison squad members (Batch 3) — a thin layer between buildings and
-   *  enemies so units read as standing in front of their bunker. */
+  /** Garrison squad members — drawn between buildings and enemies. */
   private drawUnits(state: GameSnapshot): void {
     const ctx = this.ctx;
     const list = state.units
@@ -1818,14 +1672,8 @@ export class Renderer {
    */
   private drawCombatAim(b: PlacedBuilding, def: ReturnType<typeof getBuilding>): void {
     if (def.damage <= 0 || def.fireRate <= 0) return;
-    // Production / sensor shapes never aim.
-    if (
-      def.shape === "silo" ||
-      def.shape === "factory" ||
-      def.shape === "radar" ||
-      def.shape === "tap" ||
-      def.shape === "hq"
-    ) {
+    // Non-weapon shapes never aim.
+    if (def.shape === "silo" || def.shape === "hq") {
       return;
     }
 

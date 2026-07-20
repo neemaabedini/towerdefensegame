@@ -27,8 +27,7 @@ export type StatMods = Partial<
  * MULTIPLIERS applied on top of the normal level-scaled stats (see
  * `scaledStats`) — e.g. `fireRate: 1.35` means "35% faster than this
  * building would otherwise be at this level", not an absolute value.
- * `squad` is unused until Batch 3 (garrison) but typed now per the design
- * doc's data model so both branch consumers share one shape.
+ * Optional `squad` overrides the building's default garrison when branched.
  */
 export interface BranchOption {
   id: string;
@@ -94,28 +93,17 @@ export interface BuildingDef {
   color: string;
   accent: string;
   size: number;
-  shape:
-    | "tower"
-    | "bunker"
-    | "tank"
-    | "factory"
-    | "silo"
-    | "missile"
-    | "radar"
-    | "hq"
-    | "sniper"
-    | "tap";
+  shape: "tower" | "bunker" | "tank" | "silo" | "missile" | "hq" | "sniper";
   /** Which enemies this building's weapon can target. Loader defaults to "all"
    *  when absent from JSON, so existing data keeps working unchanged. */
   targets: TargetMode;
   /** A one-time fork offered when upgrading to `atLevel` (see
    *  docs/design-roster-redesign.md D4). Absent = building never branches.
    *  `global: true` (docs/design-wave-legibility.md §7c) marks a branch
-   *  whose `mods` apply to EVERY building/squad via `Game.globalMods()`,
+   *  whose `mods` apply to EVERY building/squad via globalStatMods,
    *  not just this building's own stats — `scaledStats` skips the normal
    *  branchId-driven local-mods lookup for a global branch so the owning
-   *  building doesn't double-apply its own pick (once locally, once again
-   *  via the `mods` param every building receives). */
+   *  building doesn't double-apply its own pick. */
   branch?: { atLevel: number; options: BranchOption[]; global?: boolean };
   /** Garrison squad (Batch 3): the unit fielded at each level, index = level-1.
    *  A branch option's own `squad` (if the building has branched) overrides
@@ -215,7 +203,7 @@ function applyMods(
 /**
  * Stats scale with level: +20% damage/income, +15% hp/range per level above
  * 1; a branch pick (if any) then multiplies its `mods` on top of that; the
- * optional `mods` param (Game.globalMods() — docs/design-wave-legibility.md
+ * optional `mods` param (globalStatMods — docs/design-wave-legibility.md
  * §7c) layers a further multiplier on top of THAT, for every building, not
  * just the one that earned the pick. A `def.branch.global` branch's own
  * `branchId` mods are skipped here on purpose (see the `branch` field's

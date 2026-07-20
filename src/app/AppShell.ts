@@ -88,10 +88,6 @@ export class AppShell {
     return this._modal;
   }
 
-  get paused(): boolean {
-    return this._paused;
-  }
-
   get nightSpeed(): 1 | 2 {
     return this._nightSpeed;
   }

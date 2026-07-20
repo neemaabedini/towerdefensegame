@@ -59,10 +59,6 @@ export interface MutatorDef {
 
 export const MUTATORS = rawMutators as unknown as Record<string, MutatorDef>;
 
-export function getMutator(id: string): MutatorDef | undefined {
-  return MUTATORS[id];
-}
-
 function pctOf(mul: number): string {
   const pct = Math.round((mul - 1) * 100);
   return `${pct >= 0 ? "+" : ""}${pct}%`;
