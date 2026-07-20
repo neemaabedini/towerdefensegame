@@ -43,14 +43,12 @@ Update it as decisions get made.
   units/defenses.
 - **Input goal:** fully playable without a mouse — WASD to move a site cursor,
   keys to pick build options.
-- **Godot port timing (decided 2026-07-14):** iron out the game in the web
-  version; port after mechanics lock, before the polish/content phase.
-  Gates: (a) cheap 1–2 day Godot spike anytime — load the JSON defs, render
-  a level with the sprite PNGs, run one wave — to de-risk data formats;
-  (b) full port once Phases 2–3 (economy, garrisons, abilities) are stable
-  and fun, because audio/VFX/UI polish and campaign content should be built
-  once, in the shipping engine. Until then: keep web-only investment
-  shallow (simple sound pass, no web-specific engine tricks). Console note:
+- **Godot port timing (decided 2026-07-14; started 2026-07-20):** iron out
+  the game in the web version; port after mechanics lock, before the
+  polish/content phase. **CD-17 closed:** `godot/` is a Godot 4.7 project
+  loading the same JSON and playing day/night on Outpost Alpha — see
+  `godot/README.md`. Remaining work is parity (garrisons, meta UI, audio,
+  real sprites) then **CD-9** walls/pathfinding in Godot. Console note:
   Godot has no public Xbox export button (NDA'd SDKs can't ship in an
   open-source engine), but Godot→Xbox is a well-trodden commercial path —
   hire a porting house (Seaven Studio ported Brotato to Xbox/Game Pass) or

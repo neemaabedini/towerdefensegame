@@ -4,3 +4,8 @@ dist
 *.local
 .vscode/*
 !.vscode/extensions.json
+
+# Godot 4
+godot/.godot/
+godot/*.translation
+godot/export_presets.cfg

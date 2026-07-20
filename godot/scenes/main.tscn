@@ -1,0 +1,127 @@
+[gd_scene load_steps=3 format=3 uid="uid://citydefense_main"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/world_draw.gd" id="2_world"]
+
+[node name="Main" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_main")
+
+[node name="WorldHost" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 48.0
+offset_bottom = -40.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="World" type="Node2D" parent="WorldHost"]
+script = ExtResource("2_world")
+
+[node name="HUD" type="CanvasLayer" parent="."]
+visible = false
+
+[node name="TopBar" type="PanelContainer" parent="HUD"]
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 44.0
+grow_horizontal = 2
+
+[node name="Status" type="Label" parent="HUD/TopBar"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Status"
+vertical_alignment = 1
+
+[node name="Hint" type="Label" parent="HUD"]
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -36.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_font_sizes/font_size = 14
+text = "Hints"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="TitlePanel" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -200.0
+offset_top = -140.0
+offset_right = 200.0
+offset_bottom = 140.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="TitlePanel"]
+layout_mode = 2
+theme_override_constants/separation = 16
+alignment = 1
+
+[node name="Title" type="Label" parent="TitlePanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "City Defense"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="TitlePanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 14
+text = "Godot port — same JSON data as the web build"
+horizontal_alignment = 1
+
+[node name="PlayButton" type="Button" parent="TitlePanel/VBox"]
+layout_mode = 2
+text = "Play Outpost Alpha"
+
+[node name="QuitButton" type="Button" parent="TitlePanel/VBox"]
+layout_mode = 2
+text = "Quit"
+
+[node name="EndPanel" type="PanelContainer" parent="."]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -160.0
+offset_top = -100.0
+offset_right = 160.0
+offset_bottom = 100.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBox" type="VBoxContainer" parent="EndPanel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="EndLabel" type="Label" parent="EndPanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "VICTORY"
+horizontal_alignment = 1
+
+[node name="AgainButton" type="Button" parent="EndPanel/VBox"]
+layout_mode = 2
+text = "Play Again"
+
+[node name="MenuButton" type="Button" parent="EndPanel/VBox"]
+layout_mode = 2
+text = "Title"

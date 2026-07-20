@@ -95,8 +95,9 @@ spatial economy design → earned meta / demo identity / juice → content volum
 **Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
 perks; boss fights designed as free first losses.
 
-**Single next move (default):** **CD-16** (naming/lore user session) — user sign-off.
-Juice (CD-6 + CD-33), CD-30 Slice 4, and CD-47 shipped 2026-07-19/20.
+**Single next move (default):** deepen Godot parity (garrisons, HUD, art atlas)
+or **CD-9** walls/pathfinding in Godot; web **CD-16** naming still needs user sign-off.
+Godot port started 2026-07-20 (`godot/`, CD-17 closed).
 
 **SDLC role template** (on each pack ticket):
 
@@ -1307,12 +1308,15 @@ Juice (CD-6 + CD-33), CD-30 Slice 4, and CD-47 shipped 2026-07-19/20.
   `strings.json` + display names; QA — no banned Blizzard terms remain in UI;
   title screen shows signed-off title.
 
-- [ ] CD-17 (feature, P3) — Godot spike (1–2 days, do well before the real
-  port): new Godot 4 project that loads `src/data/*.json`, renders one level
-  (terrain/paths/sites/sprite PNGs exported from the atlas), and runs one
-  wave with dumb movement. Goal is de-risking data formats and estimating
-  the true port cost — not shipping anything. Full port gate: after Phases
-  2–3 mechanics lock (see ROADMAP "Godot port timing").
+- [x] CD-17 (feature, P3) — Godot spike / port start — **SHIPPED 2026-07-20**
+  under `godot/`. Godot 4.7 project loads the same JSON defs (`godot/data/`
+  mirror of `src/data/`), renders Outpost Alpha (paths/sites/obstacles),
+  day build (click + 1–4), night waves with path-following enemies, tower
+  combat, hero WASD + auto-attack, dawn income, victory/defeat. Run:
+  `Godot_v4.7-stable_win64.exe --path godot`. See `godot/README.md`.
+  Remaining parity (garrisons full AI, CD-40, CD-30 UI, audio, atlas art,
+  multi-level save) and **CD-9 walls/pathfinding** stay Godot-side follow-ups.
+  Original spike goal (de-risk JSON + one wave) is satisfied and exceeded.
 
 - [ ] CD-20 (tech-debt, P2) — Deterministic sim: replace `Math.random()`
   inside `Game` (burst particles live in sim state) with a seeded RNG, and

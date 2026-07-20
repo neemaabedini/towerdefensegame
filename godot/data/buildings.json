@@ -1,0 +1,305 @@
+{
+  "command_center": {
+    "id": "command_center",
+    "name": "Command Post",
+    "category": "support",
+    "description": "Your headquarters with a light defensive gun. If it falls, the level is lost. Its light gun hits air.",
+    "cost": 0,
+    "maxHp": 600,
+    "damage": 10,
+    "range": 150,
+    "fireRate": 1.2,
+    "splashRadius": 0,
+    "incomePerDay": 0,
+    "maxLevel": 2,
+    "upgradeCostMult": 0,
+    "upgradeCosts": [120],
+    "color": "#1e88e5",
+    "accent": "#64b5f6",
+    "size": 36,
+    "shape": "hq",
+    "targets": "all",
+    "branch": {
+      "atLevel": 2,
+      "global": true,
+      "options": [
+        {
+          "id": "weapons",
+          "name": "Weapons",
+          "blurb": "+5% damage and +5% fire rate for every structure and squad, permanently.",
+          "mods": { "damage": 1.05, "fireRate": 1.05 },
+          "scope": "all structures & squads"
+        },
+        {
+          "id": "plating",
+          "name": "Plating",
+          "blurb": "+10% max HP for every structure and squad, including the Command Post itself.",
+          "mods": { "maxHp": 1.10 },
+          "scope": "all structures & squads, incl. the Command Post"
+        }
+      ]
+    }
+  },
+  "gun_tower": {
+    "id": "gun_tower",
+    "name": "Gun Tower",
+    "category": "defense",
+    "description": "Rapid-fire turret. Best credits-per-kill vs light ground. Ground only — armor shrugs it off.",
+    "cost": 80,
+    "maxHp": 120,
+    "damage": 10,
+    "range": 130,
+    "fireRate": 3.2,
+    "splashRadius": 0,
+    "incomePerDay": 0,
+    "maxLevel": 4,
+    "upgradeCostMult": 0.9,
+    "color": "#546e7a",
+    "accent": "#90a4ae",
+    "size": 22,
+    "shape": "tower",
+    "targets": "ground",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "rapid",
+          "name": "Rapid Loader",
+          "blurb": "+35% fire rate — shreds light streams",
+          "mods": { "fireRate": 1.35 }
+        },
+        {
+          "id": "longbarrel",
+          "name": "Long Barrel",
+          "blurb": "+30% range — starts the fight earlier",
+          "mods": { "range": 1.3 }
+        },
+        {
+          "id": "hollowpoint",
+          "name": "Hollowpoint",
+          "blurb": "+40% damage — punches mid-weight ground",
+          "mods": { "damage": 1.4 }
+        }
+      ]
+    }
+  },
+  "garrison": {
+    "id": "garrison",
+    "name": "Garrison",
+    "category": "defense",
+    "description": "Fields an infantry squad that guards its ground. Bodies slow the enemy — for a while. You choose who serves.",
+    "cost": 110,
+    "maxHp": 240,
+    "damage": 0,
+    "range": 0,
+    "fireRate": 0,
+    "splashRadius": 0,
+    "incomePerDay": 0,
+    "maxLevel": 3,
+    "upgradeCostMult": 0.7,
+    "color": "#5d4037",
+    "accent": "#a1887f",
+    "size": 26,
+    "shape": "bunker",
+    "targets": "all",
+    "squad": { "unitId": "rifleman", "countByLevel": [3] },
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "riflemen",
+          "name": "Riflemen",
+          "blurb": "More riflemen. Keeps anti-air.",
+          "squad": { "unitId": "rifleman", "countByLevel": [3, 5, 7] }
+        },
+        {
+          "id": "scorchers",
+          "name": "Scorchers",
+          "blurb": "Splash. Melts ground swarms up close.",
+          "squad": { "unitId": "scorcher", "countByLevel": [3, 4, 5] }
+        },
+        {
+          "id": "breakers",
+          "name": "Breakers",
+          "blurb": "Anti-armor. Slows what it hits.",
+          "squad": { "unitId": "breaker", "countByLevel": [3, 3, 4] }
+        },
+        {
+          "id": "bulwarks",
+          "name": "Bulwarks",
+          "blurb": "Heavy shields. Block lanes, kill slowly.",
+          "squad": { "unitId": "bulwark", "countByLevel": [3, 3, 4] }
+        }
+      ]
+    }
+  },
+  "artillery_platform": {
+    "id": "artillery_platform",
+    "name": "Artillery Platform",
+    "category": "defense",
+    "description": "Long-range splash artillery. Shreds packed swarms. Ground only.",
+    "cost": 160,
+    "maxHp": 150,
+    "damage": 45,
+    "range": 170,
+    "fireRate": 0.55,
+    "splashRadius": 36,
+    "incomePerDay": 0,
+    "maxLevel": 4,
+    "upgradeCostMult": 0.8,
+    "color": "#37474f",
+    "accent": "#ff8a65",
+    "size": 24,
+    "shape": "tank",
+    "targets": "ground",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "saturation",
+          "name": "Saturation Shells",
+          "blurb": "+40% blast radius. Clears wider swarms.",
+          "mods": { "splashRadius": 1.4 }
+        },
+        {
+          "id": "long_battery",
+          "name": "Long Battery",
+          "blurb": "+25% range, +20% damage. Reaches and punches.",
+          "mods": { "range": 1.25, "damage": 1.2 }
+        },
+        {
+          "id": "barrage",
+          "name": "Barrage Loaders",
+          "blurb": "+45% fire rate. Sustained fire on long packs.",
+          "mods": { "fireRate": 1.45 }
+        }
+      ]
+    }
+  },
+  "missile_battery": {
+    "id": "missile_battery",
+    "name": "Missile Battery",
+    "category": "defense",
+    "description": "Flak battery. Shreds anything that flies. Cannot hit ground.",
+    "cost": 100,
+    "maxHp": 150,
+    "damage": 30,
+    "range": 170,
+    "fireRate": 1.4,
+    "splashRadius": 14,
+    "incomePerDay": 0,
+    "maxLevel": 4,
+    "upgradeCostMult": 0.8,
+    "color": "#455a64",
+    "accent": "#ef5350",
+    "size": 22,
+    "shape": "missile",
+    "targets": "air",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "flak_spread",
+          "name": "Flak Spread",
+          "blurb": "+80% blast. Shreds packed flyers.",
+          "mods": { "splashRadius": 1.8 }
+        },
+        {
+          "id": "lock_on",
+          "name": "Lock-On",
+          "blurb": "+20% range, +25% fire rate. Hunts lone flyers.",
+          "mods": { "range": 1.2, "fireRate": 1.25 }
+        },
+        {
+          "id": "heavy_warhead",
+          "name": "Heavy Warhead",
+          "blurb": "+35% damage. Cracks tough air targets.",
+          "mods": { "damage": 1.35 }
+        }
+      ]
+    }
+  },
+  "sniper_tower": {
+    "id": "sniper_tower",
+    "name": "Sniper Tower",
+    "category": "defense",
+    "description": "One huge shot at a time. Armor means nothing to it. Wasted on chaff.",
+    "cost": 150,
+    "maxHp": 110,
+    "damage": 75,
+    "range": 180,
+    "fireRate": 0.35,
+    "splashRadius": 0,
+    "incomePerDay": 0,
+    "maxLevel": 3,
+    "upgradeCostMult": 0.8,
+    "color": "#37474f",
+    "accent": "#4dd0e1",
+    "size": 22,
+    "shape": "sniper",
+    "targets": "ground",
+    "branch": {
+      "atLevel": 2,
+      "options": [
+        {
+          "id": "ap_rounds",
+          "name": "AP Rounds",
+          "blurb": "+30% damage. Cracks the heaviest armor.",
+          "mods": { "damage": 1.3 }
+        },
+        {
+          "id": "overwatch",
+          "name": "Overwatch",
+          "blurb": "+15% range, +40% fire rate. Covers the whole lane.",
+          "mods": { "range": 1.15, "fireRate": 1.4 }
+        },
+        {
+          "id": "marksman",
+          "name": "Marksman Scope",
+          "blurb": "+35% range. Extreme reach, same cadence.",
+          "mods": { "range": 1.35 }
+        }
+      ]
+    }
+  },
+  "mining_facility": {
+    "id": "mining_facility",
+    "name": "Mining Facility",
+    "category": "production",
+    "description": "Mines the crystal field around it. Pays 14₡ per crystal in range, at dawn. Fragile — and the richest fields are rarely the safest.",
+    "cost": 130,
+    "maxHp": 90,
+    "damage": 0,
+    "range": 0,
+    "fireRate": 0,
+    "splashRadius": 0,
+    "incomePerDay": 14,
+    "maxLevel": 3,
+    "upgradeCostMult": 0.9,
+    "color": "#f9a825",
+    "accent": "#ffd54f",
+    "size": 24,
+    "shape": "silo",
+    "mining": { "resource": "mineral", "radius": 95, "minNodes": 3, "maxNodes": 5 },
+    "requires": { "resource": "mineral", "min": 3 }
+  },
+  "rear_depot": {
+    "id": "rear_depot",
+    "name": "Rear Depot",
+    "category": "production",
+    "description": "Low-yield stockpile. Safe only because it sits behind the line — never a substitute for mining the field.",
+    "cost": 55,
+    "maxHp": 70,
+    "damage": 0,
+    "range": 0,
+    "fireRate": 0,
+    "splashRadius": 0,
+    "incomePerDay": 18,
+    "maxLevel": 1,
+    "upgradeCostMult": 0,
+    "color": "#6d4c41",
+    "accent": "#bcaaa4",
+    "size": 20,
+    "shape": "silo"
+  }
+}

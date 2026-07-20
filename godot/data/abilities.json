@@ -1,0 +1,38 @@
+{
+  "volley": {
+    "id": "volley",
+    "name": "Volley",
+    "blurb": "Burst damage to all enemies near you.",
+    "targeting": "self",
+    "cooldown": 10,
+    "radius": 90,
+    "effect": { "kind": "damage", "damage": 28 }
+  },
+  "concussion": {
+    "id": "concussion",
+    "name": "Concussion Blast",
+    "blurb": "Splash + short slow — clears ground swarms.",
+    "targeting": "self",
+    "cooldown": 11,
+    "radius": 110,
+    "effect": { "kind": "damage_and_slow", "damage": 18, "slowSeconds": 1.8 }
+  },
+  "overcharge": {
+    "id": "overcharge",
+    "name": "Overcharge",
+    "blurb": "Massive shot into the toughest foe in range.",
+    "targeting": "self",
+    "cooldown": 14,
+    "radius": 170,
+    "effect": { "kind": "damage_single", "damage": 120 }
+  },
+  "sky_burst": {
+    "id": "sky_burst",
+    "name": "Sky Burst",
+    "blurb": "Anti-air pulse. Hits flyers near you.",
+    "targeting": "self",
+    "cooldown": 9,
+    "radius": 120,
+    "effect": { "kind": "damage_air", "damage": 35 }
+  }
+}
