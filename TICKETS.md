@@ -87,7 +87,7 @@ spatial economy design → earned meta / demo identity / juice → content volum
 | **P1 Economy design** | **CD-47** — **shipped 2026-07-19** (`rear_depot` + `e1`/`e2`) | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
 | **P2 Retention** | **CD-30** Slice 4 — **shipped 2026-07-19** (freeze-untuned gates) | Kits feel earned | Pre-run loadouts drive replay when scarce |
 | **P2 Demo** | **CD-16** (naming/lore; **user session**) | Ownable identity before public showings | Demo gate (ours), not a peer complaint |
-| **P2 Juice** | **CD-6** shipped 2026-07-20; **CD-33** open | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
+| **P2 Juice** | **CD-6** + **CD-33** shipped 2026-07-20 | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
 | **P3 Content** | **CD-31** (after port-gate decision) | Campaign length / less repetition | Content ceiling / same-loop fatigue |
 | **P3 Scale** | **CD-60** → **CD-15** → **CD-20** → **CD-61** (**CD-10** with units) | Data-driven combat, determinism, maintainability | Port / co-op / harness quality |
 | **Hold** | **CD-50**, level-length Steps 1–3, **CD-41** retunes; **CD-9** post-port | File cliffs & dead options; don't ladder-tune under freeze | Avoid "lose first by design"; free geometry waits for Godot |
@@ -95,8 +95,8 @@ spatial economy design → earned meta / demo identity / juice → content volum
 **Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
 perks; boss fights designed as free first losses.
 
-**Single next move (default):** **CD-16** (naming/lore user session) or **CD-33** (music / night drop).
-CD-6 juice shipped 2026-07-20; CD-30 Slice 4 + CD-47 shipped 2026-07-19.
+**Single next move (default):** **CD-16** (naming/lore user session) — user sign-off.
+Juice (CD-6 + CD-33), CD-30 Slice 4, and CD-47 shipped 2026-07-19/20.
 
 **SDLC role template** (on each pack ticket):
 
@@ -1477,12 +1477,17 @@ CD-6 juice shipped 2026-07-20; CD-30 Slice 4 + CD-47 shipped 2026-07-19.
   neither achievable solo nor desirable (trade dress, above). Final art pass: replace the procedural
   pixel builders in sprites.ts with hand-made (or commissioned) sprite
   sheets via the same atlas API; per-entity swap, enemies first.
-- [ ] CD-33 (feature, P2, v1.0) — Audio pass 2: music (day/night themes,
+- [x] CD-33 (feature, P2, v1.0) — Audio pass 2: music (day/night themes,
   finale escalation), announcer lines ("Hostiles inbound, Commander"),
   full mix pass. Builds on CD-3's SFX foundation.
   **Review pack (2026-07-18) area #7 juice.** **SDLC:** PD — night drop +
   climax sell; Arch — AudioBus themes only, no sim coupling; Eng — music +
   mix on CD-3 foundation; QA — day/night themes swap, mute/volume still work.
+  **SHIPPED 2026-07-20:** synthesized `music.ts` themes (title/day/night/finale)
+  on a dedicated music bus under master (SFX bus separate); `setMusicTheme`
+  crossfades; `syncMusic` maps screen/phase/last-wave → theme; wave start
+  layers `announce_inbound` under klaxon; pause mute + volume still master-level.
+  Zero sample assets (post-port pack remains shallow web investment).
 
 ## Done
 

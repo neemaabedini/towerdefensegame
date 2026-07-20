@@ -1,6 +1,6 @@
 import { AppShell } from "./app/AppShell";
 import { AudioBus } from "./audio/AudioBus";
-import { bindSounds } from "./audio/bindings";
+import { bindSounds, syncMusic } from "./audio/bindings";
 import { STRINGS } from "./data/strings";
 import { actionFromKey } from "./input/actions";
 import type { Phase } from "./game/types";
@@ -25,10 +25,10 @@ if (brandTitleEl) brandTitleEl.textContent = STRINGS.gameTitle;
 const shell = new AppShell();
 const game = shell.game;
 
-// CD-3: synthesized WebAudio SFX. AudioBus is silent until the first
+// CD-3 SFX + CD-33 music. AudioBus is silent until the first
 // pointerdown/keydown gesture resumes its (lazily-created) AudioContext, so
-// nothing plays or warns before then. bindSounds is the only file that
-// knows both the GameEvent and SoundId vocabularies.
+// nothing plays or warns before then. bindSounds / syncMusic are the only
+// bridge between GameEvent/phase and audio ids/themes.
 const audioBus = new AudioBus();
 bindSounds(game, audioBus);
 
@@ -45,6 +45,27 @@ function applyAudioSettings(): void {
 shell.onChange(applyAudioSettings);
 shell.onSettingsChange(applyAudioSettings);
 applyAudioSettings();
+
+// CD-33: music theme follows screen + phase + last-wave finale. Also
+// re-sync when Game emits phase edges (onChange alone misses pure sim
+// transitions that don't rewrite shell state — victory/defeat/dawn do
+// via handleGameChange, but night start is a sim event; both paths are
+// covered by shell.onChange + game.onEvent below).
+function applyMusic(): void {
+  syncMusic(shell, audioBus);
+}
+shell.onChange(applyMusic);
+game.onEvent((ev) => {
+  if (
+    ev.type === "waveStarted" ||
+    ev.type === "dawn" ||
+    ev.type === "victory" ||
+    ev.type === "defeat"
+  ) {
+    applyMusic();
+  }
+});
+applyMusic();
 
 const renderer = new Renderer(canvas);
 const hud = new HUD(game, shell);

@@ -2,8 +2,9 @@
  * Synthesized SFX recipes (CD-3, see design-demo-milestone.md Problem 5) —
  * zero audio assets. Each recipe is a small pure function that schedules
  * oscillator/noise nodes onto `destination` starting at `when` (an
- * AudioContext timestamp) and cleans up after itself via `stop()`. Real
- * audio (CD-33) replaces these post-port; keep this shallow.
+ * AudioContext timestamp) and cleans up after itself via `stop()`. CD-33
+ * adds music on a separate bus (music.ts) plus announcer stings here;
+ * real sample packs stay post-port (shallow web investment).
  */
 
 export type SoundId =
@@ -14,6 +15,7 @@ export type SoundId =
   | "enemy_die"
   | "building_down"
   | "wave_klaxon"
+  | "announce_inbound"
   | "dawn_chime"
   | "victory_sting"
   | "defeat_sting"
@@ -190,6 +192,37 @@ export const SFX: Record<SoundId, SfxRecipe> = {
       freq: 330 * p,
       duration: 0.18,
       gain: 0.2,
+    });
+  },
+
+  // CD-33: radio-open + speech-cadence tones — "Hostiles inbound, Commander"
+  // without a sample pack. Plays under/after the klaxon on wave start.
+  announce_inbound: (ctx, dest, when, p) => {
+    playNoise(ctx, dest, when, {
+      duration: 0.12,
+      gain: 0.09,
+      filterFreq: 2200,
+      filterType: "bandpass",
+    });
+    // Short "phrase" of mid tones (not melodic — radio chatter cadence).
+    const phrase = [280, 320, 300, 360, 340, 420];
+    phrase.forEach((freq, i) => {
+      playTone(ctx, dest, when + 0.1 + i * 0.07, {
+        type: "square",
+        freq: freq * p,
+        freqEnd: freq * p * 0.92,
+        duration: 0.06,
+        gain: 0.07,
+        attack: 0.008,
+      });
+    });
+    // Closing confirmation chirp
+    playTone(ctx, dest, when + 0.55, {
+      type: "sine",
+      freq: 660 * p,
+      freqEnd: 880 * p,
+      duration: 0.12,
+      gain: 0.1,
     });
   },
 
