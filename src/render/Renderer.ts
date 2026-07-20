@@ -873,6 +873,9 @@ export class Renderer {
       }
     }
 
+    // CD-6: live barrel aim + muzzle flash on combat buildings (presentation).
+    this.drawCombatAim(b, def);
+
     // HP bar
     if (b.hp < b.maxHp || b.isHq) {
       const bw = s * 1.8;
@@ -1104,22 +1107,11 @@ export class Renderer {
     // Column
     ctx.fillStyle = color;
     ctx.fillRect(x - s * 0.28, y - s * 0.2, s * 0.56, s * 0.85);
-    // Turret head
+    // Turret head — barrels drawn live by drawCombatAim (CD-6).
     ctx.fillStyle = accent;
     ctx.beginPath();
     ctx.roundRect(x - s * 0.5, y - s * 0.62, s, s * 0.52, 4);
     ctx.fill();
-    // Twin barrels angled up-right
-    ctx.save();
-    ctx.translate(x + s * 0.1, y - s * 0.38);
-    ctx.rotate(-Math.PI / 5);
-    ctx.fillStyle = "#263238";
-    ctx.fillRect(0, -4, s * 0.9, 3);
-    ctx.fillRect(0, 1.5, s * 0.9, 3);
-    ctx.fillStyle = "#eceff1";
-    ctx.fillRect(s * 0.9 - 3, -4, 3, 3);
-    ctx.fillRect(s * 0.9 - 3, 1.5, 3, 3);
-    ctx.restore();
   }
 
   /** Sniper Tower: tripod legs, compact body, one long thin barrel with a
@@ -1137,20 +1129,11 @@ export class Renderer {
     ctx.moveTo(x, y + s * 0.8);
     ctx.lineTo(x, y + s * 0.1);
     ctx.stroke();
-    // Compact body
+    // Compact body — long barrel drawn live by drawCombatAim (CD-6).
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.roundRect(x - s * 0.4, y - s * 0.3, s * 0.8, s * 0.45, 4);
     ctx.fill();
-    // Long thin barrel angled up-right
-    ctx.save();
-    ctx.translate(x + s * 0.1, y - s * 0.15);
-    ctx.rotate(-Math.PI / 7);
-    ctx.fillStyle = "#1c262b";
-    ctx.fillRect(0, -1.5, s * 1.6, 3);
-    ctx.fillStyle = "#eceff1";
-    ctx.fillRect(s * 1.6 - 3, -1.5, 3, 3);
-    ctx.restore();
     // Scope, glint blinks
     ctx.fillStyle = "#263238";
     ctx.beginPath();
@@ -1173,35 +1156,15 @@ export class Renderer {
     ctx.beginPath();
     ctx.roundRect(x - s * 0.55, y + s * 0.05, s * 1.1, s * 0.55, 3);
     ctx.fill();
-    // Tilted launcher rack
-    ctx.save();
-    ctx.translate(x, y - s * 0.15);
-    ctx.rotate(-0.5);
+    // Launcher rack body — tubes/aim drawn live by drawCombatAim (CD-6).
     ctx.fillStyle = color;
     ctx.beginPath();
-    ctx.roundRect(-s * 0.62, -s * 0.45, s * 1.24, s * 0.9, 4);
+    ctx.roundRect(x - s * 0.55, y - s * 0.55, s * 1.1, s * 0.7, 4);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.15)";
-    ctx.lineWidth = 1;
-    ctx.stroke();
-    // 2x2 missile tubes with warhead tips
-    const tube = s * 0.17;
-    for (const [ox, oy] of [
-      [-s * 0.3, -s * 0.2],
-      [s * 0.08, -s * 0.2],
-      [-s * 0.3, s * 0.18],
-      [s * 0.08, s * 0.18],
-    ] as const) {
-      ctx.fillStyle = "#1c262b";
-      ctx.beginPath();
-      ctx.arc(ox + tube, oy, tube, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = accent;
-      ctx.beginPath();
-      ctx.arc(ox + tube, oy, tube * 0.5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
+    ctx.fillStyle = accent;
+    ctx.beginPath();
+    ctx.arc(x, y - s * 0.25, s * 0.18, 0, Math.PI * 2);
+    ctx.fill();
   }
 
   /** Bunker: low sandbagged pillbox with dark firing slit */
@@ -1218,14 +1181,11 @@ export class Renderer {
     // Roof ridge
     ctx.fillStyle = "rgba(0,0,0,0.25)";
     ctx.fillRect(x - s * 0.65, y - s * 0.5, s * 1.3, s * 0.16);
-    // Firing slit
+    // Firing slit — gun drawn live by drawCombatAim (CD-6).
     ctx.fillStyle = "#141b1f";
     ctx.beginPath();
     ctx.roundRect(x - s * 0.5, y - s * 0.18, s, s * 0.22, 2);
     ctx.fill();
-    // Gun poking out of slit
-    ctx.fillStyle = "#263238";
-    ctx.fillRect(x - 2, y - s * 0.14, s * 0.7, 3);
     // Sandbag bumps along the base
     ctx.fillStyle = accent;
     for (let i = -2; i <= 2; i++) {
@@ -1252,19 +1212,11 @@ export class Renderer {
     ctx.beginPath();
     ctx.roundRect(x - s * 0.85, y - s * 0.25, s * 1.7, s * 0.65, 4);
     ctx.fill();
-    // Turret ring
+    // Turret ring — barrel drawn live by drawCombatAim (CD-6).
     ctx.fillStyle = "rgba(0,0,0,0.3)";
     ctx.beginPath();
     ctx.arc(x - s * 0.1, y - s * 0.2, s * 0.4, 0, Math.PI * 2);
     ctx.fill();
-    // Long barrel elevated up-right with muzzle brake
-    ctx.save();
-    ctx.translate(x - s * 0.1, y - s * 0.25);
-    ctx.rotate(-Math.PI / 4.5);
-    ctx.fillStyle = accent;
-    ctx.fillRect(0, -2.5, s * 1.45, 5);
-    ctx.fillRect(s * 1.2, -4.5, s * 0.22, 9);
-    ctx.restore();
     // Recoil piston detail
     ctx.fillStyle = accent;
     ctx.beginPath();
@@ -1815,25 +1767,131 @@ export class Renderer {
     const ctx = this.ctx;
     for (const p of state.projectiles) {
       if (!p.alive) continue;
-      // Enemy shots (from the enemy's accent color) render smaller than
-      // player weapon fire so the two factions read distinctly at a glance.
       const isEnemy = p.faction === "enemy";
-      const r = isEnemy ? 2.5 : 4;
-      ctx.fillStyle = p.color;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-      ctx.fill();
-      // Trail
+      const style = p.style ?? (isEnemy ? "bolt" : "bullet");
+      const frame = style === "bolt" ? Math.floor(this.time * 12) % 2 : 0;
+      const f = this.atlas.get(`fx:${style}:${frame}`);
+      const ang = Math.atan2(p.targetY - p.y, p.targetX - p.x);
+
+      // Soft trail behind the shot (reads motion between sprite frames).
       ctx.strokeStyle = p.color;
-      ctx.globalAlpha = 0.4;
-      ctx.lineWidth = isEnemy ? 1.5 : 2;
+      ctx.globalAlpha = 0.35;
+      ctx.lineWidth = isEnemy ? 1.5 : 2.5;
       ctx.beginPath();
       ctx.moveTo(p.x, p.y);
-      const ang = Math.atan2(p.targetY - p.y, p.targetX - p.x);
-      ctx.lineTo(p.x - Math.cos(ang) * 12, p.y - Math.sin(ang) * 12);
+      const trail = style === "missile" ? 18 : style === "shell" ? 14 : 10;
+      ctx.lineTo(p.x - Math.cos(ang) * trail, p.y - Math.sin(ang) * trail);
       ctx.stroke();
       ctx.globalAlpha = 1;
+
+      if (f) {
+        ctx.save();
+        ctx.translate(Math.round(p.x), Math.round(p.y));
+        ctx.rotate(ang);
+        ctx.drawImage(
+          this.atlas.canvas,
+          f.sx,
+          f.sy,
+          f.sw,
+          f.sh,
+          -f.ax,
+          -f.ay,
+          f.sw,
+          f.sh,
+        );
+        ctx.restore();
+      } else {
+        // Fallback if atlas missing a frame.
+        const r = isEnemy ? 2.5 : 4;
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
+  }
+
+  /**
+   * CD-6: rotating barrel overlay + muzzle flash for combat buildings.
+   * Sits on top of atlas/vector body art so aim tracks live targets without
+   * baking N orientation frames into the atlas.
+   */
+  private drawCombatAim(b: PlacedBuilding, def: ReturnType<typeof getBuilding>): void {
+    if (def.damage <= 0 || def.fireRate <= 0) return;
+    // Production / sensor shapes never aim.
+    if (
+      def.shape === "silo" ||
+      def.shape === "factory" ||
+      def.shape === "radar" ||
+      def.shape === "tap" ||
+      def.shape === "hq"
+    ) {
+      return;
+    }
+
+    const ctx = this.ctx;
+    const s = def.size;
+    const barrelLen =
+      def.shape === "sniper"
+        ? s * 1.55
+        : def.shape === "tank"
+          ? s * 1.35
+          : def.shape === "missile"
+            ? s * 1.1
+            : s * 0.95;
+    const pivotY =
+      def.shape === "bunker"
+        ? -s * 0.1
+        : def.shape === "tank"
+          ? -s * 0.22
+          : -s * 0.32;
+
+    ctx.save();
+    ctx.translate(b.x, b.y + pivotY);
+    ctx.rotate(b.aimAngle);
+
+    // Barrel body
+    ctx.fillStyle = "#1a2228";
+    const thick = def.shape === "sniper" ? 3 : 5;
+    ctx.fillRect(2, -thick / 2, barrelLen, thick);
+    // Accent tip / muzzle brake
+    ctx.fillStyle = def.accent;
+    ctx.fillRect(barrelLen - 3, -thick / 2 - 1.5, 5, thick + 3);
+    if (def.shape === "missile") {
+      // Second tube hint for multi-rack batteries
+      ctx.fillStyle = "#263238";
+      ctx.fillRect(4, thick / 2 + 1, barrelLen * 0.7, 3);
+    }
+
+    // Muzzle flash at barrel tip
+    if (b.muzzleFlash > 0) {
+      const t = Math.min(1, b.muzzleFlash / 0.1);
+      const frame = t > 0.5 ? 0 : 1;
+      const mf = this.atlas.get(`fx:muzzle:${frame}`);
+      if (mf) {
+        const scale = 0.7 + 0.5 * t;
+        ctx.globalAlpha = 0.55 + 0.45 * t;
+        ctx.drawImage(
+          this.atlas.canvas,
+          mf.sx,
+          mf.sy,
+          mf.sw,
+          mf.sh,
+          barrelLen + 2 - (mf.ax * scale),
+          -(mf.ay * scale),
+          mf.sw * scale,
+          mf.sh * scale,
+        );
+        ctx.globalAlpha = 1;
+      } else {
+        ctx.fillStyle = `rgba(255, 235, 100, ${0.4 + 0.6 * t})`;
+        ctx.beginPath();
+        ctx.arc(barrelLen + 4, 0, 4 + 5 * t, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    ctx.restore();
   }
 
   private drawParticles(state: GameSnapshot): void {

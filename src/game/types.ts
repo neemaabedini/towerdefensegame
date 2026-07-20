@@ -31,6 +31,11 @@ export interface PlacedBuilding {
   levelsToday: number;
   /** True if this building was placed (not just upgraded) during the CURRENT day phase */
   builtToday: boolean;
+  /** Radians, screen-y-down: where the barrel points (CD-6). Presentation —
+   *  updated when a target is in range; does not affect damage math. */
+  aimAngle: number;
+  /** Seconds of muzzle flash remaining after fire (CD-6). 0 = none. */
+  muzzleFlash: number;
 }
 
 /**
@@ -138,6 +143,8 @@ export interface Projectile {
    *  position; fizzles if the hero died before impact. Mutually exclusive
    *  with targetUnitId (nearestLivingBlocker returns at most one). */
   targetHero?: boolean;
+  /** Atlas projectile style (CD-6). Presentation only — no sim effect. */
+  style?: "bullet" | "shell" | "missile" | "bolt";
 }
 
 export interface FloatingText {

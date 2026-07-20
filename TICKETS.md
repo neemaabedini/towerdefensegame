@@ -87,7 +87,7 @@ spatial economy design → earned meta / demo identity / juice → content volum
 | **P1 Economy design** | **CD-47** — **shipped 2026-07-19** (`rear_depot` + `e1`/`e2`) | Safe floor + contested gamble thesis | Geographic economy is peer praise; we only half-shipped it |
 | **P2 Retention** | **CD-30** Slice 4 — **shipped 2026-07-19** (freeze-untuned gates) | Kits feel earned | Pre-run loadouts drive replay when scarce |
 | **P2 Demo** | **CD-16** (naming/lore; **user session**) | Ownable identity before public showings | Demo gate (ours), not a peer complaint |
-| **P2 Juice** | **CD-6**, **CD-33** | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
+| **P2 Juice** | **CD-6** shipped 2026-07-20; **CD-33** open | Muzzle/projectiles + music / night drop | Minimalist *presentation* is highly praised |
 | **P3 Content** | **CD-31** (after port-gate decision) | Campaign length / less repetition | Content ceiling / same-loop fatigue |
 | **P3 Scale** | **CD-60** → **CD-15** → **CD-20** → **CD-61** (**CD-10** with units) | Data-driven combat, determinism, maintainability | Port / co-op / harness quality |
 | **Hold** | **CD-50**, level-length Steps 1–3, **CD-41** retunes; **CD-9** post-port | File cliffs & dead options; don't ladder-tune under freeze | Avoid "lose first by design"; free geometry waits for Godot |
@@ -95,8 +95,8 @@ spatial economy design → earned meta / demo identity / juice → content volum
 **Explicit non-goals (from peer dislike lists):** unit rally / command verbs; global income must-pick
 perks; boss fights designed as free first losses.
 
-**Single next move (default):** **CD-16** (naming/lore user session) or juice (**CD-6** / **CD-33**).
-CD-30 Slice 4 + CD-47 shipped 2026-07-19.
+**Single next move (default):** **CD-16** (naming/lore user session) or **CD-33** (music / night drop).
+CD-6 juice shipped 2026-07-20; CD-30 Slice 4 + CD-47 shipped 2026-07-19.
 
 **SDLC role template** (on each pack ticket):
 
@@ -348,11 +348,15 @@ CD-30 Slice 4 + CD-47 shipped 2026-07-19.
 - [ ] CD-5 (feature, P2) — Gamepad adapter — Gamepad API polled in the rAF
   loop, translating to GameActions (UI_PLAN.md; needs CD-1 for a good
   controller story).
-- [ ] CD-6 (feature, P2) — Projectile & muzzle-flash sprites — extend the
+- [x] CD-6 (feature, P2) — Projectile & muzzle-flash sprites — extend the
   atlas; barrels rotate toward targets (ROADMAP art pipeline step 5).
   **Review pack (2026-07-18) area #7 juice.** **SDLC:** PD — weapon fire reads;
   Arch — atlas API only; Eng — sprites + barrel aim; QA — muzzle on fire, no sim
   balance change. Complements **CD-60** (data delivery) and **CD-58** (feedback).
+  **SHIPPED 2026-07-20:** `fx:bullet|shell|missile|bolt|muzzle` atlas frames;
+  `PlacedBuilding.aimAngle`/`muzzleFlash` (presentation); live barrel overlay
+  tracks targets between shots; projectiles use styled sprites + trail; no
+  damage/range/cooldown change.
 - [ ] CD-7 (feature, P2) — Economy rework: mining near crystals + Plasma
   Wells + one research slot (ROADMAP Phase 2). Designed 2026-07-15 —
   `docs/design-economy-rework.md`. **Steps 1-3 implemented 2026-07-15

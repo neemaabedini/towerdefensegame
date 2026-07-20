@@ -819,6 +819,83 @@ const BUILDING_BUILDERS: Record<string, Builder> = {
   sniper: sniperSprite,
 };
 
+/* ---------------- CD-6 combat FX (projectiles + muzzle) ---------------- */
+
+/** Small hitscan tracer / default player bolt. */
+function fxBullet(_frame: number): Grid {
+  const g = makeGrid(10, 6);
+  fillRect(g, 1, 2, 7, 2, "#ffe082");
+  fillRect(g, 7, 1, 2, 4, "#fff8e1");
+  px(g, 9, 2, "#ffffff");
+  px(g, 9, 3, "#ffffff");
+  outlineAuto(g);
+  return g;
+}
+
+/** Artillery shell — stubby oval with band. */
+function fxShell(_frame: number): Grid {
+  const g = makeGrid(14, 8);
+  fillEllipse(g, 7, 4, 6, 3, "#8d6e63");
+  fillEllipse(g, 7, 3.5, 5, 2.2, "#bcaaa4");
+  fillRect(g, 4, 2, 2, 4, "#5d4037");
+  fillEllipse(g, 11, 4, 2, 2, "#ef6c00");
+  outlineAuto(g);
+  return g;
+}
+
+/** Missile — body + fins + warhead tip. */
+function fxMissile(_frame: number): Grid {
+  const g = makeGrid(18, 8);
+  fillRect(g, 2, 2, 12, 4, "#546e7a");
+  fillRect(g, 2, 2, 12, 1, "#90a4ae");
+  fillTriangle(g, 14, 1, 17, 4, 14, 7, "#ef5350");
+  fillTriangle(g, 2, 1, 5, 2, 2, 3, "#37474f");
+  fillTriangle(g, 2, 5, 5, 6, 2, 7, "#37474f");
+  px(g, 8, 3, "#ff8a65");
+  outlineAuto(g);
+  return g;
+}
+
+/** Enemy energy bolt — round glow. */
+function fxBolt(frame: number): Grid {
+  const g = makeGrid(10, 10);
+  const core = frame === 0 ? "#ff8a65" : "#ffab91";
+  fillEllipse(g, 5, 5, 4, 4, "#bf360c");
+  fillEllipse(g, 5, 5, 2.8, 2.8, core);
+  fillEllipse(g, 4.5, 4.5, 1.2, 1.2, "#fff3e0");
+  outlineAuto(g);
+  return g;
+}
+
+/** Muzzle flash bloom — two frames for a short pop. */
+function fxMuzzle(frame: number): Grid {
+  const g = makeGrid(12, 12);
+  const r = frame === 0 ? 5 : 3.5;
+  fillEllipse(g, 6, 6, r, r * 0.7, "#ff6f00");
+  fillEllipse(g, 6, 6, r * 0.65, r * 0.45, "#ffeb3b");
+  fillEllipse(g, 6, 6, r * 0.3, r * 0.25, "#ffffff");
+  // radial spikes
+  if (frame === 0) {
+    px(g, 6, 1, "#ffeb3b");
+    px(g, 6, 10, "#ffeb3b");
+    px(g, 1, 6, "#ffeb3b");
+    px(g, 10, 6, "#ffeb3b");
+    px(g, 2, 2, "#ff8f00");
+    px(g, 10, 2, "#ff8f00");
+    px(g, 2, 10, "#ff8f00");
+    px(g, 10, 10, "#ff8f00");
+  }
+  return g;
+}
+
+const FX_BUILDERS: Record<string, Builder> = {
+  bullet: fxBullet,
+  shell: fxShell,
+  missile: fxMissile,
+  bolt: fxBolt,
+  muzzle: fxMuzzle,
+};
+
 /* ---------------- terrain sprite builders ---------------- */
 
 function rockSprite(w: number, h: number): Builder {
@@ -897,7 +974,8 @@ export class SpriteAtlas {
  * Bake every sprite into one atlas canvas.
  * Keys: enemies "<enemyId>:<frame>" (+ ":flash" variants),
  * garrison units "unit:<unitId>:<frame>" (+ ":flash" variants),
- * buildings "bld:<shape>:<frame>", terrain "rock:s|m|l:0" / "crystal:s|m:0".
+ * buildings "bld:<shape>:<frame>", terrain "rock:s|m|l:0" / "crystal:s|m:0",
+ * combat FX "fx:<bullet|shell|missile|bolt|muzzle>:<frame>" (CD-6).
  */
 export function buildAtlas(): SpriteAtlas {
   interface Baked {
@@ -927,6 +1005,12 @@ export function buildAtlas(): SpriteAtlas {
   }
   for (const [key, build] of Object.entries(TERRAIN_BUILDERS)) {
     baked.push({ key: `${key}:0`, grid: build(0), flash: false });
+  }
+  // CD-6: projectile + muzzle-flash frames (bolt/muzzle animate 2 frames).
+  for (const [id, build] of Object.entries(FX_BUILDERS)) {
+    for (const frame of [0, 1]) {
+      baked.push({ key: `fx:${id}:${frame}`, grid: build(frame), flash: false });
+    }
   }
 
   // Imported hero sprite sheet (CD-32 art pipeline) — frames come from

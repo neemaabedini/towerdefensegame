@@ -202,6 +202,8 @@ export class Game {
         spentToday: 0,
         levelsToday: 0,
         builtToday: false,
+        aimAngle: -Math.PI / 4,
+        muzzleFlash: 0,
       },
     ];
     this.lastSellAt = 0;
@@ -506,6 +508,8 @@ export class Game {
       spentToday: def.cost,
       levelsToday: 0,
       builtToday: true,
+      aimAngle: -Math.PI / 4,
+      muzzleFlash: 0,
     };
     this.buildings.push(building);
     site.buildingId = id;
@@ -1364,6 +1368,7 @@ export class Game {
             targetBuildingId: null,
             targetUnitId: contact.unit ? contact.id : null,
             targetHero: !contact.unit,
+            style: "bolt",
           });
           this.emit({ type: "enemyFired", defId: e.defId });
         }
@@ -1414,6 +1419,7 @@ export class Game {
         // this value is unused for them but keeps the field non-optional.
         targets: "all",
         targetBuildingId: target.id,
+        style: "bolt",
       });
       this.emit({ type: "enemyFired", defId: e.defId });
     }
@@ -1448,6 +1454,9 @@ export class Game {
   private resolveCombat(dt: number): void {
     for (const b of this.buildings) {
       if (b.hp <= 0) continue;
+      // CD-6: muzzle timer ticks for every building, even non-combat.
+      if (b.muzzleFlash > 0) b.muzzleFlash = Math.max(0, b.muzzleFlash - dt);
+
       const def = getBuilding(b.defId);
       if (def.damage <= 0 || def.fireRate <= 0) continue;
 
@@ -1455,10 +1464,14 @@ export class Game {
       const range = stats.range;
       const fireRate = stats.fireRate;
 
+      // Aim toward current target even between shots so barrels track (CD-6).
+      const target = this.findTarget(b.x, b.y, range, def.targets);
+      if (target) {
+        b.aimAngle = Math.atan2(target.y - b.y, target.x - b.x);
+      }
+
       b.cooldown -= dt;
       if (b.cooldown > 0) continue;
-
-      const target = this.findTarget(b.x, b.y, range, def.targets);
       if (!target) continue;
 
       b.cooldown = 1 / fireRate;
@@ -1496,6 +1509,9 @@ export class Game {
     target: EnemyUnit,
   ): void {
     this.emit({ type: "weaponFired", defId: b.defId });
+    // CD-6: presentation only — no damage/range/cooldown change.
+    b.aimAngle = Math.atan2(target.y - b.y, target.x - b.x);
+    b.muzzleFlash = 0.1;
 
     // Instant hit for gun tower / bunker / sniper for snappy feel; projectiles for siege/missile
     const useProjectile =
@@ -1516,6 +1532,7 @@ export class Game {
         alive: true,
         faction: "player",
         targets: def.targets,
+        style: def.id === "missile_battery" ? "missile" : "shell",
       });
     } else {
       this.applyDamage(target, stats.damage, stats.splashRadius, b.x, b.y, def.targets);
@@ -2132,6 +2149,8 @@ export class Game {
         spentToday: 0,
         levelsToday: 0,
         builtToday: false,
+        aimAngle: -Math.PI / 4,
+        muzzleFlash: 0,
       });
       site.buildingId = id;
       this.floatText(w.x, w.y - 26, "Rebuilt", "#4fc3f7");
