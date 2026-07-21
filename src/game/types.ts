@@ -90,6 +90,13 @@ export interface HeroState {
    * ready. Cloned on snapshot with the rest of HeroState.
    */
   abilityCooldowns: Record<string, number>;
+  /**
+   * Attack presentation timer (seconds remaining). Set when the hero fires;
+   * renderer plays stand_atk / walk_atk while > 0. Does not affect damage.
+   */
+  attackAnim: number;
+  /** True while a move key is held (presentation / anim selection). */
+  moving: boolean;
 }
 
 export interface EnemyUnit {

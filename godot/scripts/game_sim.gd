@@ -751,6 +751,9 @@ func _park_hero() -> void:
 		"alive": true,
 		"cooldown": 0.0,
 		"dir": 2,
+		"facing": 1,
+		"attack_anim": 0.0,
+		"moving": false,
 	}
 
 
@@ -1036,10 +1039,17 @@ func _update_hero(dt: float) -> void:
 		return
 	var hdef := db.get_hero(str(hero["def_id"]))
 	var speed := float(hdef.get("moveSpeed", 90))
-	if hero_move.length_squared() > 0.0:
+	hero["moving"] = hero_move.length_squared() > 0.0
+	if float(hero.get("attack_anim", 0)) > 0.0:
+		hero["attack_anim"] = maxf(0.0, float(hero["attack_anim"]) - dt)
+	if hero["moving"]:
 		hero["x"] = clampf(float(hero["x"]) + hero_move.x * speed * dt, 16.0, WORLD_W - 16.0)
 		hero["y"] = clampf(float(hero["y"]) + hero_move.y * speed * dt, 16.0, WORLD_H - 16.0)
 		hero["dir"] = _octant(hero_move)
+		if hero_move.x > 0.0:
+			hero["facing"] = 1
+		elif hero_move.x < 0.0:
+			hero["facing"] = -1
 	if phase != "night":
 		return
 	hero["cooldown"] = float(hero.get("cooldown", 0)) - dt
@@ -1050,7 +1060,10 @@ func _update_hero(dt: float) -> void:
 	var target := _find_enemy_target(Vector2(hero["x"], hero["y"]), range_px, targets)
 	if target.is_empty():
 		return
-	hero["cooldown"] = 1.0 / maxf(0.1, float(hdef.get("fireRate", 1.5)))
+	var fr := maxf(0.25, float(hdef.get("fireRate", 1.5)))
+	hero["cooldown"] = 1.0 / fr
+	hero["attack_anim"] = minf(0.28, 0.55 / fr)
+	hero["facing"] = 1 if float(target["x"]) >= float(hero["x"]) else -1
 	_hurt_enemy(target, float(hdef.get("damage", 12)))
 	_burst(
 		(float(hero["x"]) + float(target["x"])) * 0.5,

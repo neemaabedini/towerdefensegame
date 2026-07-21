@@ -569,13 +569,30 @@ func _draw_hero(h: Dictionary) -> void:
 	var col := Color.html(str(def.get("color", "#263238")))
 	var accent := Color.html(str(def.get("accent", "#ffca28")))
 	var dir := int(h.get("dir", 2))
+	var facing := int(h.get("facing", 1))
+	var moving := bool(h.get("moving", false))
+	var attacking := float(h.get("attack_anim", 0)) > 0.0
 	var used := false
 	if atlas != null:
-		# Prefer 8-dir sheet; fall back to idle frames.
-		var key := "hero:d%d" % dir
-		if not atlas.has(key):
-			key = atlas.anim_key("hero", _time)
-		used = atlas.draw_frame(self, key, p, scale_factor * SPRITE_WORLD_SCALE * 1.4)
+		var key := ""
+		var flip := false
+		if attacking and moving:
+			key = "hero:walk_atk:%d" % (int(floor(_time * 8.0)) % 2)
+			flip = facing < 0
+		elif attacking:
+			key = "hero:stand_atk:%d" % (0 if float(h["attack_anim"]) > 0.12 else 1)
+			flip = facing < 0
+		elif moving:
+			key = "hero:walk:%d" % (int(floor(_time * 8.0)) % 4)
+			flip = facing < 0
+		else:
+			key = "hero:d%d" % dir
+		if flip:
+			draw_set_transform(p, 0.0, Vector2(-1, 1))
+			used = atlas.draw_frame(self, key, Vector2.ZERO, scale_factor * SPRITE_WORLD_SCALE * 1.4)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		else:
+			used = atlas.draw_frame(self, key, p, scale_factor * SPRITE_WORLD_SCALE * 1.4)
 	if not used:
 		var face := Vector2(cos(dir * PI / 4.0), sin(dir * PI / 4.0))
 		draw_circle(p, r * 1.1 * scale_factor, col)

@@ -1,4 +1,8 @@
-import { HERO_SHEET_DIRS, HERO_SHEET_FRAMES } from "./heroSheet.generated";
+import {
+  HERO_ANIMS,
+  HERO_SHEET_DIRS,
+  HERO_SHEET_FRAMES,
+} from "./heroSheet.generated";
 
 /**
  * Pixel-sprite engine + enemy sprite atlas.
@@ -974,6 +978,14 @@ function collectBakedGrids(): BakedGrid[] {
     baked.push({ key: `hero:d${d}`, grid, flash: false });
     baked.push({ key: `hero:d${d}:flash`, grid, flash: true });
   });
+  // Walk / stand_atk / walk_atk cycles (east-facing; renderer flips for west).
+  for (const [name, frames] of Object.entries(HERO_ANIMS)) {
+    frames.forEach((frame, i) => {
+      const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
+      baked.push({ key: `hero:${name}:${i}`, grid, flash: false });
+      baked.push({ key: `hero:${name}:${i}:flash`, grid, flash: true });
+    });
+  }
   return baked;
 }
 

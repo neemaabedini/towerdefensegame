@@ -1400,35 +1400,67 @@ export class Renderer {
     if (hero.deployed) this.drawHeroHpBar(hero, r);
   }
 
-  /** Draw the hero from the imported sprite sheet (atlas keys hero:0/1).
-   *  Returns false when no sheet has been imported — the vector fallback
-   *  in drawHero keeps working, per the per-entity-swap rule. Two-frame
-   *  idle cycle like units; flips with facing; anchored at center like
-   *  every other atlas sprite. */
+  /**
+   * Hero sprite selection:
+   *   attackAnim + moving → hero:walk_atk:N (flip by facing)
+   *   attackAnim           → hero:stand_atk:N
+   *   moving               → hero:walk:N
+   *   else                 → hero:d{dir} stand (true 8-dir, no flip)
+   */
   private drawHeroSprite(hero: HeroState): boolean {
-    // 8-direction standing set first (hero:d<octant>, true per-direction art
-    // — no mirroring, so asymmetric details like the gun hand stay correct).
-    const dirFrame = this.atlas.get(`hero:d${hero.dir}`);
-    if (dirFrame) {
-      const ctx = this.ctx;
-      ctx.save();
-      ctx.translate(Math.round(hero.x), Math.round(hero.y));
-      ctx.drawImage(
-        this.atlas.canvas,
-        dirFrame.sx, dirFrame.sy, dirFrame.sw, dirFrame.sh,
-        -dirFrame.ax, -dirFrame.ay, dirFrame.sw, dirFrame.sh,
-      );
-      ctx.restore();
-      return true;
-    }
-    // 2-frame idle set (hero:0/1) with facing flip.
-    const frame = Math.floor(this.time * 4) % 2;
-    const f = this.atlas.get(`hero:${frame}`);
-    if (!f) return false;
     const ctx = this.ctx;
+    const attacking = hero.attackAnim > 0;
+    const moving = hero.moving;
+
+    // Cycle lengths match HERO_ANIMS export (walk 4, atk 2).
+    let key: string | null = null;
+    let flip = false;
+    if (attacking && moving) {
+      const n = 2;
+      const frame = Math.floor(this.time * 8) % n;
+      key = `hero:walk_atk:${frame}`;
+      flip = hero.facing < 0;
+    } else if (attacking) {
+      const n = 2;
+      // First half of attackAnim → frame 0 (muzzle), second → recoil.
+      const frame = hero.attackAnim > 0.12 ? 0 : 1;
+      key = `hero:stand_atk:${Math.min(frame, n - 1)}`;
+      flip = hero.facing < 0;
+    } else if (moving) {
+      const n = 4;
+      const frame = Math.floor(this.time * 8) % n;
+      key = `hero:walk:${frame}`;
+      flip = hero.facing < 0;
+    } else {
+      // Standing: true 8-direction art (no horizontal flip).
+      const dirFrame = this.atlas.get(`hero:d${hero.dir}`);
+      if (dirFrame) {
+        ctx.save();
+        ctx.translate(Math.round(hero.x), Math.round(hero.y));
+        ctx.drawImage(
+          this.atlas.canvas,
+          dirFrame.sx,
+          dirFrame.sy,
+          dirFrame.sw,
+          dirFrame.sh,
+          -dirFrame.ax,
+          -dirFrame.ay,
+          dirFrame.sw,
+          dirFrame.sh,
+        );
+        ctx.restore();
+        return true;
+      }
+      const frame = Math.floor(this.time * 4) % 2;
+      key = `hero:${frame}`;
+      flip = hero.facing < 0;
+    }
+
+    const f = key ? this.atlas.get(key) : undefined;
+    if (!f) return false;
     ctx.save();
     ctx.translate(Math.round(hero.x), Math.round(hero.y));
-    if (hero.facing < 0) ctx.scale(-1, 1);
+    if (flip) ctx.scale(-1, 1);
     ctx.drawImage(this.atlas.canvas, f.sx, f.sy, f.sw, f.sh, -f.ax, -f.ay, f.sw, f.sh);
     ctx.restore();
     return true;

@@ -805,6 +805,8 @@ export class Game {
       cooldown: 0,
       // Fresh weapon kit — ability cooldowns reset at park (loadLevel/dawn).
       abilityCooldowns: {},
+      attackAnim: 0,
+      moving: false,
     };
     this.heroMoveDir = { x: 0, y: 0 };
   }
@@ -827,6 +829,7 @@ export class Game {
     if (remaining > 0) return false;
 
     hero.abilityCooldowns[abilityId] = ab.cooldown;
+    hero.attackAnim = Math.max(hero.attackAnim, 0.35);
     this.applyAbilityEffect(ab, hero.x, hero.y);
     this.emit({ type: "abilityCast", abilityId });
     this.floatText(hero.x, hero.y - 28, ab.name, hDef.accent);
@@ -1183,7 +1186,10 @@ export class Game {
       else hero.abilityCooldowns[id] = left;
     }
 
-    if (this.heroMoveDir.x !== 0 || this.heroMoveDir.y !== 0) {
+    hero.moving = this.heroMoveDir.x !== 0 || this.heroMoveDir.y !== 0;
+    if (hero.attackAnim > 0) hero.attackAnim = Math.max(0, hero.attackAnim - dt);
+
+    if (hero.moving) {
       hero.x += this.heroMoveDir.x * def.moveSpeed * dt;
       hero.y += this.heroMoveDir.y * def.moveSpeed * dt;
       hero.x = Math.max(def.radius, Math.min(this.level.width - def.radius, hero.x));
@@ -1202,6 +1208,11 @@ export class Game {
       const target = this.findTarget(hero.x, hero.y, def.range, def.targets);
       if (target) {
         hero.cooldown = 1 / def.fireRate;
+        // Attack presentation length (~one shot beat); does not change DPS.
+        hero.attackAnim = Math.min(0.28, 0.55 / Math.max(0.25, def.fireRate));
+        // Face the target when firing (so stand_atk / walk_atk aim correctly).
+        if (target.x >= hero.x) hero.facing = 1;
+        else hero.facing = -1;
         // Scattergun-style weapons splash through the same applyDamage path
         // units/buildings use (respects the weapon's TargetMode); single-
         // target weapons hit directly — mirrors the unit attack loop.
