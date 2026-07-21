@@ -73,7 +73,7 @@ func refresh() -> void:
 	var speed := int(_save.settings.get("night_speed", 1))
 	_btn_speed_1x.button_pressed = speed == 1
 	_btn_speed_2x.button_pressed = speed == 2
-	_fullscreen_check.button_pressed = bool(_save.settings.get("fullscreen", false))
+	_fullscreen_check.button_pressed = bool(_save.settings.get("fullscreen", true))
 
 
 func _ensure_built() -> void:
@@ -235,7 +235,9 @@ func _on_fullscreen_toggled(enabled: bool) -> void:
 	_save.settings["fullscreen"] = enabled
 	_save.save_to_disk()
 	DisplayServer.window_set_mode(
-		DisplayServer.WINDOW_MODE_FULLSCREEN if enabled else DisplayServer.WINDOW_MODE_WINDOWED
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+		if enabled
+		else DisplayServer.WINDOW_MODE_MAXIMIZED
 	)
 	fullscreen_changed.emit(enabled)
 

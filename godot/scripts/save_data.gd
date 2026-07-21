@@ -30,7 +30,8 @@ var settings: Dictionary = {
 	"hero_weapon": DEFAULT_HERO_WEAPON,
 	"perks": [],
 	## Godot-only — the web build has no window mode to persist.
-	"fullscreen": false,
+	## Default on so large monitors (e.g. 5K) open filled; toggle in Settings.
+	"fullscreen": true,
 }
 var hints_seen: Array = []
 

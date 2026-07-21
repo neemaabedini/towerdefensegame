@@ -108,10 +108,17 @@ func _build_popups() -> void:
 
 
 func _apply_window_settings() -> void:
-	var want_fullscreen := bool(save.settings.get("fullscreen", false))
-	var mode := DisplayServer.WINDOW_MODE_FULLSCREEN if want_fullscreen else DisplayServer.WINDOW_MODE_WINDOWED
+	var want_fullscreen := bool(save.settings.get("fullscreen", true))
+	# Exclusive fullscreen on multi-monitor 5K setups; fall back to maximized windowed.
+	var mode := (
+		DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+		if want_fullscreen
+		else DisplayServer.WINDOW_MODE_MAXIMIZED
+	)
 	if DisplayServer.window_get_mode() != mode:
 		DisplayServer.window_set_mode(mode)
+	# Ensure the world re-fits after the OS resizes the window.
+	call_deferred("_fit_world")
 
 
 func _fit_world() -> void:
