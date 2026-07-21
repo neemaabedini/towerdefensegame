@@ -129,11 +129,11 @@ func _draw_terrain(night: bool) -> void:
 		var x := 0.0
 		var i := 0
 		while x <= WORLD_W:
-			var peak := ridge["y"] + _hash2(i, int(ridge["y"])) * ridge["h"] * 0.7
+			var peak: float = float(ridge["y"]) + _hash2(i, int(ridge["y"])) * float(ridge["h"]) * 0.7
 			pts.append(_w(Vector2(x, peak)))
 			x += 28.0 + _hash2(i + 3, 2) * 24.0
 			i += 1
-		pts.append(_w(Vector2(WORLD_W, ridge["y"] + ridge["h"])))
+		pts.append(_w(Vector2(WORLD_W, float(ridge["y"]) + float(ridge["h"]))))
 		if pts.size() >= 3:
 			draw_colored_polygon(pts, col)
 
@@ -327,8 +327,8 @@ func _draw_sites() -> void:
 			var r := 18.0 * scale_factor
 			var arm := 6.0 * scale_factor
 			var c := Color.html("#4fc3f7")
-			for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
-				var o := p + corner * r
+			for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+				var o: Vector2 = p + corner * r
 				draw_line(o, o + Vector2(-corner.x * arm, 0), c, 2.0)
 				draw_line(o, o + Vector2(0, -corner.y * arm), c, 2.0)
 		# Resource badge
@@ -689,8 +689,8 @@ func _draw_focus_brackets(p: Vector2, r: float) -> void:
 	var breathe := r + sin(_time * 5.0) * 2.0 * scale_factor
 	var arm := maxf(6.0, r * 0.3) * scale_factor
 	var c := Color.html("#4fc3f7")
-	for corner in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
-		var o := p + corner * breathe
+	for corner: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+		var o: Vector2 = p + corner * breathe
 		draw_line(o, o + Vector2(-corner.x * arm, 0), c, 2.0)
 		draw_line(o, o + Vector2(0, -corner.y * arm), c, 2.0)
 
