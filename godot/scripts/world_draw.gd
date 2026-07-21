@@ -6,17 +6,25 @@ class_name WorldDraw
 
 var sim: GameSim
 var db: DataDB
+var atlas: GameSpriteAtlas
 var scale_factor: float = 1.0
 var offset: Vector2 = Vector2.ZERO
 var _time: float = 0.0
 
 const WORLD_W := 960.0
 const WORLD_H := 540.0
+## Draw sprites slightly larger than design size so they read at 960×540 scale.
+const SPRITE_WORLD_SCALE := 1.15
 
 
 func setup(game: GameSim, data: DataDB) -> void:
 	sim = game
 	db = data
+	# Pixel art: never bilinear-filter atlas draws.
+	texture_filter = TEXTURE_FILTER_NEAREST
+	atlas = GameSpriteAtlas.new()
+	if not atlas.load_default():
+		push_warning("WorldDraw: atlas missing — vector fallbacks only. Run: npm run export-atlas")
 	queue_redraw()
 
 
@@ -207,8 +215,25 @@ func _draw_obstacles() -> void:
 		_ground_shadow(pos, r * 1.1, r * 0.45, 0.3)
 		var p := _w(pos)
 		var rs := r * scale_factor
+		# Prefer atlas terrain frames when size matches
+		var atlas_key := ""
 		if kind == "crystal":
-			# Crystal cluster — diamond points
+			atlas_key = "crystal:m:0" if r >= 15.0 else "crystal:s:0"
+		elif kind == "rock":
+			if r >= 32.0:
+				atlas_key = "rock:l:0"
+			elif r >= 26.0:
+				atlas_key = "rock:m:0"
+			else:
+				atlas_key = "rock:s:0"
+		if atlas_key != "" and atlas != null and atlas.has(atlas_key):
+			var spr_scale := scale_factor * SPRITE_WORLD_SCALE * (r / 16.0) * 0.9
+			if atlas.draw_frame(self, atlas_key, p, spr_scale):
+				if kind == "crystal":
+					var glow := Color(0.3, 0.85, 0.9, 0.2 + 0.1 * absf(sin(_time * 3.0 + pos.x * 0.02)))
+					draw_circle(p, rs * 0.9, glow)
+				continue
+		if kind == "crystal":
 			var glow := Color(0.3, 0.85, 0.9, 0.35 + 0.15 * absf(sin(_time * 3.0 + pos.x * 0.02)))
 			draw_circle(p, rs * 1.15, glow)
 			var body := PackedVector2Array([
@@ -219,19 +244,12 @@ func _draw_obstacles() -> void:
 				p + Vector2(-rs * 0.55, -rs * 0.1),
 			])
 			draw_colored_polygon(body, Color.html("#26c6da"))
-			draw_colored_polygon(PackedVector2Array([
-				p + Vector2(0, -rs * 0.7),
-				p + Vector2(rs * 0.25, 0),
-				p + Vector2(0, rs * 0.2),
-				p + Vector2(-rs * 0.25, 0),
-			]), Color.html("#80deea"))
 		elif kind == "plasma":
 			var pulse := 0.5 + 0.5 * sin(_time * 2.5 + pos.x)
 			draw_circle(p, rs * (1.0 + pulse * 0.15), Color(0.95, 0.55, 0.15, 0.35))
 			draw_circle(p, rs * 0.65, Color.html("#ff9800"))
 			draw_circle(p, rs * 0.3, Color(1, 0.95, 0.7, 0.8))
 		else:
-			# Rock — lumpy ovals
 			draw_circle(p + Vector2(-rs * 0.2, rs * 0.1), rs * 0.7, Color.html("#455a64"))
 			draw_circle(p + Vector2(rs * 0.25, 0), rs * 0.55, Color.html("#546e7a"))
 			draw_circle(p + Vector2(0, -rs * 0.15), rs * 0.4, Color.html("#607d8b"))
@@ -397,22 +415,29 @@ func _draw_building(b: Dictionary) -> void:
 	_draw_iso_foundation(pos, s + 6.0, str(def.get("category", "defense")), selected)
 	var p := _w(pos)
 	var sc := s * scale_factor
-	match shape:
-		"hq":
-			_shape_hq(p, sc, col, accent)
-		"missile":
-			_shape_missile(p, sc, col, accent)
-		"tank":
-			_shape_tank(p, sc, col, accent)
-		"bunker":
-			_shape_bunker(p, sc, col, accent)
-		"sniper":
-			_shape_sniper(p, sc, col, accent)
-		"silo":
-			_shape_silo(p, sc, col, accent)
-		_:
-			_shape_tower(p, sc, col, accent)
-	# Live aim barrel for combat buildings
+	var used_atlas := false
+	if atlas != null:
+		var frame_i := int(floor(_time * 1.6 + pos.x * 0.01)) % 2
+		var key := "bld:%s:%d" % [shape, frame_i]
+		var spr_scale := scale_factor * SPRITE_WORLD_SCALE * (s / 22.0)
+		used_atlas = atlas.draw_frame(self, key, p + Vector2(0, -2.0 * scale_factor), spr_scale)
+	if not used_atlas:
+		match shape:
+			"hq":
+				_shape_hq(p, sc, col, accent)
+			"missile":
+				_shape_missile(p, sc, col, accent)
+			"tank":
+				_shape_tank(p, sc, col, accent)
+			"bunker":
+				_shape_bunker(p, sc, col, accent)
+			"sniper":
+				_shape_sniper(p, sc, col, accent)
+			"silo":
+				_shape_silo(p, sc, col, accent)
+			_:
+				_shape_tower(p, sc, col, accent)
+	# Live aim barrel + muzzle (on top of atlas body)
 	if float(def.get("damage", 0)) > 0.0 and float(def.get("fireRate", 0)) > 0.0:
 		var ang := float(b.get("aim_angle", -PI / 4.0))
 		var pivot := p + Vector2(0, -sc * 0.25)
@@ -421,7 +446,10 @@ func _draw_building(b: Dictionary) -> void:
 		draw_circle(tip, 2.5 * scale_factor, accent)
 		if float(b.get("muzzle_flash", 0)) > 0.0:
 			var t := clampf(float(b["muzzle_flash"]) / 0.1, 0.0, 1.0)
-			draw_circle(tip, (4.0 + 5.0 * t) * scale_factor, Color(1, 0.9, 0.4, 0.5 + 0.5 * t))
+			var mf_frame := 0 if t > 0.5 else 1
+			var mf_key := "fx:muzzle:%d" % mf_frame
+			if atlas == null or not atlas.draw_frame(self, mf_key, tip, scale_factor * (0.7 + 0.4 * t), Color(1, 1, 1, 0.55 + 0.45 * t)):
+				draw_circle(tip, (4.0 + 5.0 * t) * scale_factor, Color(1, 0.9, 0.4, 0.5 + 0.5 * t))
 	if selected:
 		_draw_focus_brackets(p, sc + 10.0 * scale_factor)
 	_draw_hp_bar(p - Vector2(0, sc + 10 * scale_factor), sc, float(b["hp"]), float(b["max_hp"]))
@@ -517,13 +545,18 @@ func _draw_unit(u: Dictionary) -> void:
 	var r := float(def.get("radius", 6))
 	_ground_shadow(pos, r * 1.1, r * 0.45, 0.3)
 	var p := _w(pos)
-	var col := Color.html(str(def.get("color", "#1565c0")))
-	if float(u.get("hit_timer", 0)) > 0.0:
-		col = Color(1, 1, 1)
-	# Infantry silhouette
-	draw_circle(p + Vector2(0, -r * 0.6) * scale_factor, r * 0.55 * scale_factor, col) # head
-	draw_rect(Rect2(p - Vector2(r * 0.45, r * 0.1) * scale_factor, Vector2(r * 0.9, r * 1.1) * scale_factor), col)
-	draw_circle(p + Vector2(r * 0.15, -r * 0.55) * scale_factor, 2.0 * scale_factor, Color.html(str(def.get("accent", "#90caf9"))))
+	var flash := float(u.get("hit_timer", 0)) > 0.0
+	var used := false
+	if atlas != null:
+		var key := atlas.anim_key("unit:%s" % str(u["unit_def_id"]), _time + pos.x * 0.02, flash)
+		used = atlas.draw_frame(self, key, p, scale_factor * SPRITE_WORLD_SCALE * 1.05)
+	if not used:
+		var col := Color.html(str(def.get("color", "#1565c0")))
+		if flash:
+			col = Color(1, 1, 1)
+		draw_circle(p + Vector2(0, -r * 0.6) * scale_factor, r * 0.55 * scale_factor, col)
+		draw_rect(Rect2(p - Vector2(r * 0.45, r * 0.1) * scale_factor, Vector2(r * 0.9, r * 1.1) * scale_factor), col)
+		draw_circle(p + Vector2(r * 0.15, -r * 0.55) * scale_factor, 2.0 * scale_factor, Color.html(str(def.get("accent", "#90caf9"))))
 	_draw_hp_bar(p - Vector2(0, r * 2.2 * scale_factor), r * scale_factor, float(u["hp"]), float(u["max_hp"]))
 
 
@@ -535,15 +568,21 @@ func _draw_hero(h: Dictionary) -> void:
 	var p := _w(pos)
 	var col := Color.html(str(def.get("color", "#263238")))
 	var accent := Color.html(str(def.get("accent", "#ffca28")))
-	# Directional figure (8-dir hint via offset)
 	var dir := int(h.get("dir", 2))
-	var face := Vector2(cos(dir * PI / 4.0), sin(dir * PI / 4.0))
-	draw_circle(p, r * 1.1 * scale_factor, col)
-	draw_circle(p + face * r * 0.35 * scale_factor, r * 0.45 * scale_factor, accent)
-	draw_rect(Rect2(p + Vector2(-r * 0.35, r * 0.2) * scale_factor, Vector2(r * 0.7, r * 0.9) * scale_factor), col.darkened(0.1))
-	# Ready ring when alive at night
+	var used := false
+	if atlas != null:
+		# Prefer 8-dir sheet; fall back to idle frames.
+		var key := "hero:d%d" % dir
+		if not atlas.has(key):
+			key = atlas.anim_key("hero", _time)
+		used = atlas.draw_frame(self, key, p, scale_factor * SPRITE_WORLD_SCALE * 1.4)
+	if not used:
+		var face := Vector2(cos(dir * PI / 4.0), sin(dir * PI / 4.0))
+		draw_circle(p, r * 1.1 * scale_factor, col)
+		draw_circle(p + face * r * 0.35 * scale_factor, r * 0.45 * scale_factor, accent)
+		draw_rect(Rect2(p + Vector2(-r * 0.35, r * 0.2) * scale_factor, Vector2(r * 0.7, r * 0.9) * scale_factor), col.darkened(0.1))
 	if sim.phase == "night":
-		draw_arc(p, (r + 6.0) * scale_factor, 0, TAU, 28, Color(accent, 0.35 + 0.2 * sin(_time * 3.0)), 1.5)
+		draw_arc(p, (r + 6.0) * scale_factor, 0, TAU, 28, Color(accent.r, accent.g, accent.b, 0.35 + 0.2 * sin(_time * 3.0)), 1.5)
 	_draw_hp_bar(p - Vector2(0, (r + 12) * scale_factor), r * scale_factor, float(h["hp"]), float(h["max_hp"]))
 
 
@@ -556,30 +595,32 @@ func _draw_enemy(e: Dictionary) -> void:
 	var p := _w(pos)
 	var col := Color.html(str(def.get("color", "#8d6e63")))
 	var accent := Color.html(str(def.get("accent", "#ffab91")))
-	if float(e.get("hit_timer", 0)) > 0.0:
-		col = Color(1, 1, 1)
-	var bob := 0.0
+	var flash := float(e.get("hit_timer", 0)) > 0.0
 	if arch == "flyer":
-		bob = sin(_time * 5.0 + pos.x * 0.05) * 4.0 * scale_factor
-		p += Vector2(0, bob)
-	# Body by archetype
-	if arch == "brute" or arch == "siege":
-		draw_circle(p, r * 1.15 * scale_factor, col)
-		draw_rect(Rect2(p - Vector2(r, r * 0.3) * scale_factor, Vector2(r * 2, r * 0.8) * scale_factor), col.darkened(0.15))
-	elif arch == "flyer":
-		var wing := PackedVector2Array([
-			p + Vector2(-r * 1.4, 0) * scale_factor,
-			p + Vector2(0, -r * 0.4) * scale_factor,
-			p + Vector2(r * 1.4, 0) * scale_factor,
-			p + Vector2(0, r * 0.3) * scale_factor,
-		])
-		draw_colored_polygon(wing, col)
-		draw_circle(p, r * 0.55 * scale_factor, accent)
-	else:
-		# Raider / swarmling / default
-		draw_circle(p, r * scale_factor, col)
-		draw_circle(p + Vector2(r * 0.35, -r * 0.25) * scale_factor, r * 0.28 * scale_factor, accent)
-		draw_circle(p + Vector2(-r * 0.4, r * 0.15) * scale_factor, r * 0.35 * scale_factor, col.darkened(0.2))
+		p += Vector2(0, sin(_time * 5.0 + pos.x * 0.05) * 4.0 * scale_factor)
+	var used := false
+	if atlas != null:
+		var key := atlas.anim_key(str(e["def_id"]), _time + pos.x * 0.03, flash)
+		var spr_scale := scale_factor * SPRITE_WORLD_SCALE * (r / 8.0)
+		used = atlas.draw_frame(self, key, p, spr_scale)
+	if not used:
+		if flash:
+			col = Color(1, 1, 1)
+		if arch == "brute" or arch == "siege":
+			draw_circle(p, r * 1.15 * scale_factor, col)
+			draw_rect(Rect2(p - Vector2(r, r * 0.3) * scale_factor, Vector2(r * 2, r * 0.8) * scale_factor), col.darkened(0.15))
+		elif arch == "flyer":
+			var wing := PackedVector2Array([
+				p + Vector2(-r * 1.4, 0) * scale_factor,
+				p + Vector2(0, -r * 0.4) * scale_factor,
+				p + Vector2(r * 1.4, 0) * scale_factor,
+				p + Vector2(0, r * 0.3) * scale_factor,
+			])
+			draw_colored_polygon(wing, col)
+			draw_circle(p, r * 0.55 * scale_factor, accent)
+		else:
+			draw_circle(p, r * scale_factor, col)
+			draw_circle(p + Vector2(r * 0.35, -r * 0.25) * scale_factor, r * 0.28 * scale_factor, accent)
 	_draw_hp_bar(p - Vector2(0, (r + 8) * scale_factor), r * scale_factor, float(e["hp"]), float(e["max_hp"]))
 
 
@@ -594,18 +635,26 @@ func _draw_projectiles() -> void:
 		var ang := (tgt - pos).angle()
 		var style := str(pr.get("style", "bullet"))
 		var trail_len := 18.0 if style == "missile" else (14.0 if style == "shell" else 10.0)
-		draw_line(p, p - Vector2(cos(ang), sin(ang)) * trail_len * scale_factor, Color(col, 0.35), 2.0 if pr.get("faction", "") != "enemy" else 1.5)
-		if style == "missile":
-			draw_circle(p, 4.5 * scale_factor, col)
-			draw_circle(p + Vector2(cos(ang), sin(ang)) * 4.0 * scale_factor, 2.5 * scale_factor, Color(1, 0.4, 0.3))
-		elif style == "shell":
-			draw_circle(p, 4.0 * scale_factor, col.darkened(0.2))
-			draw_circle(p, 2.5 * scale_factor, Color(0.9, 0.7, 0.4))
-		elif style == "bolt":
-			draw_circle(p, 3.5 * scale_factor, col)
-			draw_circle(p, 1.5 * scale_factor, Color(1, 0.95, 0.85))
-		else:
-			draw_circle(p, 3.0 * scale_factor, col)
+		draw_line(p, p - Vector2(cos(ang), sin(ang)) * trail_len * scale_factor, Color(col.r, col.g, col.b, 0.35), 2.0 if pr.get("faction", "") != "enemy" else 1.5)
+		var fx_key := "fx:%s:0" % style
+		if style == "bolt":
+			fx_key = "fx:bolt:%d" % (int(floor(_time * 12.0)) % 2)
+		var used := false
+		if atlas != null and atlas.has(fx_key):
+			# Rotate via draw_set_transform
+			draw_set_transform(p, ang, Vector2.ONE)
+			used = atlas.draw_frame(self, fx_key, Vector2.ZERO, scale_factor * 1.1)
+			draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+		if not used:
+			if style == "missile":
+				draw_circle(p, 4.5 * scale_factor, col)
+				draw_circle(p + Vector2(cos(ang), sin(ang)) * 4.0 * scale_factor, 2.5 * scale_factor, Color(1, 0.4, 0.3))
+			elif style == "shell":
+				draw_circle(p, 4.0 * scale_factor, col.darkened(0.2))
+			elif style == "bolt":
+				draw_circle(p, 3.5 * scale_factor, col)
+			else:
+				draw_circle(p, 3.0 * scale_factor, col)
 
 
 func _draw_particles() -> void:

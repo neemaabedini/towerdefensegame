@@ -1317,6 +1317,35 @@ Godot port started 2026-07-20 (`godot/`, CD-17 closed).
   Remaining parity (garrisons full AI, CD-40, CD-30 UI, audio, atlas art,
   multi-level save) and **CD-9 walls/pathfinding** stay Godot-side follow-ups.
   Original spike goal (de-risk JSON + one wave) is satisfied and exceeded.
+  **Update 2026-07-20 (coder session) — upgrade/branch/sell/loadout parity
+  ported to `godot/scripts/game_sim.gd`:** `scaled_stats()` is now the single
+  stats-resolution seam (mirrors `buildings.ts scaledStats` — level scaling
+  from `tuning.json`, then local branch mods, then `global_stat_mods`);
+  `can_upgrade`/`upgrade_cost`/`upgrade`/`pending_branch` cover all 6 branched
+  buildings incl. the Command Post's global branch (`compute_global_mods` +
+  `restat_all` on a global pick); `get_sell_info`/`sell_or_undo` port the
+  three web kinds (undo / undoUpgrades / 60% sell) using the
+  previously-dead `_time_ms` field as the sell-lockout clock (had to seed
+  `_last_sell_at_ms` to a large negative sentinel, not `0`, since `_time_ms`
+  is a monotonic counter starting at 0 in Godot rather than web's
+  always-large `Date.now()` — a literal-0 baseline would wrongly lock out a
+  sell attempted before the first `update()` tick); `set_loadout` /
+  `set_hero_loadout` seed `global_stat_mods`/`enemy_hp_mul`/starting credits
+  /wave-table mults at `load_level`, same order as `Game.ts:157-181`.
+  Combat (`_resolve_combat`) and dawn income (`_dawn_restore`) now read
+  `scaled_stats` instead of raw def fields, so upgrades/branches/perks
+  actually affect gameplay. **Blocked follow-up:** `data_db.gd` does not
+  load `perks.json`/`mutators.json`/`abilities.json` (only `buildings`,
+  `enemies`, `heroes`, `units`, `levels`, `tuning`, `strings`) — `set_loadout`
+  degrades safely (drops all ids, no crash) until it does; add three more
+  `_as_dict(_load_json(...))` lines + fields to `DataDB` (`res://data/perks.json`,
+  `mutators.json`, `abilities.json` already exist under `godot/data/`, just
+  unread) to light up the loadout system for real. Verified via a temporary
+  `godot/test_upgrade.gd` SceneTree probe (47 assertions covering level
+  scaling, branch mods, cost curve, global-branch restat, all 3 sell/undo
+  kinds incl. lockout, and loadout mods against a test-only DB subclass that
+  stubs the missing perks/mutators fields) — deleted after passing. Out of
+  scope here (per ticket): garrison/unit squads, hero abilities, render/UI.
 
 - [ ] CD-20 (tech-debt, P2) — Deterministic sim: replace `Math.random()`
   inside `Game` (burst particles live in sim state) with a seeded RNG, and

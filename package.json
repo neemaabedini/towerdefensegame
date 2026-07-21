@@ -7,6 +7,7 @@
     "dev": "vite",
     "validate": "node tools/validate-data.mjs",
     "test": "node tools/sim-harness.mjs",
+    "export-atlas": "node tools/export-atlas.mjs",
     "build": "tsc && node tools/validate-data.mjs && vite build",
     "preview": "vite preview"
   },

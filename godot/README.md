@@ -52,7 +52,7 @@ Or open `godot/` in the Godot editor → **F5**.
 
 | Gap | Web source | Notes |
 |-----|------------|--------|
-| Pixel **atlas sprites** | `sprites.ts`, hero sheet | Godot uses vector shapes; same art pipeline can export PNGs later |
+| Pixel **atlas sprites** | `sprites.ts` → `npm run export-atlas` | **Shipped:** `assets/sprites/atlas.png` + loader; re-export after art changes |
 | **Hero abilities (Q)** | CD-40 `castAbility` | Not wired yet |
 | **Full HUD chrome** | `HUD.ts` + CSS | One status line + hint, not full side panel |
 | **Audio** SFX + music | `src/audio/*` | Save has volume fields; no bus yet |
@@ -61,9 +61,21 @@ Or open `godot/` in the Godot editor → **F5**.
 | **Enemy separation** | CD-45 | Optional polish |
 | **Walls / pathfinding** | CD-9 | Planned Godot-native |
 
-## Data sync
+## Data + sprite atlas sync
 
-After editing web JSON:
+After editing web JSON or sprite builders (`src/render/sprites.ts`):
+
+```powershell
+Copy-Item src/data/*.json godot/data/ -Force
+npm run export-atlas
+```
+
+`export-atlas` writes `godot/assets/sprites/atlas.png` + `atlas.json` from the
+same `packAtlasData()` builders the browser uses (enemies, buildings, units,
+hero dirs, terrain, FX). Godot `WorldDraw` loads them via `GameSpriteAtlas`
+and falls back to vector shapes if the files are missing.
+
+## Data sync (JSON only)
 
 ```powershell
 Copy-Item src/data/*.json godot/data/ -Force

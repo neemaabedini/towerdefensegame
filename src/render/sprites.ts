@@ -921,20 +921,16 @@ export class SpriteAtlas {
   }
 }
 
-/**
- * Bake every sprite into one atlas canvas.
- * Keys: enemies "<enemyId>:<frame>" (+ ":flash" variants),
- * garrison units "unit:<unitId>:<frame>" (+ ":flash" variants),
- * buildings "bld:<shape>:<frame>", terrain "rock:s|m|l:0" / "crystal:s|m:0",
- * combat FX "fx:<bullet|shell|missile|bolt|muzzle>:<frame>" (CD-6).
- */
-export function buildAtlas(): SpriteAtlas {
-  interface Baked {
-    key: string;
-    grid: Grid;
-    flash: boolean;
-  }
-  const baked: Baked[] = [];
+interface BakedGrid {
+  key: string;
+  grid: Grid;
+  flash: boolean;
+}
+
+/** Collect every atlas key + pixel grid (no DOM). Shared by buildAtlas and
+ *  tools/export-atlas.mjs for the Godot port. */
+function collectBakedGrids(): BakedGrid[] {
+  const baked: BakedGrid[] = [];
   for (const [id, build] of Object.entries(ENEMY_BUILDERS)) {
     for (const frame of [0, 1]) {
       const grid = build(frame);
@@ -957,18 +953,11 @@ export function buildAtlas(): SpriteAtlas {
   for (const [key, build] of Object.entries(TERRAIN_BUILDERS)) {
     baked.push({ key: `${key}:0`, grid: build(0), flash: false });
   }
-  // CD-6: projectile + muzzle-flash frames (bolt/muzzle animate 2 frames).
   for (const [id, build] of Object.entries(FX_BUILDERS)) {
     for (const frame of [0, 1]) {
       baked.push({ key: `fx:${id}:${frame}`, grid: build(frame), flash: false });
     }
   }
-
-  // Imported hero sprite sheet (CD-32 art pipeline) — frames come from
-  // tools/import-hero-sheet.mjs as ready-made pixel grids. Zero frames =
-  // no hero:* keys = the renderer's vector fallback keeps drawing, per the
-  // standing per-entity-swap rule. If only one frame was imported it doubles
-  // as both idle frames.
   HERO_SHEET_FRAMES.forEach((frame, i) => {
     const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
     baked.push({ key: `hero:${i}`, grid, flash: false });
@@ -980,15 +969,47 @@ export function buildAtlas(): SpriteAtlas {
     baked.push({ key: "hero:1", grid, flash: false });
     baked.push({ key: "hero:1:flash", grid, flash: true });
   }
-  // 8-direction standing set (hero:d<octant>) — takes precedence over the
-  // 2-frame idle keys in Renderer.drawHeroSprite when present.
   HERO_SHEET_DIRS.forEach((frame, d) => {
     const grid: Grid = { w: frame.w, h: frame.h, data: frame.data };
     baked.push({ key: `hero:d${d}`, grid, flash: false });
     baked.push({ key: `hero:d${d}:flash`, grid, flash: true });
   });
+  return baked;
+}
 
-  // Simple row packing
+function parseHexColor(c: string): [number, number, number] {
+  const hex = c.startsWith("#") ? c.slice(1) : c;
+  if (hex.length === 3) {
+    const r = parseInt(hex[0]! + hex[0]!, 16);
+    const g = parseInt(hex[1]! + hex[1]!, 16);
+    const b = parseInt(hex[2]! + hex[2]!, 16);
+    return [r, g, b];
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return [r, g, b];
+}
+
+/** One packed atlas sheet as raw RGBA + frame dictionary (DOM-free). */
+export interface PackedAtlasData {
+  width: number;
+  height: number;
+  /** Row-major RGBA, length width*height*4 */
+  pixels: Uint8ClampedArray;
+  frames: Record<
+    string,
+    { sx: number; sy: number; sw: number; sh: number; ax: number; ay: number }
+  >;
+  pixelScale: number;
+}
+
+/**
+ * Pack every sprite into one RGBA sheet. Used by the browser Renderer and
+ * by tools/export-atlas.mjs for Godot (no canvas required).
+ */
+export function packAtlasData(): PackedAtlasData {
+  const baked = collectBakedGrids();
   const pad = 2;
   const maxRowW = 512;
   let x = pad;
@@ -1010,13 +1031,9 @@ export function buildAtlas(): SpriteAtlas {
     atlasW = Math.max(atlasW, x);
   }
   const atlasH = y + rowH + pad;
+  const pixels = new Uint8ClampedArray(atlasW * atlasH * 4);
+  const frames: PackedAtlasData["frames"] = {};
 
-  const canvas = document.createElement("canvas");
-  canvas.width = atlasW;
-  canvas.height = atlasH;
-  const ctx = canvas.getContext("2d")!;
-
-  const frames = new Map<string, SpriteFrame>();
   baked.forEach((b, i) => {
     const at = places[i]!;
     const { grid } = b;
@@ -1024,24 +1041,54 @@ export function buildAtlas(): SpriteAtlas {
       for (let gx = 0; gx < grid.w; gx++) {
         const c = grid.data[gy * grid.w + gx];
         if (!c) continue;
-        ctx.fillStyle = b.flash ? "#f4f8ff" : c;
-        ctx.fillRect(
-          at.x + gx * PIXEL_SCALE,
-          at.y + gy * PIXEL_SCALE,
-          PIXEL_SCALE,
-          PIXEL_SCALE,
-        );
+        const [r, g, bl] = b.flash ? [244, 248, 255] : parseHexColor(c);
+        for (let py = 0; py < PIXEL_SCALE; py++) {
+          for (let px = 0; px < PIXEL_SCALE; px++) {
+            const sx = at.x + gx * PIXEL_SCALE + px;
+            const sy = at.y + gy * PIXEL_SCALE + py;
+            const o = (sy * atlasW + sx) * 4;
+            pixels[o] = r;
+            pixels[o + 1] = g;
+            pixels[o + 2] = bl;
+            pixels[o + 3] = 255;
+          }
+        }
       }
     }
-    frames.set(b.key, {
+    frames[b.key] = {
       sx: at.x,
       sy: at.y,
       sw: grid.w * PIXEL_SCALE,
       sh: grid.h * PIXEL_SCALE,
       ax: (grid.w * PIXEL_SCALE) / 2,
       ay: (grid.h * PIXEL_SCALE) / 2,
-    });
+    };
   });
 
+  return { width: atlasW, height: atlasH, pixels, frames, pixelScale: PIXEL_SCALE };
+}
+
+/**
+ * Bake every sprite into one atlas canvas (browser).
+ * Keys: enemies "<enemyId>:<frame>" (+ ":flash" variants),
+ * garrison units "unit:<unitId>:<frame>" (+ ":flash" variants),
+ * buildings "bld:<shape>:<frame>", terrain "rock:s|m|l:0" / "crystal:s|m:0",
+ * combat FX "fx:<bullet|shell|missile|bolt|muzzle>:<frame>" (CD-6).
+ */
+export function buildAtlas(): SpriteAtlas {
+  const packed = packAtlasData();
+  const canvas = document.createElement("canvas");
+  canvas.width = packed.width;
+  canvas.height = packed.height;
+  const ctx = canvas.getContext("2d")!;
+  // Copy into a fresh ImageData buffer (TS/DOM ImageDataArray typing).
+  const imageData = ctx.createImageData(packed.width, packed.height);
+  imageData.data.set(packed.pixels);
+  ctx.putImageData(imageData, 0, 0);
+
+  const frames = new Map<string, SpriteFrame>();
+  for (const [key, f] of Object.entries(packed.frames)) {
+    frames.set(key, f);
+  }
   return new SpriteAtlas(canvas, frames);
 }
