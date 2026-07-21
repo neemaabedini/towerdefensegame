@@ -22,13 +22,12 @@ config/icon="res://icon.svg"
 
 [display]
 
-# Logical base size (16:9). Stretch scales this to the real window/monitor.
+; Logical base size (16:9). Stretch scales this to the real window/monitor.
+; Window mode is applied at runtime from Settings (fullscreen / maximized).
 window/size/viewport_width=1920
 window/size/viewport_height=1080
-window/size/mode=2
-# 2 = maximized on launch (use Settings → Fullscreen for exclusive FS).
 window/stretch/mode="canvas_items"
-# expand = fill the whole window, cropping only if aspect differs (5K 16:9 fills cleanly).
+; expand = fill the whole window (5K 16:9 fills cleanly).
 window/stretch/aspect="expand"
 window/dpi/allow_hidpi=true
 window/vsync/vsync_mode=1
